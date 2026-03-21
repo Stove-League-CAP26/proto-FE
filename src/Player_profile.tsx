@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { fetchPlayerBasic, searchPlayersByName } from "./api/playerApi";
 
 // ═══════════════════════════════════════════════════════════
 //  목업 데이터
@@ -96,32 +97,6 @@ const MOCK_BEST = {
   },
 };
 
-const MOCK_PLAYER = {
-  id: 65207,
-  name: "양의지",
-  number: 25,
-  team: "두산",
-  teamColor: "#131230",
-  teamAccent: "#C8102E",
-  position: "포수",
-  bats: "우투우타",
-  height: 180,
-  weight: 95,
-  blood: "A형",
-  nation: "대한민국",
-  born: "1987.06.05 (37세)",
-  draft: "2006년 1차 2순위 (두산)",
-  salary: "15억",
-  awards: ["골든글러브 8회", "MVP 2회", "올스타 12회"],
-  playstyle: "공격형",
-  radarData: { 외모: 82, 성격: 75, 잠재력: 90, 자산: 85, 직업: 88, 집중: 92 },
-  career: [
-    { year: "2006~2017", team: "두산 베어스", note: "1군 통산" },
-    { year: "2018~2019", team: "NC 다이노스", note: "FA 이적" },
-    { year: "2020~현재", team: "두산 베어스", note: "복귀" },
-  ],
-};
-
 const MOCK_STATS_HITTER = {
   season: [
     {
@@ -190,7 +165,7 @@ const MOCK_STATS_HITTER = {
 const MOCK_HOT_COLD = {
   outer: [
     { val: "0.448", step: 5 },
-    { val: "0.250", step: 3 },
+    { val: "0.195", step: 2 },
     { val: "0.215", step: 3 },
     { val: "0.273", step: 3 },
   ],
@@ -240,7 +215,27 @@ const stepColors = {
 };
 
 function PlayerAvatar({ id, name, size = 48 }) {
+  // 시도할 연도 목록 — 최신순으로 나열
+  const YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
+  const [yearIdx, setYearIdx] = useState(0);
   const [err, setErr] = useState(false);
+
+  // id가 바뀌면 처음부터 다시 시도
+  useEffect(() => {
+    setYearIdx(0);
+    setErr(false);
+  }, [id]);
+
+  const handleError = () => {
+    if (yearIdx < YEARS.length - 1) {
+      // 다음 연도로 시도
+      setYearIdx((prev) => prev + 1);
+    } else {
+      // 모든 연도 실패 → 기본 이미지 표시
+      setErr(true);
+    }
+  };
+
   return (
     <div
       className="rounded-full bg-gray-100 overflow-hidden flex-shrink-0 flex items-center justify-center"
@@ -248,10 +243,10 @@ function PlayerAvatar({ id, name, size = 48 }) {
     >
       {!err ? (
         <img
-          src={`https://6ptotvmi5753.edge.naverncp.com/KBO_IMAGE/person/kbo/2025/${id}.png`}
+          src={`https://6ptotvmi5753.edge.naverncp.com/KBO_IMAGE/person/kbo/${YEARS[yearIdx]}/${id}.png`}
           alt={name}
           className="w-full h-full object-cover"
-          onError={() => setErr(true)}
+          onError={handleError}
         />
       ) : (
         <span style={{ fontSize: size * 0.45 }}>⚾</span>
@@ -401,7 +396,6 @@ function WARHeroCard({ player, typeLabel }) {
         background: `linear-gradient(140deg, ${tc.bg} 0%, ${tc.accent} 100%)`,
       }}
     >
-      {/* 배경 장식 원 */}
       <div className="absolute -right-12 -top-12 w-56 h-56 rounded-full border-8 border-white opacity-10" />
       <div className="absolute -left-6 -bottom-6 w-36 h-36 rounded-full border-4 border-white opacity-10" />
 
@@ -501,7 +495,6 @@ function WARRankList({ players }) {
 function CategoryCard({ label, icon, players, accentColor }) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
-      {/* 헤더 */}
       <div
         className="px-4 py-3 flex items-center gap-2 border-b-2"
         style={{ borderColor: accentColor }}
@@ -510,7 +503,6 @@ function CategoryCard({ label, icon, players, accentColor }) {
         <span className="text-sm font-black text-gray-800">{label}</span>
       </div>
 
-      {/* 1위 강조 블록 */}
       <div
         className="px-4 py-4 flex items-center gap-3 border-b border-gray-100"
         style={{ background: `${accentColor}10` }}
@@ -533,7 +525,6 @@ function CategoryCard({ label, icon, players, accentColor }) {
         </div>
       </div>
 
-      {/* 2~4위 */}
       <div className="flex-1">
         {players.slice(1).map((p) => {
           const medals = { 2: "🥈", 3: "🥉" };
@@ -596,7 +587,6 @@ function BestPlayerPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-10">
-      {/* 타자 / 투수 토글 */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-gray-900">BEST 플레이어</h1>
@@ -624,7 +614,6 @@ function BestPlayerPage() {
         </div>
       </div>
 
-      {/* ── WAR 섹션 ── */}
       <section>
         <div className="flex items-center gap-2 mb-5">
           <div className="w-1 h-7 rounded-full bg-amber-400" />
@@ -637,18 +626,15 @@ function BestPlayerPage() {
           className="grid grid-cols-1 lg:grid-cols-5 gap-4"
           style={{ minHeight: 240 }}
         >
-          {/* 1위 히어로 카드 - 넓게 */}
           <div className="lg:col-span-3">
             <WARHeroCard player={data.WAR[0]} typeLabel={typeLabel} />
           </div>
-          {/* 전체 순위 리스트 */}
           <div className="lg:col-span-2">
             <WARRankList players={data.WAR} />
           </div>
         </div>
       </section>
 
-      {/* 구분선 */}
       <div className="flex items-center gap-4">
         <div className="flex-1 h-px bg-gray-200" />
         <span className="text-xs text-gray-400 font-bold uppercase tracking-widest px-2">
@@ -657,7 +643,6 @@ function BestPlayerPage() {
         <div className="flex-1 h-px bg-gray-200" />
       </div>
 
-      {/* ── 부문별 카드 그리드 ── */}
       <section>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {categories.map((cat) => (
@@ -701,14 +686,20 @@ function ProfileTab({ player }) {
               {player.team} · {player.position} · {player.bats}
             </p>
             <div className="flex flex-wrap justify-center gap-1.5 mt-3">
-              {player.awards.map((a) => (
-                <span
-                  key={a}
-                  className="px-2 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white"
-                >
-                  🏆 {a}
+              {player.awards.length > 0 ? (
+                player.awards.map((a) => (
+                  <span
+                    key={a}
+                    className="px-2 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white"
+                  >
+                    🏆 {a}
+                  </span>
+                ))
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white/60">
+                  수상 정보 준비 중
                 </span>
-              ))}
+              )}
             </div>
           </div>
           <div className="bg-white/10 mx-4 mb-4 rounded-xl px-4 py-2 text-center">
@@ -725,7 +716,7 @@ function ProfileTab({ player }) {
           </h3>
           {[
             ["생년월일", player.born],
-            ["신장/체중", `${player.height}cm / ${player.weight}kg`],
+            ["신장/체중", player.heightWeight],
             ["혈액형", player.blood],
             ["출신국", player.nation],
             ["입단", player.draft],
@@ -745,22 +736,28 @@ function ProfileTab({ player }) {
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
             커리어 히스토리
           </h3>
-          <div className="relative">
-            <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-100" />
-            {player.career.map((c, i) => (
-              <div key={i} className="flex gap-4 mb-3">
-                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center z-10 mt-0.5 flex-shrink-0">
-                  <div className="w-2 h-2 rounded-full bg-white" />
+          {player.career.length > 0 ? (
+            <div className="relative">
+              <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gray-100" />
+              {player.career.map((c, i) => (
+                <div key={i} className="flex gap-4 mb-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center z-10 mt-0.5 flex-shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{c.team}</p>
+                    <p className="text-xs text-gray-400">
+                      {c.year} {c.note && `· ${c.note}`}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-800">{c.team}</p>
-                  <p className="text-xs text-gray-400">
-                    {c.year} · {c.note}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400 text-center py-4">
+              커리어 정보 준비 중
+            </p>
+          )}
         </div>
       </div>
 
@@ -1013,7 +1010,7 @@ function StatsTab({ stats }) {
           >
             <p className="text-white/70 text-xs font-medium">{label}</p>
             <p className="text-3xl font-black mt-0.5">{val}</p>
-            <p className="text-white/60 text-xs mt-1">2025 시즌</p>
+            <p className="text-white/60 text-xs mt-1">최근 시즌</p>
           </div>
         ))}
       </div>
@@ -1046,7 +1043,7 @@ function StatsTab({ stats }) {
                       key={c}
                       className={`px-3 py-3 text-center whitespace-nowrap ${highlight.includes(c) ? "font-bold text-gray-800" : "text-gray-500"}`}
                     >
-                      {row[c]}
+                      {row[c] ?? "-"}
                     </td>
                   ))}
                 </tr>
@@ -1093,11 +1090,438 @@ const PLAYER_TABS = [
   { id: "stats", label: "선수 스탯", icon: "📊" },
 ];
 
+// ═══════════════════════════════════════════════════════════
+//  PlayerProfilePage — 이름 검색 버전
+// ═══════════════════════════════════════════════════════════
+
 function PlayerProfilePage() {
   const [activeTab, setActiveTab] = useState("profile");
-  const player = MOCK_PLAYER;
+
+  // ── 검색 상태 ─────────────────────────────────────────────
+  const [searchInput, setSearchInput] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  // ── 선수 데이터 상태 ──────────────────────────────────────
+  const [playerBasic, setPlayerBasic] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ── 이름 검색 API 호출 ────────────────────────────────────
+  const handleSearch = async () => {
+    const name = searchInput.trim();
+    if (!name) return;
+
+    setSearchLoading(true);
+    setShowResults(false);
+    setError(null);
+
+    try {
+      const results = await searchPlayersByName(name);
+      if (results.length === 0) {
+        setError(`"${name}" 에 해당하는 선수가 없습니다.`);
+        setSearchResults([]);
+      } else if (results.length === 1) {
+        // 결과가 1명이면 바로 프로필 표시
+        setPlayerBasic(results[0]);
+        setSearchResults([]);
+      } else {
+        // 결과가 여러 명이면 드롭다운 목록으로 표시
+        setSearchResults(results);
+        setShowResults(true);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // ── 검색 결과 목록에서 선수 선택 ─────────────────────────
+  const handleSelectPlayer = (p: any) => {
+    setPlayerBasic(p);
+    setShowResults(false);
+    setSearchResults([]);
+    setSearchInput(p.playerName);
+    setError(null);
+  };
+
+  // ── 검색창 컴포넌트 (compact: 상단바용 / 기본: 초기화면용) ──
+  const SearchBar = ({ compact = false }: { compact?: boolean }) => (
+    <div className={compact ? "relative" : "relative w-full max-w-sm"}>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => {
+            setSearchInput(e.target.value);
+            setShowResults(false);
+          }}
+          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          placeholder="선수 이름 입력 (예: 양의지)"
+          className={`border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 ${
+            compact ? "w-48" : "flex-1"
+          }`}
+        />
+        <button
+          onClick={handleSearch}
+          disabled={searchLoading}
+          className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors flex items-center gap-1"
+        >
+          {searchLoading ? (
+            <span className="animate-spin text-base">⏳</span>
+          ) : (
+            <span>🔍</span>
+          )}
+          {!compact && <span>검색</span>}
+        </button>
+      </div>
+
+      {/* 검색 결과 드롭다운 */}
+      {showResults && searchResults.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden min-w-[280px]">
+          <p className="px-3 py-2 text-xs text-gray-400 border-b border-gray-100">
+            {searchResults.length}명의 선수가 검색됐어요. 선택해주세요.
+          </p>
+          <div className="max-h-60 overflow-y-auto">
+            {searchResults.map((p: any) => {
+              const tc = TEAM_COLORS[p.playerEnter] ?? {
+                bg: "#64748b",
+                accent: "#94a3b8",
+              };
+              return (
+                <button
+                  key={p.pid}
+                  onClick={() => handleSelectPlayer(p)}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div
+                    className="w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0"
+                    style={{ borderColor: tc.bg }}
+                  >
+                    <PlayerAvatar id={p.pid} name={p.playerName} size={40} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-800">
+                      {p.playerName}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {p.playerEnter} · {p.playerMPosition} · #{p.playerNumber}
+                    </p>
+                  </div>
+                  <span
+                    className="text-xs font-bold px-2 py-0.5 rounded-full text-white flex-shrink-0"
+                    style={{ backgroundColor: tc.bg }}
+                  >
+                    {p.playerEnter}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 에러 메시지 (드롭다운 아래) */}
+      {error && !playerBasic && (
+        <p className="absolute top-full left-0 mt-1 text-red-500 text-xs font-medium bg-white px-2 py-1 rounded-lg border border-red-100 shadow-sm">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+
+  // ── 검색 전 초기 화면 ─────────────────────────────────────
+  if (!playerBasic) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-16">
+        <div className="flex flex-col items-center gap-6">
+          <p className="text-5xl">⚾</p>
+          <h2 className="text-2xl font-black text-gray-800">선수 검색</h2>
+          <p className="text-sm text-gray-400">
+            선수 이름을 입력하면 프로필을 확인할 수 있어요
+          </p>
+
+          <div className="relative w-full max-w-sm">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setShowResults(false);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="선수 이름 입력 (예: 양의지)"
+                className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+              <button
+                onClick={handleSearch}
+                disabled={searchLoading}
+                className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors"
+              >
+                {searchLoading ? "⏳" : "🔍"} 검색
+              </button>
+            </div>
+
+            {/* 드롭다운 */}
+            {showResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden min-w-[280px]">
+                <p className="px-3 py-2 text-xs text-gray-400 border-b border-gray-100">
+                  {searchResults.length}명 검색됨. 선택해주세요.
+                </p>
+                <div className="max-h-60 overflow-y-auto">
+                  {searchResults.map((p: any) => {
+                    const tc = TEAM_COLORS[p.playerEnter] ?? {
+                      bg: "#64748b",
+                      accent: "#94a3b8",
+                    };
+                    return (
+                      <button
+                        key={p.pid}
+                        onClick={() => handleSelectPlayer(p)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        <div
+                          className="w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0"
+                          style={{ borderColor: tc.bg }}
+                        >
+                          <PlayerAvatar
+                            id={p.pid}
+                            name={p.playerName}
+                            size={40}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-800">
+                            {p.playerName}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {p.playerEnter} · {p.playerMPosition} · #
+                            {p.playerNumber}
+                          </p>
+                        </div>
+                        <span
+                          className="text-xs font-bold px-2 py-0.5 rounded-full text-white flex-shrink-0"
+                          style={{ backgroundColor: tc.bg }}
+                        >
+                          {p.playerEnter}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {error && !playerBasic && (
+              <p className="absolute top-full left-0 mt-1 text-red-500 text-xs font-medium bg-white px-2 py-1 rounded-lg border border-red-100 shadow-sm">
+                {error}
+              </p>
+            )}
+          </div>
+
+          {/* 자주 찾는 선수 바로가기 */}
+          <div className="mt-4">
+            <p className="text-xs text-gray-400 mb-3 text-center">
+              자주 찾는 선수
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {["양의지", "김도영", "안우진", "원태인", "양현종"].map(
+                (name) => (
+                  <button
+                    key={name}
+                    onClick={async () => {
+                      setSearchInput(name);
+                      setSearchLoading(true);
+                      setError(null);
+                      try {
+                        const results = await searchPlayersByName(name);
+                        if (results.length === 1) {
+                          setPlayerBasic(results[0]);
+                        } else if (results.length > 1) {
+                          setSearchResults(results);
+                          setShowResults(true);
+                        } else {
+                          setError(`"${name}" 선수를 찾을 수 없습니다.`);
+                        }
+                      } catch (err: any) {
+                        setError(err.message);
+                      } finally {
+                        setSearchLoading(false);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-full border border-gray-200 text-xs font-semibold text-gray-600 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                  >
+                    {name}
+                  </button>
+                ),
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 로딩 화면 ─────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="text-center text-gray-400">
+          <p className="text-4xl mb-3 animate-bounce">⚾</p>
+          <p className="font-bold text-sm">선수 정보를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── API 데이터 → 프론트 포맷 변환 ────────────────────────
+  const tc = TEAM_COLORS[playerBasic.playerEnter] ?? {
+    bg: "#1e293b",
+    accent: "#64748b",
+  };
+
+  const hwRaw = playerBasic.heightWeight ?? "";
+  const hwParts = hwRaw.split("/");
+  const heightNum = hwParts[0]?.replace(/[^0-9]/g, "") ?? "-";
+  const weightNum = hwParts[1]?.replace(/[^0-9]/g, "") ?? "-";
+  const heightWeightStr =
+    heightNum !== "-" && weightNum !== "-"
+      ? `${heightNum}cm / ${weightNum}kg`
+      : hwRaw || "-";
+
+  const salaryStr = playerBasic.playerSalary
+    ? `${(playerBasic.playerSalary / 100000000).toFixed(0)}억`
+    : "-";
+
+  const careerList = playerBasic.playerHistory
+    ? playerBasic.playerHistory
+        .split("\n")
+        .filter((line: string) => line.trim())
+        .map((line: string) => ({ year: "", team: line.trim(), note: "" }))
+    : [];
+
+  const player = {
+    id: playerBasic.pid,
+    name: playerBasic.playerName ?? "-",
+    number: playerBasic.playerNumber ?? 0,
+    team: playerBasic.playerEnter ?? "-",
+    teamColor: tc.bg,
+    teamAccent: tc.accent,
+    position: playerBasic.playerMPosition ?? "-",
+    born: playerBasic.playerBirthday ? String(playerBasic.playerBirthday) : "-",
+    draft: playerBasic.playerDraft ?? "-",
+    salary: salaryStr,
+    heightWeight: heightWeightStr,
+    career: careerList,
+    bats: "-",
+    blood: "-",
+    nation: "대한민국",
+    awards: [] as string[],
+    playstyle: "-",
+    radarData: { 공격: 0, 수비: 0, 타격: 0, 주루: 0, 잠재력: 0, 집중: 0 },
+  };
+
+  const statsData = MOCK_STATS_HITTER;
+  const latestStat = statsData.season[0];
+
+  // ── 렌더링 ────────────────────────────────────────────────
   return (
     <div>
+      {/* 상단 검색창 */}
+      <div className="bg-white border-b border-gray-100 px-4 py-3 relative z-40">
+        <div className="max-w-6xl mx-auto flex items-center gap-3">
+          <div className="relative">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setShowResults(false);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="선수 이름 입력"
+                className="w-48 border border-gray-200 rounded-xl px-4 py-2 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              />
+              <button
+                onClick={handleSearch}
+                disabled={searchLoading}
+                className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors"
+              >
+                {searchLoading ? "⏳" : "🔍"}
+              </button>
+            </div>
+
+            {/* 드롭다운 — 위와 동일 */}
+            {showResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden min-w-[280px]">
+                <p className="px-3 py-2 text-xs text-gray-400 border-b border-gray-100">
+                  {searchResults.length}명 검색됨. 선택해주세요.
+                </p>
+                <div className="max-h-60 overflow-y-auto">
+                  {searchResults.map((p: any) => {
+                    const tc = TEAM_COLORS[p.playerEnter] ?? {
+                      bg: "#64748b",
+                      accent: "#94a3b8",
+                    };
+                    return (
+                      <button
+                        key={p.pid}
+                        onClick={() => handleSelectPlayer(p)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors text-left"
+                      >
+                        <div
+                          className="w-10 h-10 rounded-full overflow-hidden border-2 flex-shrink-0"
+                          style={{ borderColor: tc.bg }}
+                        >
+                          <PlayerAvatar
+                            id={p.pid}
+                            name={p.playerName}
+                            size={40}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-gray-800">
+                            {p.playerName}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {p.playerEnter} · {p.playerMPosition} · #
+                            {p.playerNumber}
+                          </p>
+                        </div>
+                        <span
+                          className="text-xs font-bold px-2 py-0.5 rounded-full text-white flex-shrink-0"
+                          style={{ backgroundColor: tc.bg }}
+                        >
+                          {p.playerEnter}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>{" "}
+          <span className="text-xs text-gray-400 hidden sm:block">
+            현재: <span className="font-bold text-gray-600">{player.name}</span>
+          </span>
+          <button
+            onClick={() => {
+              setPlayerBasic(null);
+              setSearchInput("");
+              setError(null);
+              setShowResults(false);
+            }}
+            className="ml-auto text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
+          >
+            목록으로
+          </button>
+        </div>
+      </div>
+
       {/* 선수 배너 */}
       <div
         className="relative overflow-hidden"
@@ -1119,9 +1543,6 @@ function PlayerProfilePage() {
                 <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                   {player.position}
                 </span>
-                <span className="bg-yellow-400/80 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full">
-                  🏆 골든글러브
-                </span>
               </div>
               <h1 className="text-3xl font-black text-white tracking-tight">
                 {player.name}
@@ -1132,9 +1553,9 @@ function PlayerProfilePage() {
             </div>
             <div className="ml-auto hidden sm:flex gap-6">
               {[
-                ["타율", "0.337"],
-                ["홈런", "20"],
-                ["OPS", "0.939"],
+                ["타율", latestStat?.AVG ?? "-"],
+                ["홈런", String(latestStat?.HR ?? "-")],
+                ["OPS", latestStat?.OPS ?? "-"],
               ].map(([k, v]) => (
                 <div key={k} className="text-center">
                   <p className="text-white/50 text-xs">{k}</p>
@@ -1147,7 +1568,7 @@ function PlayerProfilePage() {
       </div>
 
       {/* 탭 */}
-      <div className="bg-white border-b border-gray-100 sticky top-14 z-40">
+      <div className="bg-white border-b border-gray-100 sticky top-14 z-30">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex">
             {PLAYER_TABS.map((tab) => (
@@ -1171,7 +1592,7 @@ function PlayerProfilePage() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         {activeTab === "profile" && <ProfileTab player={player} />}
         {activeTab === "hotcold" && <HotColdTab data={MOCK_HOT_COLD} />}
-        {activeTab === "stats" && <StatsTab stats={MOCK_STATS_HITTER} />}
+        {activeTab === "stats" && <StatsTab stats={statsData} />}
       </div>
     </div>
   );
@@ -1327,7 +1748,6 @@ const MOCK_TEAM_DATA = {
       ],
     },
     depthMap: {
-      // position: [선수명, WAR]
       좌익수: [
         ["이우성", "2.1"],
         ["김성윤", "1.4"],
@@ -1397,7 +1817,6 @@ const MOCK_TEAM_DATA = {
   },
 };
 
-// 다른 팀은 KIA 데이터 복사 후 이름만 변경 (프로토타입)
 TEAMS_LIST.forEach((t) => {
   if (!MOCK_TEAM_DATA[t.id]) {
     MOCK_TEAM_DATA[t.id] = {
@@ -1414,7 +1833,6 @@ TEAMS_LIST.forEach((t) => {
   }
 });
 
-// ── 육각형 레이더 (팀용) ──────────────────────────────────────
 function HexRadar({ data }) {
   const keys = Object.keys(data),
     vals = Object.values(data),
@@ -1431,7 +1849,6 @@ function HexRadar({ data }) {
   const dp = vals.map((v, i) => ptOf(i, v));
   const poly =
     dp.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ") + " Z";
-  // 황금색 육각형 (이미지 참고)
   const hexLevels = [20, 40, 60, 80, 100];
   return (
     <svg viewBox="0 0 240 240" className="w-full h-full">
@@ -1441,9 +1858,7 @@ function HexRadar({ data }) {
           <stop offset="100%" stopColor="#ef4444" stopOpacity="0.7" />
         </linearGradient>
       </defs>
-      {/* 배경 다크 */}
       <rect width="240" height="240" fill="#1a1a2e" rx="12" />
-      {/* 그리드 */}
       {hexLevels.map((lv) => (
         <polygon
           key={lv}
@@ -1458,7 +1873,6 @@ function HexRadar({ data }) {
           strokeWidth="1"
         />
       ))}
-      {/* 축 */}
       {keys.map((_, i) => {
         const p = ptOf(i, 100);
         return (
@@ -1473,7 +1887,6 @@ function HexRadar({ data }) {
           />
         );
       })}
-      {/* 데이터 */}
       <path
         d={poly}
         fill="url(#hexGrad)"
@@ -1484,7 +1897,6 @@ function HexRadar({ data }) {
       {dp.map((p, i) => (
         <circle key={i} cx={p.x} cy={p.y} r="4" fill="#f59e0b" />
       ))}
-      {/* 라벨 */}
       {keys.map((k, i) => {
         const a = angleOf(i),
           lx = cx + (r + 22) * Math.cos(a),
@@ -1519,9 +1931,7 @@ function HexRadar({ data }) {
   );
 }
 
-// ── 야구장 뎁스 차트 ─────────────────────────────────────────
 function DepthFieldChart({ depthMap, teamColor }) {
-  // 포지션별 위치 (SVG 200x180 기준)
   const positions = {
     좌익수: { x: 42, y: 60 },
     중견수: { x: 100, y: 32 },
@@ -1544,7 +1954,6 @@ function DepthFieldChart({ depthMap, teamColor }) {
       }}
     >
       <div className="absolute inset-0">
-        {/* 야구장 SVG 배경 */}
         <svg viewBox="0 0 200 180" className="w-full h-full">
           <path d="M100,175 L5,85 Q100,5 195,85 Z" fill="#2d6a2d" />
           <path d="M100,155 L50,105 L100,58 L150,105 Z" fill="#c8a26a" />
@@ -1588,7 +1997,6 @@ function DepthFieldChart({ depthMap, teamColor }) {
             opacity="0.4"
           />
         </svg>
-        {/* 포지션 카드 */}
         {Object.entries(positions).map(([pos, coord]) => {
           const players = depthMap[pos] || [];
           return (
@@ -1598,7 +2006,7 @@ function DepthFieldChart({ depthMap, teamColor }) {
               style={{
                 left: `${(coord.x / 200) * 100}%`,
                 top: `${(coord.y / 180) * 100}%`,
-                transform: "translate(-50%, -50%)",
+                transform: "translate(-50%,-50%)",
               }}
             >
               <div
@@ -1630,12 +2038,9 @@ function DepthFieldChart({ depthMap, teamColor }) {
   );
 }
 
-// ── 팀 내부 탭들 ─────────────────────────────────────────────
-
 function TeamIntroTab({ team, data }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* 로고 + 기본정보 */}
       <div className="lg:col-span-1 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center gap-4">
           <div
@@ -1670,8 +2075,6 @@ function TeamIntroTab({ team, data }) {
             ))}
           </div>
         </div>
-
-        {/* 2025 시즌 성적 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
             2025 시즌
@@ -1694,8 +2097,6 @@ function TeamIntroTab({ team, data }) {
             </span>
           </div>
         </div>
-
-        {/* 구단 히스토리 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
             구단 히스토리
@@ -1717,8 +2118,6 @@ function TeamIntroTab({ team, data }) {
           </div>
         </div>
       </div>
-
-      {/* 육각형 레이더 */}
       <div className="lg:col-span-2">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-full">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
@@ -1760,7 +2159,6 @@ function TeamDepthTab({ team, data }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* 주전 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div
             className="px-5 py-3 border-b border-gray-100 flex items-center gap-2"
@@ -1773,7 +2171,6 @@ function TeamDepthTab({ team, data }) {
             <DepthFieldChart depthMap={data.depthMap} teamColor={team.bg} />
           </div>
         </div>
-        {/* 엔트리 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div
             className="px-5 py-3 border-b border-gray-100 flex items-center gap-2"
@@ -1790,8 +2187,6 @@ function TeamDepthTab({ team, data }) {
           </div>
         </div>
       </div>
-
-      {/* 포지션별 명단 테이블 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-50">
           <h3 className="font-bold text-gray-800">포지션별 선수 명단</h3>
@@ -1905,7 +2300,6 @@ function TeamCheersTab({ team, data }) {
   const [playing, setPlaying] = useState(null);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* 뮤직 플레이어 UI */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-5">
           응원가 플레이어
@@ -1925,7 +2319,6 @@ function TeamCheersTab({ team, data }) {
               : "재생할 응원가 선택"}
           </p>
           <p className="text-white/60 text-sm mt-1">{team.name}</p>
-          {/* 가상 progress bar */}
           <div className="mt-4 h-1.5 bg-white/20 rounded-full overflow-hidden">
             <div
               className="h-full bg-white/70 rounded-full"
@@ -1947,8 +2340,6 @@ function TeamCheersTab({ team, data }) {
           </div>
         </div>
       </div>
-
-      {/* 응원가 목록 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-50">
           <h3 className="font-bold text-gray-800">응원가 목록</h3>
@@ -1990,7 +2381,6 @@ function TeamCheersTab({ team, data }) {
 function TeamGoodsTab({ team, data }) {
   return (
     <div className="space-y-6">
-      {/* 마스코트 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center gap-2 mb-5">
           <div
@@ -2013,8 +2403,6 @@ function TeamGoodsTab({ team, data }) {
           ))}
         </div>
       </div>
-
-      {/* 로고 변천사 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center gap-2 mb-5">
           <div
@@ -2043,8 +2431,6 @@ function TeamGoodsTab({ team, data }) {
           ))}
         </div>
       </div>
-
-      {/* 유니폼 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center gap-2 mb-5">
           <div
@@ -2078,8 +2464,6 @@ function TeamGoodsTab({ team, data }) {
           })}
         </div>
       </div>
-
-      {/* 굿즈 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center gap-2 mb-5">
           <div
@@ -2113,7 +2497,6 @@ function TeamGoodsTab({ team, data }) {
   );
 }
 
-// ── 팀 상세 페이지 ────────────────────────────────────────────
 const TEAM_INNER_TABS = [
   { id: "intro", label: "팀 소개", icon: "ℹ️" },
   { id: "depth", label: "뎁스", icon: "🏟️" },
@@ -2127,7 +2510,6 @@ function TeamDetailPage({ team, onBack, onSelectPlayer }) {
   const data = MOCK_TEAM_DATA[team.id] || MOCK_TEAM_DATA["KIA"];
   return (
     <div>
-      {/* 팀 배너 */}
       <div
         className="relative overflow-hidden"
         style={{
@@ -2167,8 +2549,6 @@ function TeamDetailPage({ team, onBack, onSelectPlayer }) {
           </div>
         </div>
       </div>
-
-      {/* 시즌 선택 탭 (24|25) */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 flex items-center justify-between">
           <div className="flex">
@@ -2176,25 +2556,18 @@ function TeamDetailPage({ team, onBack, onSelectPlayer }) {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-semibold border-b-2 transition-all ${
-                  activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-400 hover:text-gray-700"
-                }`}
+                className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-semibold border-b-2 transition-all ${activeTab === tab.id ? "border-blue-500 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-700"}`}
               >
                 <span>{tab.icon}</span>
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
           </div>
-          {/* 시즌 토글 */}
           <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
             {["24", "25"].map((s, i) => (
               <button
                 key={s}
-                className={`px-3 py-1 rounded-lg text-sm font-black transition-all ${
-                  i === 1 ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"
-                }`}
+                className={`px-3 py-1 rounded-lg text-sm font-black transition-all ${i === 1 ? "bg-white text-gray-900 shadow-sm" : "text-gray-400"}`}
               >
                 {s}
               </button>
@@ -2202,8 +2575,6 @@ function TeamDetailPage({ team, onBack, onSelectPlayer }) {
           </div>
         </div>
       </div>
-
-      {/* 콘텐츠 */}
       <div className="max-w-6xl mx-auto px-4 py-6">
         {activeTab === "intro" && <TeamIntroTab team={team} data={data} />}
         {activeTab === "depth" && <TeamDepthTab team={team} data={data} />}
@@ -2221,10 +2592,8 @@ function TeamDetailPage({ team, onBack, onSelectPlayer }) {
   );
 }
 
-// ── 팀 선택 페이지 ────────────────────────────────────────────
 function TeamPage({ onSelectPlayer }) {
   const [selectedTeam, setSelectedTeam] = useState(null);
-
   if (selectedTeam) {
     return (
       <TeamDetailPage
@@ -2234,22 +2603,17 @@ function TeamPage({ onSelectPlayer }) {
       />
     );
   }
-
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-2xl font-black text-gray-900">팀 페이지</h1>
         <p className="text-sm text-gray-400 mt-1">응원하는 팀을 선택하세요</p>
       </div>
-
-      {/* 한국 지도 힌트 텍스트 */}
       <div className="mb-6 flex items-center gap-3">
         <div className="flex-1 h-px bg-gray-200" />
         <span className="text-xs text-gray-400 font-medium">KBO 10개 구단</span>
         <div className="flex-1 h-px bg-gray-200" />
       </div>
-
-      {/* 팀 카드 그리드 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {TEAMS_LIST.map((team) => {
           const data = MOCK_TEAM_DATA[team.id] || MOCK_TEAM_DATA["KIA"];
@@ -2259,7 +2623,6 @@ function TeamPage({ onSelectPlayer }) {
               onClick={() => setSelectedTeam(team)}
               className="group relative rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 cursor-pointer border border-gray-100"
             >
-              {/* 팀 컬러 배경 */}
               <div
                 className="h-24 flex items-center justify-center text-5xl relative overflow-hidden"
                 style={{
@@ -2273,7 +2636,6 @@ function TeamPage({ onSelectPlayer }) {
                   {team.emoji}
                 </span>
               </div>
-              {/* 팀 정보 */}
               <div className="bg-white p-3 text-center">
                 <p className="font-black text-gray-900 text-sm leading-tight">
                   {team.name}
@@ -2292,7 +2654,6 @@ function TeamPage({ onSelectPlayer }) {
                   </span>
                 </div>
               </div>
-              {/* 호버 오버레이 */}
               <div
                 className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                 style={{ background: `${team.bg}cc` }}
@@ -2303,8 +2664,6 @@ function TeamPage({ onSelectPlayer }) {
           );
         })}
       </div>
-
-      {/* 연고지 안내 */}
       <div className="mt-8 grid grid-cols-2 sm:grid-cols-5 gap-2">
         {TEAMS_LIST.map((team) => (
           <div
@@ -2597,12 +2956,7 @@ const COMPARE_PLAYERS = [
   },
 ];
 
-// AI 분석 텍스트 생성 (목업)
 function generateAIAnalysis(pA, pB) {
-  const typeMap = { hitter: "타자", pitcher: "투수" };
-  const aType = typeMap[pA.type],
-    bType = typeMap[pB.type];
-
   if (pA.type === "hitter" && pB.type === "hitter") {
     const aWAR = parseFloat(pA.stats.WAR),
       bWAR = parseFloat(pB.stats.WAR);
@@ -2632,7 +2986,6 @@ function generateAIAnalysis(pA, pB) {
   }
 }
 
-// ── 선수 선택 모달 ────────────────────────────────────────────
 function PlayerSelectModal({ onSelect, onClose, excludeId }) {
   const [search, setSearch] = useState("");
   const filtered = COMPARE_PLAYERS.filter(
@@ -2652,7 +3005,6 @@ function PlayerSelectModal({ onSelect, onClose, excludeId }) {
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 헤더 */}
         <div
           className="flex items-center justify-between px-5 py-4 border-b border-gray-100"
           style={{ background: "#1a1a2e" }}
@@ -2676,7 +3028,6 @@ function PlayerSelectModal({ onSelect, onClose, excludeId }) {
             </button>
           </div>
         </div>
-        {/* 선수 그리드 */}
         <div className="p-4 grid grid-cols-4 gap-3 max-h-72 overflow-y-auto">
           {filtered.map((p) => (
             <button
@@ -2711,7 +3062,6 @@ function PlayerSelectModal({ onSelect, onClose, excludeId }) {
   );
 }
 
-// ── 스탯 비교 테이블 ─────────────────────────────────────────
 function StatCompareTable({ pA, pB }) {
   const hitterCols = [
     "G",
@@ -2767,11 +3117,10 @@ function StatCompareTable({ pA, pB }) {
   ];
   const lowerIsBetter = ["SO", "ERA", "WHIP", "BB", "H", "HR", "FIP", "L"];
 
-  // 양쪽 다 같은 타입이면 해당 컬럼, 아니면 공통 컬럼
   let cols;
   if (pA.type === "hitter" && pB.type === "hitter") cols = hitterCols;
   else if (pA.type === "pitcher" && pB.type === "pitcher") cols = pitcherCols;
-  else cols = ["WAR"]; // 투타 비교는 WAR만
+  else cols = ["WAR"];
 
   const aWins = { count: 0 },
     bWins = { count: 0 };
@@ -2797,14 +3146,12 @@ function StatCompareTable({ pA, pB }) {
     return { col, aVal, bVal, aWin, bWin };
   });
 
-  // 벤치마크 점수
   const total = rows.filter((r) => r.aWin || r.bWin).length;
   const aScore = total > 0 ? Math.round((aWins.count / total) * 100) : 50;
   const bScore = 100 - aScore;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-      {/* 승리 바 */}
       <div className="px-5 py-3 border-b border-gray-50 flex items-center gap-3">
         <span className="text-xs font-black text-blue-600 w-12 text-right">
           {aScore}%
@@ -2818,8 +3165,6 @@ function StatCompareTable({ pA, pB }) {
         <span className="text-xs font-black text-red-500 w-12">{bScore}%</span>
         <span className="text-xs text-gray-400 ml-1">종합 벤치마크</span>
       </div>
-
-      {/* 테이블 */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -2842,9 +3187,7 @@ function StatCompareTable({ pA, pB }) {
                 className="border-t border-gray-50 hover:bg-gray-50/50"
               >
                 <td
-                  className={`px-4 py-2.5 text-center font-bold transition-colors ${
-                    aWin ? "text-blue-600 bg-blue-50/60" : "text-gray-500"
-                  }`}
+                  className={`px-4 py-2.5 text-center font-bold transition-colors ${aWin ? "text-blue-600 bg-blue-50/60" : "text-gray-500"}`}
                 >
                   {aWin && <span className="mr-1 text-blue-400">▶</span>}
                   {aVal ?? "-"}
@@ -2853,9 +3196,7 @@ function StatCompareTable({ pA, pB }) {
                   {col}
                 </td>
                 <td
-                  className={`px-4 py-2.5 text-center font-bold transition-colors ${
-                    bWin ? "text-red-500 bg-red-50/60" : "text-gray-500"
-                  }`}
+                  className={`px-4 py-2.5 text-center font-bold transition-colors ${bWin ? "text-red-500 bg-red-50/60" : "text-gray-500"}`}
                 >
                   {bVal ?? "-"}
                   {bWin && <span className="ml-1 text-red-400">◀</span>}
@@ -2869,7 +3210,6 @@ function StatCompareTable({ pA, pB }) {
   );
 }
 
-// ── 존 비교 (핫콜드존 or 투구분포) ───────────────────────────
 function MiniZoneGrid({ outer, inner }) {
   return (
     <div className="relative mx-auto" style={{ width: 130, height: 130 }}>
@@ -2914,15 +3254,10 @@ function MiniZoneGrid({ outer, inner }) {
   );
 }
 
-// ── 투타 오버레이 존 (핵심 신기능) ──────────────────────────
 function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
   const [hovered, setHovered] = useState(false);
-  const [hoveredCell, setHoveredCell] = useState(null); // { area: "outer"|"inner", idx: number }
+  const [hoveredCell, setHoveredCell] = useState(null);
 
-  // 각 구역별 공략 판정
-  // hitStep 높음(4,5) + pitchStep 높음(4,5) → 위험 (투수 불리)
-  // hitStep 낮음(1,2) + pitchStep 높음(4,5) → 공략 포인트 (투수 유리)
-  // hitStep 낮음    + pitchStep 낮음         → 비추 (잘 안 던지는 코스)
   const getStrategy = (hStep, pStep) => {
     if (hStep >= 4 && pStep >= 4)
       return {
@@ -2960,12 +3295,11 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
     };
   };
 
-  const SIZE = 260; // 전체 그리드 크기
-  const OUTER = 72; // 외곽 셀 크기
-  const INNER_START = OUTER;
-  const INNER_SIZE = SIZE - OUTER * 2; // 내부 3x3 전체 크기
-  const CELL = INNER_SIZE / 3;
-
+  const SIZE = 260,
+    OUTER = 72,
+    INNER_START = OUTER,
+    INNER_SIZE = SIZE - OUTER * 2,
+    CELL = INNER_SIZE / 3;
   const outerPositions = [
     { top: 0, left: 0, w: OUTER, h: OUTER },
     { top: 0, left: SIZE - OUTER, w: OUTER, h: OUTER },
@@ -2976,7 +3310,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
   const renderCell = (hStep, pStep, style, area, idx) => {
     const strat = getStrategy(hStep, pStep);
     const isHov = hoveredCell?.area === area && hoveredCell?.idx === idx;
-
     return (
       <div
         key={idx}
@@ -3030,7 +3363,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
     );
   };
 
-  // 호버된 셀의 전략 설명
   const activeStrat = hoveredCell
     ? (() => {
         const hStep =
@@ -3047,7 +3379,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
-      {/* 범례 + 토글 힌트 */}
       <div className="flex items-center gap-2 flex-wrap justify-center">
         {[
           { color: "#22c55ecc", label: "🎯 공략 포인트" },
@@ -3064,8 +3395,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
           </div>
         ))}
       </div>
-
-      {/* 존 그리드 */}
       <div
         className="relative select-none"
         style={{ width: SIZE, height: SIZE }}
@@ -3075,7 +3404,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
           setHoveredCell(null);
         }}
       >
-        {/* 외곽 4개 */}
         {outerPositions.map((pos, i) =>
           renderCell(
             hotCold.outer[i]?.step,
@@ -3091,8 +3419,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
             i,
           ),
         )}
-
-        {/* 내부 3x3 */}
         {hotCold.inner.map((_, i) => {
           const row = Math.floor(i / 3),
             col = i % 3;
@@ -3110,8 +3436,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
             i,
           );
         })}
-
-        {/* 호버 전 중앙 안내 */}
         {!hovered && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm">
@@ -3120,8 +3444,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
           </div>
         )}
       </div>
-
-      {/* 셀 호버 시 상세 설명 */}
       <div className="h-8 flex items-center justify-center">
         {activeStrat ? (
           <div
@@ -3135,7 +3457,6 @@ function OverlayZoneGrid({ hotCold, pitchZone, hitterName, pitcherName }) {
           <p className="text-xs text-gray-400">각 구역에 마우스를 올려보세요</p>
         ) : null}
       </div>
-
       <p className="text-xs text-gray-400">
         투수 시점 기준 · 마우스를 올리면 오버레이 분석 활성화
       </p>
@@ -3147,7 +3468,6 @@ function ZoneCompareSection({ pA, pB }) {
   const isPvP = pA.type === "pitcher" && pB.type === "pitcher";
   const isHvH = pA.type === "hitter" && pB.type === "hitter";
   const isPvH = !isPvP && !isHvH;
-
   const getZone = (p) => (p.type === "pitcher" ? p.pitchZone : p.hotCold);
   const label = (p) =>
     p.type === "pitcher" ? "투구 분포도" : "HOT & COLD ZONE";
@@ -3155,7 +3475,6 @@ function ZoneCompareSection({ pA, pB }) {
   if (isPvH) {
     const pitcher = pA.type === "pitcher" ? pA : pB;
     const hitter = pA.type === "hitter" ? pA : pB;
-
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center gap-2 mb-1">
@@ -3168,9 +3487,7 @@ function ZoneCompareSection({ pA, pB }) {
           그리드에 마우스를 올리면 타자 핫존 × 투수 투구분포가 겹쳐져 공략
           포인트를 예측합니다
         </p>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* 왼쪽: 타자 핫존 (소형) */}
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-1.5 mb-1">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
@@ -3193,8 +3510,6 @@ function ZoneCompareSection({ pA, pB }) {
             </div>
             <p className="text-xs text-gray-400">냉 ← 타율 → 열</p>
           </div>
-
-          {/* 가운데: 오버레이 대형 */}
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-1.5 mb-1">
               <div className="w-2.5 h-2.5 rounded-full bg-purple-500" />
@@ -3209,8 +3524,6 @@ function ZoneCompareSection({ pA, pB }) {
               pitcherName={pitcher.name}
             />
           </div>
-
-          {/* 오른쪽: 투수 투구분포 (소형) */}
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-1.5 mb-1">
               <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
@@ -3234,35 +3547,33 @@ function ZoneCompareSection({ pA, pB }) {
             <p className="text-xs text-gray-400">저빈도 ← 투구 → 고빈도</p>
           </div>
         </div>
-
-        {/* 전략 요약 카드 */}
         <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             {
               icon: "🎯",
               label: "공략 포인트",
-              desc: `타자 약점 + 투구 집중`,
+              desc: "타자 약점 + 투구 집중",
               color: "#22c55e",
               bg: "#f0fdf4",
             },
             {
               icon: "⚠️",
               label: "위험 구역",
-              desc: `타자 강점 + 투구 집중`,
+              desc: "타자 강점 + 투구 집중",
               color: "#ef4444",
               bg: "#fef2f2",
             },
             {
               icon: "🚫",
               label: "회피 구역",
-              desc: `타자 강점 + 투구 희박`,
+              desc: "타자 강점 + 투구 희박",
               color: "#f97316",
               bg: "#fff7ed",
             },
             {
               icon: "○",
               label: "중립 구역",
-              desc: `양쪽 모두 낮은 비중`,
+              desc: "양쪽 모두 낮은 비중",
               color: "#94a3b8",
               bg: "#f8fafc",
             },
@@ -3311,7 +3622,6 @@ function ZoneCompareSection({ pA, pB }) {
   );
 }
 
-// ── AI 분석 패널 ─────────────────────────────────────────────
 function AIAnalysisPanel({ pA, pB }) {
   const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -3320,7 +3630,6 @@ function AIAnalysisPanel({ pA, pB }) {
   const runAnalysis = () => {
     setLoading(true);
     setLines([]);
-    // 타이핑 효과 시뮬레이션
     const analysis = generateAIAnalysis(pA, pB);
     let i = 0;
     const interval = setInterval(() => {
@@ -3361,7 +3670,6 @@ function AIAnalysisPanel({ pA, pB }) {
           <span className="text-white/30 text-sm">▶</span>
         )}
       </button>
-
       {expanded && (
         <div className="px-5 pb-5 space-y-3 border-t border-white/10">
           {lines.map((line, i) => {
@@ -3406,16 +3714,13 @@ function AIAnalysisPanel({ pA, pB }) {
   );
 }
 
-// ── 선수 카드 (비교 화면 상단) ────────────────────────────────
 function ComparePlayerCard({ player, side, onChangClick }) {
   const tc = TEAM_COLORS[player?.team] || { bg: "#374151", accent: "#6b7280" };
   const isEmpty = !player;
-
   return (
     <div
       className={`flex flex-col items-center gap-3 ${side === "B" ? "items-end sm:items-center" : ""}`}
     >
-      {/* 아바타 */}
       <div className="relative">
         <div
           className="w-24 h-24 rounded-2xl overflow-hidden border-4 flex items-center justify-center"
@@ -3430,7 +3735,6 @@ function ComparePlayerCard({ player, side, onChangClick }) {
             <PlayerAvatar id={player.img} name={player.name} size={96} />
           )}
         </div>
-        {/* 팀컬러 뱃지 */}
         {!isEmpty && (
           <div
             className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-xs font-black text-white"
@@ -3440,8 +3744,6 @@ function ComparePlayerCard({ player, side, onChangClick }) {
           </div>
         )}
       </div>
-
-      {/* 이름 */}
       <div className="text-center">
         <p className="font-black text-gray-900 text-lg">
           {player?.name ?? "선수 없음"}
@@ -3461,8 +3763,6 @@ function ComparePlayerCard({ player, side, onChangClick }) {
           </span>
         )}
       </div>
-
-      {/* 변경 버튼 */}
       <button
         onClick={onChangClick}
         className="px-4 py-1.5 rounded-xl text-xs font-bold border-2 transition-all hover:shadow-md"
@@ -3478,7 +3778,6 @@ function ComparePlayerCard({ player, side, onChangClick }) {
   );
 }
 
-// ── 비교 모드 탭 ─────────────────────────────────────────────
 function CompareModeTab({ pA, pB, mode }) {
   if (!pA || !pB)
     return (
@@ -3490,7 +3789,6 @@ function CompareModeTab({ pA, pB, mode }) {
 
   const aType = pA.type,
     bType = pB.type;
-  // 모드와 선수 타입이 맞는지 확인
   const modeMatch = {
     HvP: aType !== bType,
     PvP: aType === "pitcher" && bType === "pitcher",
@@ -3514,12 +3812,11 @@ function CompareModeTab({ pA, pB, mode }) {
   );
 }
 
-// ── 메인 비교 페이지 ─────────────────────────────────────────
 function ComparePage() {
   const [playerA, setPlayerA] = useState(COMPARE_PLAYERS[0]);
   const [playerB, setPlayerB] = useState(COMPARE_PLAYERS[2]);
-  const [modal, setModal] = useState(null); // "A" | "B" | null
-  const [mode, setMode] = useState("HvP"); // "HvP" | "PvP" | "HvH"
+  const [modal, setModal] = useState(null);
+  const [mode, setMode] = useState("HvP");
 
   const MODES = [
     { id: "HvP", label: "타자 vs 투수" },
@@ -3529,7 +3826,6 @@ function ComparePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* 모달 */}
       {modal && (
         <PlayerSelectModal
           excludeId={modal === "A" ? playerB?.id : playerA?.id}
@@ -3540,37 +3836,25 @@ function ComparePage() {
           onClose={() => setModal(null)}
         />
       )}
-
-      {/* 비교 모드 탭 */}
       <div className="flex items-center justify-center gap-1 bg-gray-100 rounded-2xl p-1 mb-8 w-fit mx-auto">
         {MODES.map((m) => (
           <button
             key={m.id}
             onClick={() => setMode(m.id)}
-            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${
-              mode === m.id
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-400 hover:text-gray-600"
-            }`}
+            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all ${mode === m.id ? "bg-white text-gray-900 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
           >
             {m.label}
           </button>
         ))}
       </div>
-
-      {/* 선수 2명 + VS */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="grid grid-cols-3 items-center gap-4">
-          {/* 선수 A */}
           <ComparePlayerCard
             player={playerA}
             side="A"
             onChangClick={() => setModal("A")}
           />
-
-          {/* VS + 바 */}
           <div className="flex flex-col items-center gap-3">
-            {/* 실루엣 이미지 */}
             <div className="flex items-end gap-1">
               <div
                 className="text-4xl"
@@ -3589,7 +3873,6 @@ function ComparePage() {
                 🧍
               </div>
             </div>
-            {/* 진행 바 */}
             {playerA &&
               playerB &&
               (() => {
@@ -3616,7 +3899,6 @@ function ComparePage() {
                   </div>
                 );
               })()}
-            {/* 선수명 */}
             <div className="w-full text-center space-y-0.5">
               <p className="text-xs text-blue-600 font-bold">
                 {playerA?.name ?? "선수A"}
@@ -3626,8 +3908,6 @@ function ComparePage() {
               </p>
             </div>
           </div>
-
-          {/* 선수 B */}
           <ComparePlayerCard
             player={playerB}
             side="B"
@@ -3635,8 +3915,6 @@ function ComparePage() {
           />
         </div>
       </div>
-
-      {/* 비교 내용 */}
       <CompareModeTab pA={playerA} pB={playerB} mode={mode} />
     </div>
   );
@@ -3659,7 +3937,6 @@ export default function App() {
       className="min-h-screen bg-gray-50"
       style={{ fontFamily: "'Noto Sans KR', sans-serif" }}
     >
-      {/* 글로벌 네비게이션 */}
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 flex items-center h-14 gap-1">
           <button
@@ -3675,11 +3952,7 @@ export default function App() {
             <button
               key={item.id}
               onClick={() => setCurrentPage(item.id)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${
-                currentPage === item.id
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-              }`}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${currentPage === item.id ? "bg-blue-50 text-blue-600" : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"}`}
             >
               {item.label}
             </button>
@@ -3687,7 +3960,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* 페이지 라우팅 */}
       {currentPage === "player" && <PlayerProfilePage />}
       {currentPage === "best" && <BestPlayerPage />}
       {currentPage === "compare" && <ComparePage />}
