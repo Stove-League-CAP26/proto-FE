@@ -1,6 +1,5 @@
-import { TEAM_COLORS } from "@/constants/teamColors";
-
-export const TEAMS_LIST = [ {
+export const TEAMS_LIST = [
+  {
     id: "KIA",
     name: "KIA 타이거즈",
     short: "KIA",
@@ -99,8 +98,11 @@ export const TEAMS_LIST = [ {
     bg: "#000000",
     accent: "#E40E20",
     stadium: "수원 KT 위즈파크",
-  },];
-export const MOCK_TEAM_DATA = {  KIA: {
+  },
+];
+
+export const MOCK_TEAM_DATA: Record<string, any> = {
+  KIA: {
     founded: "1982년",
     championship: "11회 (최다)",
     manager: "이범호",
@@ -208,16 +210,20 @@ export const MOCK_TEAM_DATA = {  KIA: {
       { era: "KIA 타이거즈 현재", period: "2017~", color: "#EA0029" },
     ],
     uniforms: ["홈 (흰색)", "원정 (회색)", "대안 (빨강)", "특별판 (검정)"],
-  }, };
+  },
+};
 
-// 기존 파일 하단에 있던 이 코드도 여기로
 TEAMS_LIST.forEach((t) => {
   if (!MOCK_TEAM_DATA[t.id]) {
     MOCK_TEAM_DATA[t.id] = {
       ...MOCK_TEAM_DATA["KIA"],
       radar: {
         타격: Math.floor(70 + Math.random() * 20),
-        // ...
+        투구: Math.floor(70 + Math.random() * 20),
+        수비: Math.floor(70 + Math.random() * 20),
+        주루: Math.floor(70 + Math.random() * 20),
+        불펜: Math.floor(70 + Math.random() * 20),
+        팀결속: Math.floor(70 + Math.random() * 20),
       },
     };
   }

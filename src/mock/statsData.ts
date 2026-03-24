@@ -1,4 +1,5 @@
-export const MOCK_STATS_HITTER = {  season: [
+export const MOCK_STATS_HITTER = {
+  season: [
     {
       year: 2025,
       team: "두산",
@@ -59,8 +60,11 @@ export const MOCK_STATS_HITTER = {  season: [
       SLG: "0.477",
       OPS: "0.857",
     },
-  ], };
-export const MOCK_HOT_COLD = {outer: [
+  ],
+};
+
+export const MOCK_HOT_COLD = {
+  outer: [
     { val: "0.448", step: 5 },
     { val: "0.195", step: 2 },
     { val: "0.215", step: 3 },
@@ -96,4 +100,5 @@ export const MOCK_HOT_COLD = {outer: [
       { val: "12.7%", step: 5 },
     ],
   },
-  hitDistrib: { LF: "50.6%", CF: "24.7%", RF: "24.7%" }, };
+  hitDistrib: { LF: "50.6%", CF: "24.7%", RF: "24.7%" },
+};
