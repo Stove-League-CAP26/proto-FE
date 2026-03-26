@@ -1,29 +1,96 @@
 // 선수 프로필 페이지 - Baseball Savant 스타일
 // player_m_position 형식: "투수(좌투좌타)", "포수(우투우타)", "내야수(우투우타)" 등
 // → startsWith("투수") 로 투수/타자 자동 분기
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PlayerAvatar from "@/components/common/PlayerAvatar";
 import HotColdTab from "@/components/profile/HotColdTab";
-import StatsTab from "@/components/profile/StatsTab";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import { stepColors } from "@/constants/stepColors";
 import {
-  MOCK_STATS_HITTER,
   MOCK_HOT_COLD,
-  MOCK_STATS_PITCHER,
   MOCK_PITCH_ARSENAL,
   MOCK_PITCHER_PERCENTILES,
   MOCK_PITCH_ZONE,
   MOCK_ROLLING_ERA,
 } from "@/mock/statsData";
-import { searchPlayersByName } from "@/api/playerApi";
+import {
+  searchPlayersByName,
+  fetchHitterStats,
+  fetchPitcherStats,
+} from "@/api/playerApi";
 
 // ─────────────────────────────────────────────────────────────
-// 핵심: DB 포맷 "투수(좌투좌타)" → startsWith("투수") 로 감지
+// 투수 판별: DB 포지션값이 어떤 형태로 오든 커버
+// "투수(좌투좌타)", "pitcher", "P", "선발", "불펜", "마무리" 등
 // ─────────────────────────────────────────────────────────────
 function isPitcher(playerMPosition: string | undefined | null): boolean {
   if (!playerMPosition) return false;
-  return playerMPosition.startsWith("투수");
+  const pos = playerMPosition.toLowerCase().trim();
+  return (
+    pos.startsWith("투수") ||
+    pos === "pitcher" ||
+    pos === "p" ||
+    pos.includes("선발") ||
+    pos.includes("불펜") ||
+    pos.includes("마무리") ||
+    pos.includes("pitcher")
+  );
+}
+
+// API 응답 타입
+interface HitterStat {
+  pid: number;
+  season: number;
+  team: string;
+  g: number;
+  pa: number;
+  ab: number;
+  r: number;
+  h: number;
+  b2: number;
+  b3: number;
+  hr: number;
+  rbi: number;
+  tb: number;
+  sac: number;
+  sf: number;
+  avg: number;
+  hitterRank?: number;
+}
+interface PitcherStat {
+  pid: number;
+  season: number;
+  team: string;
+  g: number;
+  w: number;
+  l: number;
+  sv: number;
+  hld: number;
+  ip: number;
+  h: number;
+  hr: number;
+  hbp: number;
+  r: number;
+  er: number;
+  so: number;
+  era: number;
+  whip: number;
+  wpct: number;
+  pitcherRank?: number;
+}
+
+// 숫자 포맷 유틸
+function fmtAvg(v: number | null | undefined) {
+  return v != null ? v.toFixed(3) : "-";
+}
+function fmtEra(v: number | null | undefined) {
+  return v != null ? v.toFixed(2) : "-";
+}
+function fmtWhip(v: number | null | undefined) {
+  return v != null ? v.toFixed(2) : "-";
+}
+function fmtWpct(v: number | null | undefined) {
+  return v != null ? v.toFixed(3) : "-";
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -257,10 +324,11 @@ const MOCK_ROLLING_OPS = [
   { label: "9/15", val: 0.939 },
 ];
 
-// SprayChart는 HitterStatcastTab 내부에 인라인 SVG로 직접 렌더링됨
+// ── 타자 스탯캐스트 탭 ─────────────────────────────────────
+function HitterStatcastTab({ stats }: { stats: HitterStat[] }) {
+  const sorted = [...stats].sort((a, b) => b.season - a.season);
+  const latest = sorted[0];
 
-function HitterStatcastTab() {
-  const s = MOCK_STATS_HITTER.season[0];
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -271,9 +339,10 @@ function HitterStatcastTab() {
             <h3 className="font-bold text-gray-800 text-sm">
               타구 분포 (스프레이 차트)
             </h3>
-            <span className="ml-auto text-xs text-gray-400">2025 시즌</span>
+            <span className="ml-auto text-xs text-gray-400">
+              {latest?.season ?? "-"} 시즌
+            </span>
           </div>
-          {/* 고정 높이 래퍼 - SVG가 아래 영역 침범 방지 */}
           <div className="relative w-full" style={{ height: 220 }}>
             <svg
               viewBox="0 0 300 260"
@@ -360,7 +429,6 @@ function HitterStatcastTab() {
               })}
             </svg>
           </div>
-          {/* 범례 */}
           <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
             {(
               [
@@ -379,7 +447,6 @@ function HitterStatcastTab() {
               </div>
             ))}
           </div>
-          {/* 방향 분포 */}
           <div className="mt-3 grid grid-cols-3 gap-2">
             {[
               ["좌", "50.6%", "#10B981"],
@@ -399,13 +466,14 @@ function HitterStatcastTab() {
             ))}
           </div>
         </div>
+
         {/* 롤링 OPS */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-1 h-5 rounded-full bg-blue-500" />
             <h3 className="font-bold text-gray-800 text-sm">롤링 OPS 추이</h3>
             <span className="ml-auto text-xl font-black text-blue-600">
-              {s.OPS}
+              {latest ? fmtAvg(latest.avg) : "-"}
             </span>
           </div>
           <RollingLineChart
@@ -439,7 +507,8 @@ function HitterStatcastTab() {
           </div>
         </div>
       </div>
-      {/* 스탯 테이블 */}
+
+      {/* API 데이터 기반 시즌 기록 테이블 */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
           <div className="w-1 h-5 rounded-full bg-purple-500" />
@@ -451,21 +520,21 @@ function HitterStatcastTab() {
               <tr className="bg-gray-50">
                 {[
                   "연도",
+                  "팀",
                   "G",
                   "PA",
+                  "AB",
                   "H",
+                  "2B",
+                  "3B",
                   "HR",
                   "RBI",
+                  "TB",
                   "AVG",
-                  "OBP",
-                  "SLG",
-                  "OPS",
-                  "BB%",
-                  "K%",
                 ].map((h) => (
                   <th
                     key={h}
-                    className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${["AVG", "OBP", "SLG", "OPS"].includes(h) ? "text-blue-600" : "text-gray-400"}`}
+                    className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${["AVG", "HR", "RBI"].includes(h) ? "text-blue-600" : "text-gray-400"}`}
                   >
                     {h}
                   </th>
@@ -473,43 +542,47 @@ function HitterStatcastTab() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_STATS_HITTER.season.map((row, i) => (
+              {sorted.map((row, i) => (
                 <tr
                   key={i}
                   className={`border-t border-gray-50 ${i === 0 ? "bg-blue-50/40" : "hover:bg-gray-50"}`}
                 >
                   <td className="px-3 py-3 text-center font-bold text-gray-800">
-                    {row.year}
+                    {row.season}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.G}
+                    {row.team}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.PA}
+                    {row.g}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.H}
+                    {row.pa}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.ab}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.h}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.b2}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.b3}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-gray-800">
-                    {row.HR}
+                    {row.hr}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-gray-800">
-                    {row.RBI}
+                    {row.rbi}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.tb}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-blue-600">
-                    {row.AVG}
+                    {fmtAvg(row.avg)}
                   </td>
-                  <td className="px-3 py-3 text-center font-bold text-blue-600">
-                    {row.OBP}
-                  </td>
-                  <td className="px-3 py-3 text-center font-bold text-blue-600">
-                    {row.SLG}
-                  </td>
-                  <td className="px-3 py-3 text-center font-bold text-yellow-600">
-                    {row.OPS}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">9.7%</td>
-                  <td className="px-3 py-3 text-center text-gray-500">12.2%</td>
                 </tr>
               ))}
             </tbody>
@@ -616,8 +689,11 @@ function PitchZoneGrid() {
   );
 }
 
-function PitcherStatcastTab() {
-  const s = MOCK_STATS_PITCHER.season[0];
+// ── 투수 스탯캐스트 탭 ─────────────────────────────────────
+function PitcherStatcastTab({ stats }: { stats: PitcherStat[] }) {
+  const sorted = [...stats].sort((a, b) => b.season - a.season);
+  const latest = sorted[0];
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -628,7 +704,9 @@ function PitcherStatcastTab() {
             <h3 className="font-bold text-gray-800 text-sm">
               구종 구성 (Pitch Usage)
             </h3>
-            <span className="ml-auto text-xs text-gray-400">2025 시즌</span>
+            <span className="ml-auto text-xs text-gray-400">
+              {latest?.season ?? "-"} 시즌
+            </span>
           </div>
           <PitchArsenalChart />
           <div className="grid grid-cols-3 gap-2 mt-5">
@@ -649,13 +727,14 @@ function PitcherStatcastTab() {
             ))}
           </div>
         </div>
+
         {/* 롤링 ERA */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-1 h-5 rounded-full bg-orange-500" />
             <h3 className="font-bold text-gray-800 text-sm">롤링 ERA 추이</h3>
             <span className="ml-auto text-xl font-black text-orange-500">
-              {s.ERA}
+              {latest ? fmtEra(latest.era) : "-"}
             </span>
           </div>
           <RollingLineChart
@@ -691,7 +770,7 @@ function PitcherStatcastTab() {
               },
               {
                 label: "후반기 ERA",
-                val: "2.11",
+                val: latest ? fmtEra(latest.era) : "-",
                 sub: "AVG",
                 color: "#F97316",
               },
@@ -710,7 +789,8 @@ function PitcherStatcastTab() {
           </div>
         </div>
       </div>
-      {/* 투수 스탯 테이블 */}
+
+      {/* API 데이터 기반 투수 시즌 기록 테이블 */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
           <div className="w-1 h-5 rounded-full bg-purple-500" />
@@ -722,22 +802,25 @@ function PitcherStatcastTab() {
               <tr className="bg-gray-50">
                 {[
                   "연도",
+                  "팀",
                   "G",
-                  "GS",
                   "W",
                   "L",
+                  "SV",
+                  "HLD",
                   "IP",
+                  "H",
+                  "HR",
+                  "R",
+                  "ER",
+                  "SO",
                   "ERA",
                   "WHIP",
-                  "K",
-                  "BB",
-                  "HR",
-                  "FIP",
-                  "WAR",
+                  "승률",
                 ].map((h) => (
                   <th
                     key={h}
-                    className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${["ERA", "WHIP", "FIP"].includes(h) ? "text-orange-500" : "text-gray-400"}`}
+                    className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${["ERA", "WHIP"].includes(h) ? "text-orange-500" : "text-gray-400"}`}
                   >
                     {h}
                   </th>
@@ -745,49 +828,58 @@ function PitcherStatcastTab() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_STATS_PITCHER.season.map((row, i) => (
+              {sorted.map((row, i) => (
                 <tr
                   key={i}
                   className={`border-t border-gray-50 ${i === 0 ? "bg-orange-50/40" : "hover:bg-gray-50"}`}
                 >
                   <td className="px-3 py-3 text-center font-bold text-gray-800">
-                    {row.year}
+                    {row.season}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.G}
+                    {row.team}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.GS}
+                    {row.g}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-green-600">
-                    {row.W}
+                    {row.w}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.L}
+                    {row.l}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.IP}
+                    {row.sv}
                   </td>
-                  <td className="px-3 py-3 text-center font-bold text-orange-500">
-                    {row.ERA}
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.hld}
                   </td>
-                  <td className="px-3 py-3 text-center font-bold text-orange-400">
-                    {row.WHIP}
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.ip}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.h}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.hr}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.r}
+                  </td>
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {row.er}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-blue-600">
-                    {row.SO}
+                    {row.so}
                   </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.BB}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.HR}
+                  <td className="px-3 py-3 text-center font-bold text-orange-500">
+                    {fmtEra(row.era)}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-orange-400">
-                    {row.FIP}
+                    {fmtWhip(row.whip)}
                   </td>
-                  <td className="px-3 py-3 text-center font-bold text-purple-600">
-                    {row.WAR}
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {fmtWpct(row.wpct)}
                   </td>
                 </tr>
               ))}
@@ -799,26 +891,33 @@ function PitcherStatcastTab() {
   );
 }
 
-function PitcherStandardTab() {
-  const s = MOCK_STATS_PITCHER.season[0];
+// ── 투수 기본 스탯 탭 ──────────────────────────────────────
+function PitcherStandardTab({ stats }: { stats: PitcherStat[] }) {
+  const sorted = [...stats].sort((a, b) => b.season - a.season);
+  const latest = sorted[0];
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "ERA", val: s.ERA, color: "from-orange-500 to-orange-600" },
+          {
+            label: "ERA",
+            val: latest ? fmtEra(latest.era) : "-",
+            color: "from-orange-500 to-orange-600",
+          },
           {
             label: "승리",
-            val: `${s.W}승`,
+            val: latest ? `${latest.w}승` : "-",
             color: "from-green-500 to-green-600",
           },
           {
             label: "탈삼진",
-            val: `${s.SO}K`,
+            val: latest ? `${latest.so}K` : "-",
             color: "from-blue-500 to-blue-600",
           },
           {
             label: "WHIP",
-            val: s.WHIP,
+            val: latest ? fmtWhip(latest.whip) : "-",
             color: "from-purple-500 to-purple-600",
           },
         ].map(({ label, val, color }) => (
@@ -844,25 +943,23 @@ function PitcherStandardTab() {
                   "연도",
                   "팀",
                   "G",
-                  "GS",
                   "W",
                   "L",
                   "SV",
+                  "HLD",
                   "IP",
                   "H",
                   "R",
                   "ER",
-                  "BB",
                   "SO",
                   "HR",
                   "ERA",
                   "WHIP",
-                  "FIP",
-                  "WAR",
+                  "승률",
                 ].map((h) => (
                   <th
                     key={h}
-                    className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${["ERA", "WHIP", "FIP"].includes(h) ? "text-orange-500" : "text-gray-400"}`}
+                    className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${["ERA", "WHIP"].includes(h) ? "text-orange-500" : "text-gray-400"}`}
                   >
                     {h}
                   </th>
@@ -870,64 +967,58 @@ function PitcherStandardTab() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_STATS_PITCHER.season.map((row, i) => (
+              {sorted.map((row, i) => (
                 <tr
                   key={i}
                   className={`border-t border-gray-50 ${i === 0 ? "bg-orange-50/40" : "hover:bg-gray-50"}`}
                 >
                   <td className="px-3 py-3 text-center font-bold text-gray-800">
-                    {row.year}
+                    {row.season}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
                     {row.team}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.G}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.GS}
+                    {row.g}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-green-600">
-                    {row.W}
+                    {row.w}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.L}
+                    {row.l}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.SV}
+                    {row.sv}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.IP}
+                    {row.hld}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.H}
+                    {row.ip}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.R}
+                    {row.h}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.ER}
+                    {row.r}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.BB}
+                    {row.er}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-blue-600">
-                    {row.SO}
+                    {row.so}
                   </td>
                   <td className="px-3 py-3 text-center text-gray-500">
-                    {row.HR}
+                    {row.hr}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-orange-500">
-                    {row.ERA}
+                    {fmtEra(row.era)}
                   </td>
                   <td className="px-3 py-3 text-center font-bold text-orange-400">
-                    {row.WHIP}
+                    {fmtWhip(row.whip)}
                   </td>
-                  <td className="px-3 py-3 text-center font-bold text-orange-400">
-                    {row.FIP}
-                  </td>
-                  <td className="px-3 py-3 text-center font-bold text-purple-600">
-                    {row.WAR}
+                  <td className="px-3 py-3 text-center text-gray-500">
+                    {fmtWpct(row.wpct)}
                   </td>
                 </tr>
               ))}
@@ -950,6 +1041,35 @@ export default function PlayerProfilePage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [playerBasic, setPlayerBasic] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // ── 스탯 API 상태 ──────────────────────────────────────────
+  const [hitterStats, setHitterStats] = useState<HitterStat[]>([]);
+  const [pitcherStats, setPitcherStats] = useState<PitcherStat[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  // 선수가 바뀌면 스탯 API 자동 호출
+  useEffect(() => {
+    if (!playerBasic) return;
+    const pid: number = playerBasic.pid;
+    const pitcherType = isPitcher(playerBasic.playerMPosition);
+
+    setHitterStats([]);
+    setPitcherStats([]);
+    setStatsError(null);
+    setStatsLoading(true);
+
+    const fetcher = pitcherType ? fetchPitcherStats : fetchHitterStats;
+    fetcher(pid)
+      .then((data: any[]) => {
+        if (pitcherType) setPitcherStats(data);
+        else setHitterStats(data);
+      })
+      .catch((err: any) => {
+        setStatsError(err?.message ?? "스탯 API 호출 실패");
+      })
+      .finally(() => setStatsLoading(false));
+  }, [playerBasic]);
 
   const handleSearch = async () => {
     const name = searchInput.trim();
@@ -995,7 +1115,6 @@ export default function PlayerProfilePage() {
             bg: "#64748b",
             accent: "#94a3b8",
           };
-          // DB 포맷: "투수(좌투좌타)" → isPitcher() 로 판별
           const pitcher = isPitcher(p.playerMPosition);
           return (
             <button
@@ -1123,7 +1242,6 @@ export default function PlayerProfilePage() {
     bg: "#1e293b",
     accent: "#64748b",
   };
-  // ★ 핵심: DB 값 "투수(좌투좌타)" → startsWith("투수") → true
   const pitcher = isPitcher(playerBasic.playerMPosition);
   const hwRaw = playerBasic.heightWeight ?? "";
   const hwParts = hwRaw.split("/");
@@ -1139,59 +1257,106 @@ export default function PlayerProfilePage() {
   const ageStr = playerBasic.playerBirthday
     ? `${new Date().getFullYear() - new Date(playerBasic.playerBirthday).getFullYear()}세`
     : "-";
-
-  // 투수/타자별 분기값
   const heroAccent = pitcher ? "#F97316" : "#3B82F6";
+
+  // ── API 데이터 기반 배너 스탯 ───────────────────────────────
+  const latestHitter =
+    hitterStats.length > 0
+      ? [...hitterStats].sort((a, b) => b.season - a.season)[0]
+      : null;
+  const latestPitcher =
+    pitcherStats.length > 0
+      ? [...pitcherStats].sort((a, b) => b.season - a.season)[0]
+      : null;
+
   const heroBadges = pitcher
     ? [
         {
           label: "ERA",
-          val: MOCK_STATS_PITCHER.season[0].ERA,
+          val: latestPitcher
+            ? fmtEra(latestPitcher.era)
+            : statsLoading
+              ? "..."
+              : "-",
           color: "#F97316",
         },
         {
           label: "W-L",
-          val: `${MOCK_STATS_PITCHER.season[0].W}-${MOCK_STATS_PITCHER.season[0].L}`,
+          val: latestPitcher
+            ? `${latestPitcher.w}-${latestPitcher.l}`
+            : statsLoading
+              ? "..."
+              : "-",
           color: "#10B981",
         },
         {
           label: "WHIP",
-          val: MOCK_STATS_PITCHER.season[0].WHIP,
+          val: latestPitcher
+            ? fmtWhip(latestPitcher.whip)
+            : statsLoading
+              ? "..."
+              : "-",
           color: "#8B5CF6",
         },
       ]
     : [
         {
           label: "AVG",
-          val: MOCK_STATS_HITTER.season[0].AVG,
+          val: latestHitter
+            ? fmtAvg(latestHitter.avg)
+            : statsLoading
+              ? "..."
+              : "-",
           color: "#3B82F6",
         },
         {
           label: "HR",
-          val: String(MOCK_STATS_HITTER.season[0].HR),
+          val: latestHitter
+            ? String(latestHitter.hr)
+            : statsLoading
+              ? "..."
+              : "-",
           color: "#EF4444",
         },
         {
-          label: "OPS",
-          val: MOCK_STATS_HITTER.season[0].OPS,
+          label: "RBI",
+          val: latestHitter
+            ? String(latestHitter.rbi)
+            : statsLoading
+              ? "..."
+              : "-",
           color: "#F59E0B",
         },
       ];
 
+  // ── API 데이터 기반 히어로 테이블 ──────────────────────────
   const heroHeaders = pitcher
-    ? ["W", "L", "ERA", "G", "GS", "SV", "IP", "SO", "WHIP"]
-    : ["PA", "AB", "R", "H", "HR", "SB", "AVG", "OBP", "SLG", "OPS"];
+    ? ["W", "L", "ERA", "G", "SV", "HLD", "IP", "SO", "WHIP"]
+    : ["PA", "AB", "R", "H", "HR", "RBI", "2B", "3B", "AVG"];
+
+  const sortedPitcher = [...pitcherStats].sort((a, b) => b.season - a.season);
+  const sortedHitter = [...hitterStats].sort((a, b) => b.season - a.season);
 
   const heroRows = pitcher
-    ? MOCK_STATS_PITCHER.season.map((s) => ({
-        year: s.year,
-        cells: [s.W, s.L, s.ERA, s.G, s.GS, s.SV, s.IP, s.SO, s.WHIP],
+    ? sortedPitcher.map((s) => ({
+        year: s.season,
+        cells: [
+          s.w,
+          s.l,
+          fmtEra(s.era),
+          s.g,
+          s.sv,
+          s.hld,
+          s.ip,
+          s.so,
+          fmtWhip(s.whip),
+        ],
         highlight: [2, 8],
       }))
-    : MOCK_STATS_HITTER.season.map((s) => ({
-        year: s.year,
-        cells: [s.PA, s.AB, s.R, s.H, s.HR, s.SB, s.AVG, s.OBP, s.SLG, s.OPS],
-        highlight: [6, 7, 8, 9],
+    : sortedHitter.map((s) => ({
+        year: s.season,
+        cells: [s.pa, s.ab, s.r, s.h, s.hr, s.rbi, s.b2, s.b3, fmtAvg(s.avg)],
+        highlight: [8],
       }));
 
   const percentiles = pitcher
@@ -1256,7 +1421,6 @@ export default function PlayerProfilePage() {
                 {playerBasic.playerName}
               </span>
             </span>
-            {/* 투수/타자 뱃지 - DB 포지션값 그대로 표시 */}
             <span
               className="text-xs font-bold px-2 py-0.5 rounded-full text-white"
               style={{ backgroundColor: heroAccent }}
@@ -1270,6 +1434,8 @@ export default function PlayerProfilePage() {
               setSearchInput("");
               setError(null);
               setShowResults(false);
+              setHitterStats([]);
+              setPitcherStats([]);
             }}
             className="ml-auto text-xs text-gray-400 hover:text-gray-600 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
           >
@@ -1316,7 +1482,6 @@ export default function PlayerProfilePage() {
                     #{playerBasic.playerNumber}
                   </span>
                   <span className="text-white/30 text-xs">·</span>
-                  {/* DB 원본값 표시: "투수(좌투좌타)" */}
                   <span className="text-white/60 text-sm font-medium">
                     {playerBasic.playerMPosition}
                   </span>
@@ -1360,7 +1525,7 @@ export default function PlayerProfilePage() {
                     입단 {playerBasic.playerDraft}
                   </p>
                 )}
-                {/* 주요 스탯 배지 */}
+                {/* 주요 스탯 배지 - API 데이터 */}
                 <div className="flex gap-2 mt-4 flex-wrap">
                   {heroBadges.map(({ label, val, color }) => (
                     <div
@@ -1372,7 +1537,7 @@ export default function PlayerProfilePage() {
                         {label}
                       </span>
                       <span
-                        className="font-black text-base leading-tight"
+                        className={`font-black text-base leading-tight ${statsLoading ? "animate-pulse" : ""}`}
                         style={{ color }}
                       >
                         {val}
@@ -1383,63 +1548,78 @@ export default function PlayerProfilePage() {
               </div>
             </div>
 
-            {/* 시즌 기록 테이블 */}
+            {/* 시즌 기록 테이블 - API 데이터 */}
             <div className="lg:col-span-3">
               <div
                 className="rounded-2xl overflow-hidden border border-white/10"
                 style={{ background: "rgba(0,0,0,0.25)" }}
               >
-                <div className="px-4 py-2.5 border-b border-white/10">
+                <div className="px-4 py-2.5 border-b border-white/10 flex items-center justify-between">
                   <p className="text-xs font-bold text-white/40 uppercase tracking-widest">
                     시즌 기록
                   </p>
+                  {statsLoading && (
+                    <span className="text-xs text-white/30 animate-pulse">
+                      불러오는 중...
+                    </span>
+                  )}
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-white/5">
-                        <th className="px-3 py-2 text-left text-xs font-bold text-white/30">
-                          시즌
-                        </th>
-                        {heroHeaders.map((h) => (
-                          <th
-                            key={h}
-                            className={`px-2 py-2 text-center text-xs font-bold ${
-                              pitcher
-                                ? ["ERA", "WHIP"].includes(h)
-                                  ? "text-orange-300"
-                                  : "text-white/30"
-                                : ["AVG", "OBP", "SLG", "OPS"].includes(h)
-                                  ? "text-blue-300"
-                                  : "text-white/30"
-                            }`}
-                          >
-                            {h}
+                  {heroRows.length > 0 ? (
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-white/5">
+                          <th className="px-3 py-2 text-left text-xs font-bold text-white/30">
+                            시즌
                           </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {heroRows.map((row, i) => (
-                        <tr
-                          key={i}
-                          className={`border-b border-white/5 ${i === 0 ? "bg-white/10" : "hover:bg-white/5"}`}
-                        >
-                          <td className="px-3 py-2.5 text-sm font-black text-white">
-                            {row.year}
-                          </td>
-                          {row.cells.map((cell, ci) => (
-                            <td
-                              key={ci}
-                              className={`px-2 py-2.5 text-center text-xs ${row.highlight.includes(ci) ? "font-black text-yellow-300" : "text-white/50"}`}
+                          {heroHeaders.map((h) => (
+                            <th
+                              key={h}
+                              className={`px-2 py-2 text-center text-xs font-bold ${
+                                pitcher
+                                  ? ["ERA", "WHIP"].includes(h)
+                                    ? "text-orange-300"
+                                    : "text-white/30"
+                                  : ["AVG", "OBP", "SLG"].includes(h)
+                                    ? "text-blue-300"
+                                    : "text-white/30"
+                              }`}
                             >
-                              {cell}
-                            </td>
+                              {h}
+                            </th>
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {heroRows.map((row, i) => (
+                          <tr
+                            key={i}
+                            className={`border-b border-white/5 ${i === 0 ? "bg-white/10" : "hover:bg-white/5"}`}
+                          >
+                            <td className="px-3 py-2.5 text-sm font-black text-white">
+                              {row.year}
+                            </td>
+                            {row.cells.map((cell, ci) => (
+                              <td
+                                key={ci}
+                                className={`px-2 py-2.5 text-center text-xs ${row.highlight.includes(ci) ? "font-black text-yellow-300" : "text-white/50"}`}
+                              >
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="px-4 py-8 text-center text-white/30 text-sm">
+                      {statsLoading
+                        ? "스탯 불러오는 중..."
+                        : statsError
+                          ? statsError
+                          : "스탯 데이터 없음"}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1542,8 +1722,12 @@ export default function PlayerProfilePage() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         {pitcher ? (
           <>
-            {activeTab === "statcast" && <PitcherStatcastTab />}
-            {activeTab === "standard" && <PitcherStandardTab />}
+            {activeTab === "statcast" && (
+              <PitcherStatcastTab stats={pitcherStats} />
+            )}
+            {activeTab === "standard" && (
+              <PitcherStandardTab stats={pitcherStats} />
+            )}
             {activeTab === "zone" && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <div className="flex items-center gap-2 mb-5">
@@ -1573,8 +1757,135 @@ export default function PlayerProfilePage() {
           </>
         ) : (
           <>
-            {activeTab === "statcast" && <HitterStatcastTab />}
-            {activeTab === "standard" && <StatsTab stats={MOCK_STATS_HITTER} />}
+            {activeTab === "statcast" && (
+              <HitterStatcastTab stats={hitterStats} />
+            )}
+            {activeTab === "standard" && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "타율",
+                      val: latestHitter ? fmtAvg(latestHitter.avg) : "-",
+                      color: "from-blue-500 to-blue-600",
+                    },
+                    {
+                      label: "홈런",
+                      val: latestHitter ? String(latestHitter.hr) : "-",
+                      color: "from-red-500 to-red-600",
+                    },
+                    {
+                      label: "타점",
+                      val: latestHitter ? String(latestHitter.rbi) : "-",
+                      color: "from-amber-500 to-amber-600",
+                    },
+                    {
+                      label: "득점",
+                      val: latestHitter ? String(latestHitter.r) : "-",
+                      color: "from-emerald-500 to-emerald-600",
+                    },
+                  ].map(({ label, val, color }) => (
+                    <div
+                      key={label}
+                      className={`bg-gradient-to-br ${color} rounded-2xl p-4 text-white shadow-sm`}
+                    >
+                      <p className="text-white/70 text-xs font-medium">
+                        {label}
+                      </p>
+                      <p className="text-3xl font-black mt-0.5">{val}</p>
+                      <p className="text-white/60 text-xs mt-1">최근 시즌</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-gray-50">
+                    <h3 className="font-bold text-gray-800">시즌 타격 기록</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          {[
+                            "연도",
+                            "팀",
+                            "G",
+                            "PA",
+                            "AB",
+                            "H",
+                            "2B",
+                            "3B",
+                            "HR",
+                            "RBI",
+                            "TB",
+                            "SAC",
+                            "SF",
+                            "AVG",
+                          ].map((h) => (
+                            <th
+                              key={h}
+                              className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${["AVG", "HR", "RBI"].includes(h) ? "text-blue-600" : "text-gray-400"}`}
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedHitter.map((row, i) => (
+                          <tr
+                            key={i}
+                            className={`border-t border-gray-50 ${i === 0 ? "bg-blue-50/40" : "hover:bg-gray-50"}`}
+                          >
+                            <td className="px-3 py-3 text-center font-bold text-gray-800">
+                              {row.season}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.team}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.g}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.pa}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.ab}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.h}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.b2}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.b3}
+                            </td>
+                            <td className="px-3 py-3 text-center font-bold text-gray-800">
+                              {row.hr}
+                            </td>
+                            <td className="px-3 py-3 text-center font-bold text-gray-800">
+                              {row.rbi}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.tb}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.sac}
+                            </td>
+                            <td className="px-3 py-3 text-center text-gray-500">
+                              {row.sf}
+                            </td>
+                            <td className="px-3 py-3 text-center font-bold text-blue-600">
+                              {fmtAvg(row.avg)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
             {activeTab === "hotcold" && <HotColdTab data={MOCK_HOT_COLD} />}
           </>
         )}
