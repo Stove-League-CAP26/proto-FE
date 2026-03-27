@@ -1,5 +1,5 @@
 // 팀 상세 페이지의 팀 소개 탭 - 팀 기본정보, 시즌 성적, 구단 히스토리, 팀 능력치 레이더를 표시
-import HexRadar from "@/components/team/HexRadar";
+import RadarChart from "@/components/common/RadarChart";
 
 interface TeamIntroTabProps {
   team: {
@@ -32,13 +32,17 @@ export default function TeamIntroTab({ team, data }: TeamIntroTabProps) {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col items-center gap-4">
           <div
             className="w-28 h-28 rounded-2xl flex items-center justify-center text-7xl shadow-inner"
-            style={{ background: `linear-gradient(135deg, ${team.bg}22, ${team.accent}22)` }}
+            style={{
+              background: `linear-gradient(135deg, ${team.bg}22, ${team.accent}22)`,
+            }}
           >
             {team.emoji}
           </div>
           <div className="text-center">
             <h2 className="text-2xl font-black text-gray-900">{team.name}</h2>
-            <p className="text-gray-400 text-sm mt-1">{team.city} · {team.stadium}</p>
+            <p className="text-gray-400 text-sm mt-1">
+              {team.city} · {team.stadium}
+            </p>
           </div>
           <div className="w-full grid grid-cols-3 gap-2 mt-2">
             {[
@@ -46,9 +50,14 @@ export default function TeamIntroTab({ team, data }: TeamIntroTabProps) {
               { label: "우승", val: data.championship },
               { label: "감독", val: data.manager },
             ].map(({ label, val }) => (
-              <div key={label} className="bg-gray-50 rounded-xl p-2.5 text-center">
+              <div
+                key={label}
+                className="bg-gray-50 rounded-xl p-2.5 text-center"
+              >
                 <p className="text-xs text-gray-400 font-medium">{label}</p>
-                <p className="text-xs font-bold text-gray-800 mt-0.5 leading-tight">{val}</p>
+                <p className="text-xs font-bold text-gray-800 mt-0.5 leading-tight">
+                  {val}
+                </p>
               </div>
             ))}
           </div>
@@ -101,14 +110,14 @@ export default function TeamIntroTab({ team, data }: TeamIntroTabProps) {
         </div>
       </div>
 
-      {/* 팀 능력치 레이더 */}
+      {/* 팀 능력치 레이더 - RadarChart dark 테마 */}
       <div className="lg:col-span-2">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-full">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
             팀 능력치
           </h3>
           <div className="w-full aspect-square max-w-sm mx-auto">
-            <HexRadar data={data.radar} />
+            <RadarChart data={data.radar} theme="dark" />
           </div>
           <div className="grid grid-cols-3 gap-2 mt-4">
             {Object.entries(data.radar).map(([k, v]) => (
@@ -119,9 +128,17 @@ export default function TeamIntroTab({ team, data }: TeamIntroTabProps) {
               >
                 <p className="text-xs text-gray-500 font-medium">{k}</p>
                 <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${v}%`, backgroundColor: team.bg }} />
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${v}%`, backgroundColor: team.bg }}
+                  />
                 </div>
-                <p className="text-xs font-bold mt-1" style={{ color: team.bg }}>{v}</p>
+                <p
+                  className="text-xs font-bold mt-1"
+                  style={{ color: team.bg }}
+                >
+                  {v}
+                </p>
               </div>
             ))}
           </div>
