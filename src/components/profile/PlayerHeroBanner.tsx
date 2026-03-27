@@ -200,7 +200,7 @@ export default function PlayerHeroBanner({
 
                   {/* 레이더 차트 + 항목별 수치 */}
                   <div className="grid grid-cols-2 gap-4 items-center">
-                    <div className="w-full aspect-square max-w-[180px] mx-auto">
+                    <div className="w-full aspect-square max-w-[225px] mx-auto">
                       <RadarChart data={radarValues} />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
