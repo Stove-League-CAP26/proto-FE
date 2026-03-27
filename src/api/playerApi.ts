@@ -38,24 +38,24 @@ export async function fetchPitcherStats(pid: number) {
 // 타자 레이더 응답
 // 실제 지표: 파워(HR/AB), 컨택(H/AB), 장타(TB/AB), 스피드((2B+3B*3)/H), 팀기여(RBI/G), 선구안((PA-AB)/PA)
 export interface HitterRadar {
-  파워: number;
-  컨택: number;
-  장타: number;
-  스피드: number;
-  팀기여: number;
-  선구안: number;
+  power: number;
+  contact: number;
+  extra: number;
+  speed: number;
+  contrib: number;
+  eye: number;
   style: string; // 슬러거 | 스피드스터 | 클린업 | 교타자 | 올라운더
 }
 
 // 투수 레이더 응답
 // 실제 지표: 삼진(SO/IP), 실점억제(역수ERA), 제구(역수HBP/IP), 장타억제(역수HR/IP), 체력(IP/G), 안타억제(역수H/IP)
 export interface PitcherRadar {
-  삼진: number;
-  실점억제: number;
-  제구: number;
-  장타억제: number;
-  체력: number;
-  안타억제: number;
+  strikeout: number;
+  eraControl: number;
+  control: number;
+  hrControl: number;
+  stamina: number;
+  hitControl: number;
   style: string; // 파워피처 | 에이스 | 기교파 | 이닝이터 | 마무리형
 }
 

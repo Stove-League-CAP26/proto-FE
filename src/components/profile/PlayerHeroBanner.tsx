@@ -3,6 +3,7 @@
 // 오른쪽: 육각형 레이더 차트 + 플레이어 스타일 (시즌 기록 테이블은 하단 탭에서 표시)
 import PlayerAvatar from "@/components/common/PlayerAvatar";
 import RadarChart from "@/components/common/RadarChart";
+import { mapHitterRadar, mapPitcherRadar } from "@/utils/playerUtils";
 import type { HitterRadar, PitcherRadar } from "@/api/playerApi";
 
 interface HeroBadge {
@@ -44,9 +45,10 @@ const STYLE_META: Record<string, { emoji: string; color: string; bg: string }> =
 /** radar 응답에서 style 제외한 수치만 추출 */
 function extractRadarValues(
   radar: HitterRadar | PitcherRadar,
+  isPitcher: boolean,
 ): Record<string, number> {
-  const { style: _style, ...values } = radar as any;
-  return values as Record<string, number>;
+  const raw = radar as Record<string, number | string>;
+  return isPitcher ? mapPitcherRadar(raw) : mapHitterRadar(raw);
 }
 
 export default function PlayerHeroBanner({
@@ -69,7 +71,9 @@ export default function PlayerHeroBanner({
       })
     : null;
 
-  const radarValues = radarData ? extractRadarValues(radarData) : null;
+  const radarValues = radarData
+    ? extractRadarValues(radarData, isPitcherPlayer)
+    : null;
 
   return (
     <div style={{ background: bgGradient }}>
