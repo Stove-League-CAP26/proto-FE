@@ -1,6 +1,9 @@
 const BASE_URL = "/api";
 
-// pid로 단일 선수 조회
+// ─────────────────────────────────────────────────────────────
+// 선수 기본 API
+// ─────────────────────────────────────────────────────────────
+
 export async function fetchPlayerBasic(pid: number) {
   const res = await fetch(`${BASE_URL}/players/${pid}`);
   if (!res.ok)
@@ -8,7 +11,6 @@ export async function fetchPlayerBasic(pid: number) {
   return res.json();
 }
 
-// 이름으로 선수 검색 (목록 반환)
 export async function searchPlayersByName(name: string) {
   const res = await fetch(
     `/api/players/search?name=${encodeURIComponent(name)}`,
@@ -17,7 +19,10 @@ export async function searchPlayersByName(name: string) {
   return res.json();
 }
 
-// 타자 시즌 스탯 조회
+// ─────────────────────────────────────────────────────────────
+// 시즌 스탯 API
+// ─────────────────────────────────────────────────────────────
+
 export async function fetchHitterStats(pid: number) {
   const res = await fetch(`${BASE_URL}/stats/hitter/${pid}`);
   if (!res.ok)
@@ -25,7 +30,6 @@ export async function fetchHitterStats(pid: number) {
   return res.json();
 }
 
-// 투수 시즌 스탯 조회
 export async function fetchPitcherStats(pid: number) {
   const res = await fetch(`${BASE_URL}/stats/pitcher/${pid}`);
   if (!res.ok)
@@ -33,33 +37,32 @@ export async function fetchPitcherStats(pid: number) {
   return res.json();
 }
 
-// ── 레이더 차트 타입 ──────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// 레이더 차트 타입 + API
+// ─────────────────────────────────────────────────────────────
 
-// 타자 레이더 응답
-// 실제 지표: 파워(HR/AB), 컨택(H/AB), 장타(TB/AB), 스피드((2B+3B*3)/H), 팀기여(RBI/G), 선구안((PA-AB)/PA)
+/** 타자 레이더 — 실제 지표 기반으로 0~100 정규화된 값 */
 export interface HitterRadar {
-  power: number;
-  contact: number;
-  extra: number;
-  speed: number;
-  contrib: number;
-  eye: number;
-  style: string; // 슬러거 | 스피드스터 | 클린업 | 교타자 | 올라운더
+  power: number; // HR/AB 기반
+  contact: number; // H/AB 기반
+  extra: number; // TB/AB 기반
+  speed: number; // (2B+3B*3)/H 기반
+  contrib: number; // RBI/G 기반
+  eye: number; // (PA-AB)/PA 기반
+  style: string; // "슬러거" | "스피드스터" | "클린업" | "교타자" | "올라운더"
 }
 
-// 투수 레이더 응답
-// 실제 지표: 삼진(SO/IP), 실점억제(역수ERA), 제구(역수HBP/IP), 장타억제(역수HR/IP), 체력(IP/G), 안타억제(역수H/IP)
+/** 투수 레이더 — 실제 지표 기반으로 0~100 정규화된 값 */
 export interface PitcherRadar {
-  strikeout: number;
-  eraControl: number;
-  control: number;
-  hrControl: number;
-  stamina: number;
-  hitControl: number;
-  style: string; // 파워피처 | 에이스 | 기교파 | 이닝이터 | 마무리형
+  strikeout: number; // SO/IP 기반
+  eraControl: number; // 역수ERA 기반
+  control: number; // 역수HBP/IP 기반
+  hrControl: number; // 역수HR/IP 기반
+  stamina: number; // IP/G 기반
+  hitControl: number; // 역수H/IP 기반
+  style: string; // "파워피처" | "에이스" | "기교파" | "이닝이터" | "마무리형"
 }
 
-// 타자 레이더 조회
 export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
   const res = await fetch(`${BASE_URL}/stats/radar/hitter/${pid}`);
   if (!res.ok)
@@ -69,7 +72,6 @@ export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
   return res.json();
 }
 
-// 투수 레이더 조회
 export async function fetchPitcherRadar(pid: number): Promise<PitcherRadar> {
   const res = await fetch(`${BASE_URL}/stats/radar/pitcher/${pid}`);
   if (!res.ok)
@@ -77,4 +79,65 @@ export async function fetchPitcherRadar(pid: number): Promise<PitcherRadar> {
       `투수 레이더 로드 실패 (pid: ${pid}, status: ${res.status})`,
     );
   return res.json();
+}
+
+// ─────────────────────────────────────────────────────────────
+// 차트 존 데이터 타입 (HOT/COLD ZONE, 투구 분포도 등)
+// ─────────────────────────────────────────────────────────────
+
+/** 구역 하나의 값 + 색상 단계(1~5) */
+export interface ZoneCell {
+  val: string; // "0.337" | "12.5%" | "-"
+  step: number; // 1(낮음/차가움) ~ 5(높음/뜨거움)
+}
+
+/** outer 코너 4칸 [TL, TR, BL, BR] + inner 스트라이크존 3×3 */
+export interface ZoneGrid {
+  outer: ZoneCell[]; // 4개
+  inner: ZoneCell[]; // 9개
+}
+
+/** 타구 방향 분포 */
+export interface HitDirection {
+  lf: string; // "50.6%"
+  cf: string;
+  rf: string;
+}
+
+/** 타자용 차트 전체 */
+export interface HitterChart {
+  hotCold: ZoneGrid; // HOT & COLD ZONE (구역별 타율)
+  strikeout: ZoneGrid; // 삼진 분포도
+  hitDistrib: HitDirection; // 타구 방향 LF/CF/RF
+}
+
+/** 투수용 차트 전체 */
+export interface PitcherChart {
+  pitchZone: ZoneGrid; // 투구 분포도
+  strikeoutZone: ZoneGrid; // 탈삼진 분포도
+}
+
+/** GET /api/players/{pid}/chart 응답 전체 */
+export interface PlayerChartResponse {
+  pid: number;
+  playerType: "hitter" | "pitcher";
+  hitter: HitterChart | null;
+  pitcher: PitcherChart | null;
+}
+
+/**
+ * 선수 차트 데이터 조회
+ * — HOT/COLD ZONE, 삼진 분포, 타구 방향, 투구 분포도, 탈삼진 분포
+ * — 실패 시 null 반환 → 호출부에서 MOCK fallback 처리
+ */
+export async function fetchPlayerChart(
+  pid: number,
+): Promise<PlayerChartResponse | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/players/${pid}/chart`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
