@@ -1,46 +1,368 @@
-// 타자 스탯캐스트 탭
-// - 스프레이 차트 (타구 분포)
-// - 연도별 OPS 바 차트 (실제 DB 시즌 스탯)
-// - 시즌 기록 테이블
-import type { HitterStat } from "@/types/playerStats";
-import { fmtAvg } from "@/utils/playerUtils";
+/**
+ * HitterStatcastTab.tsx
+ * 타자 스탯캐스트 탭
+ *
+ * 변경사항:
+ * - OBP/SLG/OPS: DB값 우선, 없으면 StatsCalculator로 계산
+ * - BB%, K%, WAR: StatsCalculator로 계산
+ * - 테이블 컬럼: AB·R 제거, WAR 추가
+ */
+
+import type { HitterCombinedStat } from "@/utils/StatsCalculator";
+import { calcHitterDerived, fmtAvg, fmtPct } from "@/utils/StatsCalculator";
 
 interface HitterStatcastTabProps {
-  stats: HitterStat[];
-  hitDistrib?: { LF: string; CF: string; RF: string }; // DB 타구 방향 (없으면 기본값)
+  stats: HitterCombinedStat[];
+  hitDistrib?: { LF: string; CF: string; RF: string };
 }
 
-// 스프레이 차트 점 데이터 (mock — 실제 경기 단위 데이터 없으면 유지)
-const SPRAY_DOTS: { x: number; y: number; type: string }[] = [
-  { x: 58, y: 92, type: "1B" },
-  { x: 48, y: 108, type: "OUT" },
-  { x: 72, y: 78, type: "2B" },
-  { x: 53, y: 82, type: "HR" },
-  { x: 63, y: 98, type: "1B" },
-  { x: 68, y: 68, type: "HR" },
-  { x: 128, y: 38, type: "HR" },
-  { x: 150, y: 32, type: "OUT" },
-  { x: 168, y: 44, type: "2B" },
-  { x: 140, y: 52, type: "1B" },
-  { x: 222, y: 92, type: "1B" },
-  { x: 238, y: 78, type: "2B" },
-  { x: 228, y: 63, type: "HR" },
-  { x: 242, y: 88, type: "1B" },
-  { x: 113, y: 108, type: "OUT" },
-  { x: 133, y: 98, type: "1B" },
-  { x: 162, y: 113, type: "OUT" },
-  { x: 178, y: 100, type: "2B" },
-];
+// ── 퍼센테이지 문자열 파싱 ─────────────────────────────────────────────────
+function parsePct(v: string): number {
+  return parseFloat(v.replace("%", "")) || 0;
+}
 
-const DOT_COLOR: Record<string, string> = {
-  HR: "#EF4444",
-  "2B": "#F59E0B",
-  "1B": "#10B981",
-  OUT: "#9CA3AF",
-};
+// ── 방향별 타구 분포 히트맵 차트 ──────────────────────────────────────────
+function SprayHeatmap({ lf, cf, rf }: { lf: string; cf: string; rf: string }) {
+  const lfN = parsePct(lf);
+  const cfN = parsePct(cf);
+  const rfN = parsePct(rf);
+  const max = Math.max(lfN, cfN, rfN, 1);
 
-// ── 연도별 OPS 바 차트 ──────────────────────────────────────────
-function OpsBarChart({ stats }: { stats: HitterStat[] }) {
+  // 가장 높은 방향 = 1.0, 나머지 비례
+  const lfRatio = lfN / max;
+  const cfRatio = cfN / max;
+  const rfRatio = rfN / max;
+
+  // 불투명도: 0.18(최소) ~ 0.80(최대)
+  const opacity = (r: number) => 0.18 + r * 0.62;
+
+  // 테두리 두께: 가장 높은 방향 강조
+  const isTop = (n: number) => n === max;
+
+  return (
+    <svg viewBox="0 0 300 270" className="w-full" style={{ maxHeight: 240 }}>
+      <defs>
+        {/* LF 그라디언트 (녹색) */}
+        <radialGradient id="gradLF" cx="30%" cy="80%" r="70%">
+          <stop
+            offset="0%"
+            stopColor="#10B981"
+            stopOpacity={opacity(lfRatio)}
+          />
+          <stop offset="100%" stopColor="#10B981" stopOpacity="0" />
+        </radialGradient>
+        {/* CF 그라디언트 (파랑) */}
+        <radialGradient id="gradCF" cx="50%" cy="60%" r="60%">
+          <stop
+            offset="0%"
+            stopColor="#3B82F6"
+            stopOpacity={opacity(cfRatio)}
+          />
+          <stop offset="100%" stopColor="#3B82F6" stopOpacity="0" />
+        </radialGradient>
+        {/* RF 그라디언트 (보라) */}
+        <radialGradient id="gradRF" cx="70%" cy="80%" r="70%">
+          <stop
+            offset="0%"
+            stopColor="#8B5CF6"
+            stopOpacity={opacity(rfRatio)}
+          />
+          <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
+        </radialGradient>
+        {/* 내야 마스크 (잔디) */}
+        <clipPath id="fieldClip">
+          <path d="M150,255 L5,92 Q150,2 295,92 Z" />
+        </clipPath>
+      </defs>
+
+      {/* ── 외야 잔디 (베이스) ── */}
+      <path d="M150,255 L5,92 Q150,2 295,92 Z" fill="#2a5e2a" />
+
+      {/* ── 방향 구분선 (홈→LF경계, 홈→RF경계) ── */}
+      {/* LF-CF 구분: 홈 → 약 (95, 38) */}
+      <line
+        x1="150"
+        y1="255"
+        x2="95"
+        y2="38"
+        stroke="rgba(255,255,255,0.15)"
+        strokeWidth="1.5"
+        strokeDasharray="5,4"
+      />
+      {/* CF-RF 구분: 홈 → 약 (205, 38) */}
+      <line
+        x1="150"
+        y1="255"
+        x2="205"
+        y2="38"
+        stroke="rgba(255,255,255,0.15)"
+        strokeWidth="1.5"
+        strokeDasharray="5,4"
+      />
+
+      {/* ── LF 히트맵 존 ── */}
+      <path
+        d="M150,255 L5,92 Q95,10 95,38 Z"
+        fill="url(#gradLF)"
+        clipPath="url(#fieldClip)"
+      />
+      {/* ── CF 히트맵 존 ── */}
+      <path
+        d="M150,255 L95,38 Q150,2 205,38 Z"
+        fill="url(#gradCF)"
+        clipPath="url(#fieldClip)"
+      />
+      {/* ── RF 히트맵 존 ── */}
+      <path
+        d="M150,255 L205,38 Q210,10 295,92 Z"
+        fill="url(#gradRF)"
+        clipPath="url(#fieldClip)"
+      />
+
+      {/* ── 존 테두리 강조 (1위 방향) ── */}
+      {isTop(lfN) && (
+        <path
+          d="M150,255 L5,92 Q95,10 95,38 Z"
+          fill="none"
+          stroke="#10B981"
+          strokeWidth="2.5"
+          strokeOpacity="0.7"
+          clipPath="url(#fieldClip)"
+        />
+      )}
+      {isTop(cfN) && (
+        <path
+          d="M150,255 L95,38 Q150,2 205,38 Z"
+          fill="none"
+          stroke="#3B82F6"
+          strokeWidth="2.5"
+          strokeOpacity="0.7"
+          clipPath="url(#fieldClip)"
+        />
+      )}
+      {isTop(rfN) && (
+        <path
+          d="M150,255 L205,38 Q210,10 295,92 Z"
+          fill="none"
+          stroke="#8B5CF6"
+          strokeWidth="2.5"
+          strokeOpacity="0.7"
+          clipPath="url(#fieldClip)"
+        />
+      )}
+
+      {/* ── 내야 (흙) ── */}
+      <path d="M150,195 L88,138 L150,80 L212,138 Z" fill="#c8a26a" />
+      <ellipse cx="150" cy="143" rx="40" ry="40" fill="#2a5e2a" />
+      {/* 내야 외곽선 */}
+      <path
+        d="M150,195 L88,138 L150,80 L212,138 Z"
+        fill="none"
+        stroke="#a07840"
+        strokeWidth="1.5"
+        strokeOpacity="0.5"
+      />
+
+      {/* ── 파울 라인 ── */}
+      <line
+        x1="150"
+        y1="255"
+        x2="5"
+        y2="92"
+        stroke="white"
+        strokeWidth="1.5"
+        opacity="0.3"
+      />
+      <line
+        x1="150"
+        y1="255"
+        x2="295"
+        y2="92"
+        stroke="white"
+        strokeWidth="1.5"
+        opacity="0.3"
+      />
+
+      {/* ── 베이스 다이아몬드 ── */}
+      {(
+        [
+          [150, 80],
+          [212, 138],
+          [150, 195],
+          [88, 138],
+        ] as [number, number][]
+      ).map(([x, y], i) => (
+        <rect
+          key={i}
+          x={x - 5}
+          y={y - 5}
+          width="10"
+          height="10"
+          fill="white"
+          transform={`rotate(45,${x},${y})`}
+        />
+      ))}
+      {/* 홈플레이트 */}
+      <polygon points="147,251 153,251 155,255 150,258 145,255" fill="white" />
+      <ellipse
+        cx="150"
+        cy="143"
+        rx="5"
+        ry="5"
+        fill="#c8a26a"
+        stroke="#a07840"
+        strokeWidth="1"
+      />
+
+      {/* ── 퍼센테이지 라벨 (존 중앙) ── */}
+      {/* LF 라벨 */}
+      <g>
+        <rect
+          x="34"
+          y="118"
+          width="52"
+          height="36"
+          rx="8"
+          fill="rgba(0,0,0,0.55)"
+        />
+        <text
+          x="60"
+          y="133"
+          textAnchor="middle"
+          fontSize="9"
+          fill="#6EE7B7"
+          fontWeight="bold"
+        >
+          좌 (LF)
+        </text>
+        <text
+          x="60"
+          y="148"
+          textAnchor="middle"
+          fontSize="14"
+          fill="white"
+          fontWeight="900"
+        >
+          {lf}
+        </text>
+        {isTop(lfN) && (
+          <text x="60" y="162" textAnchor="middle" fontSize="8" fill="#10B981">
+            ▲ 최다
+          </text>
+        )}
+      </g>
+      {/* CF 라벨 */}
+      <g>
+        <rect
+          x="116"
+          y="30"
+          width="68"
+          height="36"
+          rx="8"
+          fill="rgba(0,0,0,0.55)"
+        />
+        <text
+          x="150"
+          y="45"
+          textAnchor="middle"
+          fontSize="9"
+          fill="#93C5FD"
+          fontWeight="bold"
+        >
+          중 (CF)
+        </text>
+        <text
+          x="150"
+          y="60"
+          textAnchor="middle"
+          fontSize="14"
+          fill="white"
+          fontWeight="900"
+        >
+          {cf}
+        </text>
+        {isTop(cfN) && (
+          <text x="150" y="74" textAnchor="middle" fontSize="8" fill="#3B82F6">
+            ▲ 최다
+          </text>
+        )}
+      </g>
+      {/* RF 라벨 */}
+      <g>
+        <rect
+          x="214"
+          y="118"
+          width="52"
+          height="36"
+          rx="8"
+          fill="rgba(0,0,0,0.55)"
+        />
+        <text
+          x="240"
+          y="133"
+          textAnchor="middle"
+          fontSize="9"
+          fill="#C4B5FD"
+          fontWeight="bold"
+        >
+          우 (RF)
+        </text>
+        <text
+          x="240"
+          y="148"
+          textAnchor="middle"
+          fontSize="14"
+          fill="white"
+          fontWeight="900"
+        >
+          {rf}
+        </text>
+        {isTop(rfN) && (
+          <text x="240" y="162" textAnchor="middle" fontSize="8" fill="#8B5CF6">
+            ▲ 최다
+          </text>
+        )}
+      </g>
+
+      {/* ── 범례 바 (하단) ── */}
+      <g transform="translate(60, 238)">
+        {(
+          [
+            ["좌", "#10B981", lfRatio],
+            ["중", "#3B82F6", cfRatio],
+            ["우", "#8B5CF6", rfRatio],
+          ] as [string, string, number][]
+        ).map(([label, color, ratio], i) => (
+          <g key={label} transform={`translate(${i * 65}, 0)`}>
+            <rect
+              x="0"
+              y="0"
+              width={Math.max(ratio * 56, 6)}
+              height="7"
+              rx="3.5"
+              fill={color}
+              opacity="0.85"
+            />
+            <rect
+              x="0"
+              y="0"
+              width="56"
+              height="7"
+              rx="3.5"
+              fill={color}
+              opacity="0.15"
+            />
+            <text x="28" y="18" textAnchor="middle" fontSize="8" fill="#9CA3AF">
+              {label}방향
+            </text>
+          </g>
+        ))}
+      </g>
+    </svg>
+  );
+}
+
+function OpsBarChart({ stats }: { stats: HitterCombinedStat[] }) {
   if (stats.length === 0) {
     return (
       <div className="flex items-center justify-center h-32 text-gray-300 text-sm">
@@ -50,58 +372,37 @@ function OpsBarChart({ stats }: { stats: HitterStat[] }) {
   }
 
   const sorted = [...stats].sort((a, b) => a.season - b.season);
-
-  // OPS = OBP + SLG — DB에 ops 컬럼이 있으면 그대로, 없으면 obp+slg 합산
-  const getOps = (s: HitterStat): number => {
-    if (s.ops != null) return parseFloat(String(s.ops));
-    const obp = parseFloat(String(s.obp ?? 0));
-    const slg = parseFloat(String(s.slg ?? 0));
-    return obp + slg;
-  };
-
+  const getOps = (s: HitterCombinedStat) => calcHitterDerived(s).ops;
   const maxOps = Math.max(...sorted.map(getOps), 1.0);
-
-  // 기준선: 0.700 / 0.800 / 0.900 / 1.000
   const GUIDES = [0.7, 0.8, 0.9, 1.0];
 
-  // OPS 수준별 색상
   const barColor = (ops: number) => {
-    if (ops >= 0.9) return { bar: "#3B82F6", bg: "#EFF6FF" };
-    if (ops >= 0.8) return { bar: "#10B981", bg: "#ECFDF5" };
-    if (ops >= 0.7) return { bar: "#F59E0B", bg: "#FFFBEB" };
-    return { bar: "#9CA3AF", bg: "#F9FAFB" };
+    if (ops >= 0.9) return "#3B82F6";
+    if (ops >= 0.8) return "#10B981";
+    if (ops >= 0.7) return "#F59E0B";
+    return "#9CA3AF";
   };
 
   return (
     <div className="space-y-2.5">
-      {/* 가이드라인 헤더 */}
       <div className="flex items-center justify-between text-xs text-gray-300 px-1 mb-1">
         {GUIDES.map((g) => (
           <span key={g}>{g.toFixed(3)}</span>
         ))}
       </div>
-
       {sorted.map((s) => {
         const ops = getOps(s);
         const pct = Math.min((ops / maxOps) * 100, 100);
-        const { bar, bg } = barColor(ops);
+        const color = barColor(ops);
         const latest = s.season === sorted[sorted.length - 1].season;
-
         return (
           <div key={s.season} className="flex items-center gap-3">
-            {/* 연도 */}
             <span
               className={`text-xs font-bold w-10 flex-shrink-0 ${latest ? "text-blue-600" : "text-gray-400"}`}
             >
               {s.season}
             </span>
-
-            {/* 바 */}
-            <div
-              className="flex-1 relative h-7 rounded-lg overflow-hidden"
-              style={{ background: "#F3F4F6" }}
-            >
-              {/* 가이드라인 수직선 */}
+            <div className="flex-1 relative h-7 rounded-lg overflow-hidden bg-gray-100">
               {GUIDES.map((g) => (
                 <div
                   key={g}
@@ -109,26 +410,21 @@ function OpsBarChart({ stats }: { stats: HitterStat[] }) {
                   style={{ left: `${(g / maxOps) * 100}%`, opacity: 0.6 }}
                 />
               ))}
-              {/* 실제 바 */}
               <div
                 className="absolute top-0 left-0 h-full rounded-lg flex items-center justify-end pr-2 transition-all duration-500"
-                style={{ width: `${pct}%`, backgroundColor: bar }}
+                style={{ width: `${pct}%`, backgroundColor: color }}
               >
                 <span className="text-white text-xs font-black">
                   {ops.toFixed(3)}
                 </span>
               </div>
             </div>
-
-            {/* 팀 */}
             <span className="text-xs text-gray-400 w-10 flex-shrink-0 text-right">
               {s.team}
             </span>
           </div>
         );
       })}
-
-      {/* 범례 */}
       <div className="flex items-center gap-4 pt-1 flex-wrap">
         {[
           { label: "엘리트 (0.900+)", color: "#3B82F6" },
@@ -149,7 +445,6 @@ function OpsBarChart({ stats }: { stats: HitterStat[] }) {
   );
 }
 
-// ── 메인 컴포넌트 ────────────────────────────────────────────────
 export default function HitterStatcastTab({
   stats,
   hitDistrib,
@@ -157,7 +452,6 @@ export default function HitterStatcastTab({
   const sorted = [...stats].sort((a, b) => b.season - a.season);
   const latest = sorted[0] ?? null;
 
-  // 타구 방향: DB 데이터 우선, 없으면 기본값
   const lf = hitDistrib?.LF ?? "50.6%";
   const cf = hitDistrib?.CF ?? "24.7%";
   const rf = hitDistrib?.RF ?? "24.7%";
@@ -165,191 +459,87 @@ export default function HitterStatcastTab({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* ── 스프레이 차트 ── */}
+        {/* 스프레이 차트 — 방향별 타구 히트맵 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-5 rounded-full bg-green-500" />
-            <h3 className="font-bold text-gray-800 text-sm">
-              타구 분포 (스프레이 차트)
-            </h3>
-            <span className="ml-auto text-xs text-gray-400">2025 시즌</span>
+            <h3 className="font-bold text-gray-800 text-sm">타구 방향 분포</h3>
+            <span className="ml-auto text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">
+              밝을수록 높은 비율
+            </span>
           </div>
 
-          <div className="relative w-full" style={{ height: 220 }}>
-            <svg
-              viewBox="0 0 300 260"
-              className="absolute inset-0 w-full h-full max-w-xs mx-auto left-0 right-0"
-            >
-              <path d="M150,245 L10,90 Q150,5 290,90 Z" fill="#2d6a2d" />
-              <path d="M150,183 L93,128 L150,75 L207,128 Z" fill="#c8a26a" />
-              <ellipse cx="150" cy="133" rx="38" ry="38" fill="#2d6a2d" />
-              <path
-                d="M150,245 L10,90 Q150,5 290,90 Z"
-                fill="none"
-                stroke="#a07840"
-                strokeWidth="8"
-                strokeOpacity="0.4"
-              />
-              <line
-                x1="150"
-                y1="245"
-                x2="10"
-                y2="90"
-                stroke="white"
-                strokeWidth="1.5"
-                opacity="0.4"
-              />
-              <line
-                x1="150"
-                y1="245"
-                x2="290"
-                y2="90"
-                stroke="white"
-                strokeWidth="1.5"
-                opacity="0.4"
-              />
-              {(
-                [
-                  [150, 75],
-                  [207, 128],
-                  [150, 183],
-                  [93, 128],
-                ] as [number, number][]
-              ).map(([x, y], i) => (
-                <rect
-                  key={i}
-                  x={x - 5}
-                  y={y - 5}
-                  width="10"
-                  height="10"
-                  fill="white"
-                  transform={`rotate(45,${x},${y})`}
-                />
-              ))}
-              <polygon
-                points="147,240 153,240 155,245 150,248 145,245"
-                fill="white"
-              />
-              <ellipse
-                cx="150"
-                cy="133"
-                rx="6"
-                ry="6"
-                fill="#c8a26a"
-                stroke="#a07840"
-                strokeWidth="1"
-              />
-              {SPRAY_DOTS.map((d, i) => (
-                <circle
-                  key={i}
-                  cx={d.x}
-                  cy={d.y}
-                  r="4.5"
-                  fill={DOT_COLOR[d.type] ?? "#9CA3AF"}
-                  opacity="0.85"
-                  stroke="white"
-                  strokeWidth="0.8"
-                />
-              ))}
-            </svg>
+          {/* 히트맵 차트 */}
+          <div className="flex justify-center">
+            <div className="w-full max-w-[260px]">
+              <SprayHeatmap lf={lf} cf={cf} rf={rf} />
+            </div>
           </div>
 
-          {/* 범례 */}
-          <div className="flex items-center justify-center gap-4 mt-3 flex-wrap">
+          {/* 수치 카드 */}
+          <div className="mt-1 grid grid-cols-3 gap-2">
             {(
               [
-                ["HR", "#EF4444"],
-                ["2루타", "#F59E0B"],
-                ["안타", "#10B981"],
-                ["아웃", "#9CA3AF"],
-              ] as [string, string][]
-            ).map(([t, c]) => (
-              <div key={t} className="flex items-center gap-1.5">
+                ["좌 (LF)", "#10B981", lf, parsePct(lf)],
+                ["중 (CF)", "#3B82F6", cf, parsePct(cf)],
+                ["우 (RF)", "#8B5CF6", rf, parsePct(rf)],
+              ] as [string, string, string, number][]
+            ).map(([label, color, val, num]) => {
+              const isMax =
+                num === Math.max(parsePct(lf), parsePct(cf), parsePct(rf));
+              return (
                 <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: c }}
-                />
-                <span className="text-xs text-gray-500 font-medium">{t}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* 타구 방향 — DB 실제 데이터 */}
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {(
-              [
-                ["좌", "#10B981", lf],
-                ["중", "#3B82F6", cf],
-                ["우", "#8B5CF6", rf],
-              ] as [string, string, string][]
-            ).map(([d, c, v]) => (
-              <div
-                key={d}
-                className="text-center p-2 rounded-xl border"
-                style={{ borderColor: c + "40", background: c + "10" }}
-              >
-                <p className="text-xs font-medium text-gray-500">{d}방향</p>
-                <p className="text-base font-black" style={{ color: c }}>
-                  {v}
-                </p>
-              </div>
-            ))}
+                  key={label}
+                  className={`text-center p-2.5 rounded-xl border-2 transition-all ${
+                    isMax ? "shadow-sm" : ""
+                  }`}
+                  style={{
+                    borderColor: isMax ? color : color + "30",
+                    background: isMax ? color + "15" : color + "08",
+                  }}
+                >
+                  <p className="text-xs font-medium text-gray-400">{label}</p>
+                  <p className="text-lg font-black mt-0.5" style={{ color }}>
+                    {val}
+                  </p>
+                  {isMax && (
+                    <p className="text-xs font-bold mt-0.5" style={{ color }}>
+                      최다 방향
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* ── 연도별 OPS 바 차트 ── */}
+        {/* 연도별 OPS 바 차트 */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 rounded-full bg-blue-500" />
             <h3 className="font-bold text-gray-800 text-sm">연도별 OPS 추이</h3>
             {latest && (
               <span className="ml-auto text-xl font-black text-blue-600">
-                {(() => {
-                  const ops =
-                    latest.ops != null
-                      ? parseFloat(String(latest.ops))
-                      : parseFloat(String(latest.obp ?? 0)) +
-                        parseFloat(String(latest.slg ?? 0));
-                  return ops.toFixed(3);
-                })()}
+                {calcHitterDerived(latest).ops.toFixed(3)}
               </span>
             )}
           </div>
-
           <OpsBarChart stats={stats} />
-
-          {/* 요약 카드 */}
           {sorted.length > 0 && (
             <div className="grid grid-cols-2 gap-3 mt-4">
               {[
                 {
                   label: "커리어 최고 OPS",
-                  val: (() => {
-                    const max = Math.max(
-                      ...sorted.map((s) =>
-                        s.ops != null
-                          ? parseFloat(String(s.ops))
-                          : parseFloat(String(s.obp ?? 0)) +
-                            parseFloat(String(s.slg ?? 0)),
-                      ),
-                    );
-                    return max.toFixed(3);
-                  })(),
+                  val: Math.max(
+                    ...sorted.map((s) => calcHitterDerived(s).ops),
+                  ).toFixed(3),
                   color: "#EF4444",
                 },
                 {
                   label: "커리어 최저 OPS",
-                  val: (() => {
-                    const min = Math.min(
-                      ...sorted.map((s) =>
-                        s.ops != null
-                          ? parseFloat(String(s.ops))
-                          : parseFloat(String(s.obp ?? 0)) +
-                            parseFloat(String(s.slg ?? 0)),
-                      ),
-                    );
-                    return min.toFixed(3);
-                  })(),
+                  val: Math.min(
+                    ...sorted.map((s) => calcHitterDerived(s).ops),
+                  ).toFixed(3),
                   color: "#6B7280",
                 },
                 {
@@ -359,7 +549,7 @@ export default function HitterStatcastTab({
                 },
                 {
                   label: "최근 시즌 HR",
-                  val: latest ? String(latest.hr) : "-",
+                  val: latest ? String(latest.hr ?? "-") : "-",
                   color: "#F59E0B",
                 },
               ].map(({ label, val, color }) => (
@@ -378,7 +568,7 @@ export default function HitterStatcastTab({
         </div>
       </div>
 
-      {/* ── 시즌 기록 테이블 ── */}
+      {/* 시즌 기록 테이블 */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
           <div className="w-1 h-5 rounded-full bg-purple-500" />
@@ -393,10 +583,10 @@ export default function HitterStatcastTab({
                   "팀",
                   "G",
                   "PA",
-                  "AB",
                   "H",
                   "HR",
                   "RBI",
+                  "SB",
                   "AVG",
                   "OBP",
                   "SLG",
@@ -409,7 +599,9 @@ export default function HitterStatcastTab({
                     className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${
                       ["AVG", "OBP", "SLG", "OPS"].includes(h)
                         ? "text-blue-600"
-                        : "text-gray-400"
+                        : h === "SB"
+                          ? "text-emerald-500"
+                          : "text-gray-400"
                     }`}
                   >
                     {h}
@@ -419,19 +611,7 @@ export default function HitterStatcastTab({
             </thead>
             <tbody>
               {sorted.map((row, i) => {
-                const ops =
-                  row.ops != null
-                    ? parseFloat(String(row.ops))
-                    : parseFloat(String(row.obp ?? 0)) +
-                      parseFloat(String(row.slg ?? 0));
-                const bbPct =
-                  row.pa && row.bb != null
-                    ? ((row.bb / row.pa) * 100).toFixed(1) + "%"
-                    : "-";
-                const kPct =
-                  row.pa && row.so != null
-                    ? ((row.so / row.pa) * 100).toFixed(1) + "%"
-                    : "-";
+                const d = calcHitterDerived(row);
                 return (
                   <tr
                     key={i}
@@ -444,40 +624,40 @@ export default function HitterStatcastTab({
                       {row.team}
                     </td>
                     <td className="px-3 py-3 text-center text-gray-500">
-                      {row.g}
+                      {row.g ?? "-"}
                     </td>
                     <td className="px-3 py-3 text-center text-gray-500">
-                      {row.pa}
+                      {row.pa ?? "-"}
                     </td>
                     <td className="px-3 py-3 text-center text-gray-500">
-                      {row.ab}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.h}
+                      {row.h ?? "-"}
                     </td>
                     <td className="px-3 py-3 text-center font-bold text-gray-800">
-                      {row.hr}
+                      {row.hr ?? "-"}
                     </td>
                     <td className="px-3 py-3 text-center font-bold text-gray-800">
-                      {row.rbi}
+                      {row.rbi ?? "-"}
+                    </td>
+                    <td className="px-3 py-3 text-center font-bold text-emerald-600">
+                      {row.sb ?? "-"}
                     </td>
                     <td className="px-3 py-3 text-center font-bold text-blue-600">
                       {fmtAvg(row.avg)}
                     </td>
                     <td className="px-3 py-3 text-center font-bold text-blue-600">
-                      {fmtAvg(row.obp)}
+                      {fmtAvg(d.obp)}
                     </td>
                     <td className="px-3 py-3 text-center font-bold text-blue-600">
-                      {fmtAvg(row.slg)}
+                      {fmtAvg(d.slg)}
                     </td>
                     <td className="px-3 py-3 text-center font-bold text-yellow-600">
-                      {ops.toFixed(3)}
+                      {d.ops.toFixed(3)}
                     </td>
                     <td className="px-3 py-3 text-center text-gray-500">
-                      {bbPct}
+                      {fmtPct(d.bbPct)}
                     </td>
                     <td className="px-3 py-3 text-center text-gray-500">
-                      {kPct}
+                      {fmtPct(d.kPct)}
                     </td>
                   </tr>
                 );

@@ -141,3 +141,21 @@ export async function fetchPlayerChart(
     return null;
   }
 }
+// ── playerApi.ts에 추가할 함수 ─────────────────────────────────────────────
+// 기존 파일 하단에 붙여넣기
+
+export interface PitchStat {
+  pitchType: string; // "직구", "슬라이더" 등
+  speed: number | null; // km/h
+  usage: number | null; // %
+}
+
+export async function fetchPitchStats(pid: number): Promise<PitchStat[]> {
+  try {
+    const res = await fetch(`/api/stats/pitcher/${pid}/pitch`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
