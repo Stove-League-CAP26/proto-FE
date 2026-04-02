@@ -141,8 +141,6 @@ export async function fetchPlayerChart(
     return null;
   }
 }
-// ── playerApi.ts에 추가할 함수 ─────────────────────────────────────────────
-// 기존 파일 하단에 붙여넣기
 
 export interface PitchStat {
   pitchType: string; // "직구", "슬라이더" 등
@@ -157,5 +155,59 @@ export async function fetchPitchStats(pid: number): Promise<PitchStat[]> {
     return res.json();
   } catch {
     return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// BEST 플레이어 API
+// ─────────────────────────────────────────────────────────────
+
+export interface BestRankItem {
+  rank: number;
+  pid: number;
+  name: string;
+  team: string;
+  val: number; // 백엔드에서 Double로 내려옴
+}
+
+export interface HitterBestResponse {
+  season: number;
+  AVG: BestRankItem[];
+  HR: BestRankItem[];
+  RBI: BestRankItem[];
+  H: BestRankItem[];
+  TB: BestRankItem[];
+}
+
+export interface PitcherBestResponse {
+  season: number;
+  ERA: BestRankItem[];
+  WIN: BestRankItem[];
+  KK: BestRankItem[];
+  SAVE: BestRankItem[];
+  WHIP: BestRankItem[];
+}
+
+export async function fetchHitterBest(
+  season = 2025,
+): Promise<HitterBestResponse | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/best/hitter?season=${season}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPitcherBest(
+  season = 2025,
+): Promise<PitcherBestResponse | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/best/pitcher?season=${season}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
   }
 }

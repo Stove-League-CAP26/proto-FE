@@ -4,7 +4,6 @@
 import { useState, useEffect, useMemo } from "react";
 import PlayerSearchBar from "@/components/profile/PlayerSearchBar";
 import PlayerHeroBanner from "@/components/profile/PlayerHeroBanner";
-import PlayerPercentileBar from "@/components/profile/PlayerPercentileBar";
 import PlayerAppLinks from "@/components/profile/PlayerAppLinks";
 import PlayerTabBar from "@/components/profile/PlayerTabBar";
 import HotColdTab from "@/components/profile/HotColdTab";
@@ -13,11 +12,7 @@ import HitterStatcastTab from "@/components/profile/HitterStatcastTab";
 import PitcherStatcastTab from "@/components/profile/PitcherStatcastTab";
 import PitcherStandardTab from "@/components/profile/PitcherStandardTab";
 import { TEAM_COLORS } from "@/constants/teamColors";
-import {
-  MOCK_HOT_COLD,
-  MOCK_PITCH_ZONE,
-  MOCK_PITCHER_PERCENTILES,
-} from "@/mock/statsData";
+import { MOCK_HOT_COLD, MOCK_PITCH_ZONE } from "@/mock/statsData";
 import {
   searchPlayersByName,
   fetchHitterStats,
@@ -36,36 +31,16 @@ import { isPitcher, fmtAvg, fmtEra, fmtWhip } from "@/utils/playerUtils";
 import type { HitterStat, PitcherStat } from "@/types/playerStats";
 
 // ─────────────────────────────────────────────────────────────
-// 퍼센타일 MOCK (스탯 DB 연동 전까지 유지)
-// ─────────────────────────────────────────────────────────────
-const MOCK_HITTER_PERCENTILES = [
-  { label: "타율", pct: 62, val: ".337", inverse: false },
-  { label: "OPS", pct: 78, val: ".939", inverse: false },
-  { label: "장타율", pct: 71, val: ".533", inverse: false },
-  { label: "출루율", pct: 80, val: ".406", inverse: false },
-  { label: "홈런", pct: 55, val: "20개", inverse: false },
-  { label: "도루", pct: 22, val: "4개", inverse: false },
-  { label: "삼진율", pct: 75, val: "12.2%", inverse: false },
-  { label: "볼넷율", pct: 68, val: "9.7%", inverse: false },
-  { label: "배럴%", pct: 88, val: "11.3%", inverse: false },
-  { label: "강타%", pct: 82, val: "44.8%", inverse: false },
-];
-
-// ─────────────────────────────────────────────────────────────
 // MOCK fallback — 차트 API 실패 시 사용
-// HotColdTab 기대 포맷과 동일하게 유지
 // ─────────────────────────────────────────────────────────────
 const FALLBACK_HOT_COLD_DATA = {
   outer: MOCK_HOT_COLD.outer,
   inner: MOCK_HOT_COLD.inner,
   strikeout: MOCK_HOT_COLD.strikeout,
-  hitDistrib: MOCK_HOT_COLD.hitDistrib, // { LF, CF, RF }
+  hitDistrib: MOCK_HOT_COLD.hitDistrib,
 };
 
-// 투구 분포도 fallback
 const FALLBACK_PITCH_ZONE: ZoneGrid = MOCK_PITCH_ZONE;
-
-// 탈삼진 분포도 fallback (투구존과 동일 구조, 값만 다름)
 const FALLBACK_STRIKEOUT_ZONE: ZoneGrid = MOCK_PITCH_ZONE;
 
 // ─────────────────────────────────────────────────────────────
@@ -140,11 +115,10 @@ export default function PlayerProfilePage() {
     const radarFetcher = pitcherType ? fetchPitcherRadar : fetchHitterRadar;
     radarFetcher(pid)
       .then((data) => setRadarData(data))
-      .catch(() => setRadarData(null)) // 실패 시 조용히 null
+      .catch(() => setRadarData(null))
       .finally(() => setRadarLoading(false));
 
     // ── 차트 초기화 + 로드 ───────────────────────────────
-    // fetchPlayerChart는 내부에서 에러 catch → null 반환하므로 .catch 불필요
     setChartData(null);
     setChartLoading(true);
 
@@ -155,7 +129,6 @@ export default function PlayerProfilePage() {
 
   // ── 차트 데이터 resolve: 실제 DB > MOCK fallback ─────────
 
-  /** 타자 핫/콜드존 + 삼진분포 + 타구방향 */
   const resolvedHotColdData = useMemo(() => {
     const h = chartData?.hitter;
     if (!h) return FALLBACK_HOT_COLD_DATA;
@@ -174,20 +147,17 @@ export default function PlayerProfilePage() {
     };
   }, [chartData]);
 
-  /** 투수 투구 분포도 */
   const resolvedPitchZone = useMemo<ZoneGrid>(() => {
     return chartData?.pitcher?.pitchZone ?? FALLBACK_PITCH_ZONE;
   }, [chartData]);
 
-  /** 투수 탈삼진 분포도 */
   const resolvedStrikeoutZone = useMemo<ZoneGrid>(() => {
     return chartData?.pitcher?.strikeoutZone ?? FALLBACK_STRIKEOUT_ZONE;
   }, [chartData]);
 
-  /** 타자 타구 방향 — HitterStatcastTab 스프레이 차트용 */
   const resolvedHitDistrib = useMemo(() => {
     const h = chartData?.hitter;
-    if (!h) return MOCK_HOT_COLD.hitDistrib; // { LF, CF, RF }
+    if (!h) return MOCK_HOT_COLD.hitDistrib;
     return {
       LF: h.hitDistrib.lf,
       CF: h.hitDistrib.cf,
@@ -195,7 +165,6 @@ export default function PlayerProfilePage() {
     };
   }, [chartData]);
 
-  // 차트 데이터 출처 (디버깅/배지용)
   const chartSource = chartLoading ? "loading" : chartData ? "db" : "mock";
 
   // ─────────────────────────────────────────────────────────
@@ -301,7 +270,6 @@ export default function PlayerProfilePage() {
       ? [...pitcherStats].sort((a, b) => b.season - a.season)[0]
       : null;
 
-  // 히어로 배너 주요 지표 배지
   const heroBadges = pitcher
     ? [
         {
@@ -366,9 +334,6 @@ export default function PlayerProfilePage() {
     tc.accent === "#000000" ? "#1e1e2e" : tc.accent
   } 55%, #0f0f1a 100%)`;
 
-  const percentiles = pitcher
-    ? MOCK_PITCHER_PERCENTILES
-    : MOCK_HITTER_PERCENTILES;
   const playerApps = pitcher
     ? ["비주얼 리포트", "3D 피칭", "구종 분포", "유사 투수", "스윙 테이크"]
     : [
@@ -379,6 +344,7 @@ export default function PlayerProfilePage() {
         "유사 선수",
         "포지셔닝",
       ];
+
   const tabs = pitcher ? PITCHER_TABS : HITTER_TABS;
 
   const sortedHitter = [...hitterStats].sort((a, b) => b.season - a.season);
@@ -409,112 +375,120 @@ export default function PlayerProfilePage() {
           {
             label: "득점",
             val: latestHitter ? String(latestHitter.r) : "-",
-            color: "from-emerald-500 to-emerald-600",
+            color: "from-green-500 to-green-600",
           },
         ].map(({ label, val, color }) => (
           <div
             key={label}
-            className={`bg-gradient-to-br ${color} rounded-2xl p-4 text-white shadow-sm`}
+            className={`bg-gradient-to-br ${color} rounded-2xl p-4 text-white`}
           >
             <p className="text-white/70 text-xs font-medium">{label}</p>
-            <p className="text-3xl font-black mt-0.5">{val}</p>
-            <p className="text-white/60 text-xs mt-1">최근 시즌</p>
+            <p className="text-2xl font-black mt-1">{val}</p>
           </div>
         ))}
       </div>
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-50">
-          <h3 className="font-bold text-gray-800">시즌 타격 기록</h3>
+
+      {statsLoading && (
+        <div className="text-center py-8 text-gray-400 text-sm">
+          스탯 로딩 중...
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50">
-                {[
-                  "연도",
-                  "팀",
-                  "G",
-                  "PA",
-                  "AB",
-                  "H",
-                  "2B",
-                  "3B",
-                  "HR",
-                  "RBI",
-                  "TB",
-                  "SAC",
-                  "SF",
-                  "AVG",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className={`px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap ${
-                      ["AVG", "HR", "RBI"].includes(h)
-                        ? "text-blue-600"
-                        : "text-gray-400"
+      )}
+      {statsError && (
+        <div className="text-center py-8 text-red-400 text-sm">
+          {statsError}
+        </div>
+      )}
+
+      {!statsLoading && sortedHitter.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50">
+                  {[
+                    "시즌",
+                    "팀",
+                    "G",
+                    "PA",
+                    "AB",
+                    "H",
+                    "2B",
+                    "3B",
+                    "HR",
+                    "RBI",
+                    "TB",
+                    "SAC",
+                    "SF",
+                    "AVG",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className={`px-3 py-3 text-xs font-bold text-center ${
+                        h === "AVG" ? "text-blue-600" : "text-gray-400"
+                      }`}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortedHitter.map((row, i) => (
+                  <tr
+                    key={i}
+                    className={`border-t border-gray-50 ${
+                      i === 0 ? "bg-blue-50/40" : "hover:bg-gray-50"
                     }`}
                   >
-                    {h}
-                  </th>
+                    <td className="px-3 py-3 text-center font-bold text-gray-800">
+                      {row.season}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.team}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.g}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.pa}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.ab}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.h}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.b2}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.b3}
+                    </td>
+                    <td className="px-3 py-3 text-center font-bold text-gray-800">
+                      {row.hr}
+                    </td>
+                    <td className="px-3 py-3 text-center font-bold text-gray-800">
+                      {row.rbi}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.tb}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.sac}
+                    </td>
+                    <td className="px-3 py-3 text-center text-gray-500">
+                      {row.sf}
+                    </td>
+                    <td className="px-3 py-3 text-center font-bold text-blue-600">
+                      {fmtAvg(row.avg)}
+                    </td>
+                  </tr>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {sortedHitter.map((row, i) => (
-                <tr
-                  key={i}
-                  className={`border-t border-gray-50 ${
-                    i === 0 ? "bg-blue-50/40" : "hover:bg-gray-50"
-                  }`}
-                >
-                  <td className="px-3 py-3 text-center font-bold text-gray-800">
-                    {row.season}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.team}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.g}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.pa}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.ab}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.h}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.b2}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.b3}
-                  </td>
-                  <td className="px-3 py-3 text-center font-bold text-gray-800">
-                    {row.hr}
-                  </td>
-                  <td className="px-3 py-3 text-center font-bold text-gray-800">
-                    {row.rbi}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.tb}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.sac}
-                  </td>
-                  <td className="px-3 py-3 text-center text-gray-500">
-                    {row.sf}
-                  </td>
-                  <td className="px-3 py-3 text-center font-bold text-blue-600">
-                    {fmtAvg(row.avg)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 
@@ -556,12 +530,6 @@ export default function PlayerProfilePage() {
         radarLoading={radarLoading}
       />
 
-      {/* 퍼센타일 랭킹 */}
-      <PlayerPercentileBar
-        percentiles={percentiles}
-        isPitcherPlayer={pitcher}
-      />
-
       {/* 탭 바 */}
       <PlayerTabBar
         tabs={tabs}
@@ -574,54 +542,34 @@ export default function PlayerProfilePage() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         {pitcher ? (
           <>
-            {/* ── 투수 탭 ── */}
             {activeTab === "statcast" && (
               <PitcherStatcastTab stats={pitcherStats} />
             )}
             {activeTab === "standard" && (
               <PitcherStandardTab stats={pitcherStats} />
             )}
-
-            {/* ── 투구존 탭 — 실제 DB 데이터 우선, 없으면 MOCK ── */}
             {activeTab === "zone" && (
               <PitchZoneTab
                 pitchZone={resolvedPitchZone}
                 strikeoutZone={resolvedStrikeoutZone}
                 loading={chartLoading}
-                // 출처 배지: "db" | "mock" | "loading"
                 dataSource={chartSource}
               />
             )}
           </>
         ) : (
           <>
-            {/* ── 타자 탭 ── */}
             {activeTab === "statcast" && (
-              /* hitDistrib: 스프레이 차트 LF/CF/RF 비율을 실제 DB에서 전달
-                 — 컴포넌트 내부의 하드코딩 값을 override */
               <HitterStatcastTab
                 stats={hitterStats}
                 hitDistrib={resolvedHitDistrib}
               />
             )}
             {activeTab === "standard" && <HitterStandardContent />}
-
-            {/* ── 핫/콜드존 탭 — 실제 DB 데이터 우선, 없으면 MOCK ── */}
             {activeTab === "hotcold" &&
               (chartLoading ? (
-                /* 로딩 중 스켈레톤 */
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {[1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 animate-pulse"
-                    >
-                      <div className="h-4 bg-gray-100 rounded w-1/2 mb-5" />
-                      <div className="flex justify-center">
-                        <div className="w-44 h-44 bg-gray-100 rounded-xl" />
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-center py-16 text-gray-400 text-sm">
+                  차트 로딩 중...
                 </div>
               ) : (
                 <HotColdTab
