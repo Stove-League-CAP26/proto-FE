@@ -64,7 +64,7 @@ export interface PitcherRadar {
 }
 
 export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
-  const res = await fetch(`${BASE_URL}/stats/radar/hitter/${pid}`);
+  const res = await fetch(`${BASE_URL}/stats/hitter/radar/${pid}`);
   if (!res.ok)
     throw new Error(
       `타자 레이더 로드 실패 (pid: ${pid}, status: ${res.status})`,
@@ -73,7 +73,7 @@ export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
 }
 
 export async function fetchPitcherRadar(pid: number): Promise<PitcherRadar> {
-  const res = await fetch(`${BASE_URL}/stats/radar/pitcher/${pid}`);
+  const res = await fetch(`${BASE_URL}/stats/pitcher/radar/${pid}`);
   if (!res.ok)
     throw new Error(
       `투수 레이더 로드 실패 (pid: ${pid}, status: ${res.status})`,
@@ -150,7 +150,7 @@ export interface PitchStat {
 
 export async function fetchPitchStats(pid: number): Promise<PitchStat[]> {
   try {
-    const res = await fetch(`/api/stats/pitcher/${pid}/pitch`);
+    const res = await fetch(`/api/stats/pitcher/pitch/${pid}`);
     if (!res.ok) return [];
     return res.json();
   } catch {
