@@ -1,15 +1,12 @@
 // 선수 프로필 페이지 - 상태관리 + 컴포넌트 조합만 담당
-// 차트 데이터(HOT/COLD ZONE, 투구분포도, 타구방향)는
-//   GET /api/players/{pid}/chart → 실패 시 MOCK fallback 자동 적용
 import { useState, useEffect, useMemo } from "react";
-import PlayerSearchBar from "@/components/profile/PlayerSearchBar";
+import PlayerSearchBar from "@/components/common/PlayerSearchBar";
 import PlayerHeroBanner from "@/components/profile/PlayerHeroBanner";
 import HotColdTab from "@/components/profile/Hitter/HotColdTab";
 import PitchZoneTab from "@/components/profile/Pitcher/PitchZoneTab";
 import HitterStatcastTab from "@/components/profile/Hitter/HitterStatcastTab";
 import PitcherStatcastTab from "@/components/profile/Pitcher/PitcherStatcastTab";
 import { TEAM_COLORS } from "@/constants/teamColors";
-import { MOCK_HOT_COLD, MOCK_PITCH_ZONE } from "@/mock/statsData";
 import {
   searchPlayersByName,
   fetchHitterStats,
@@ -26,19 +23,6 @@ import type {
 } from "@/api/playerApi";
 import { isPitcher, fmtAvg, fmtEra, fmtWhip } from "@/utils/playerUtils";
 import type { HitterStat, PitcherStat } from "@/types/playerStats";
-
-// ─────────────────────────────────────────────────────────────
-// MOCK fallback — 차트 API 실패 시 사용
-// ─────────────────────────────────────────────────────────────
-const FALLBACK_HOT_COLD_DATA = {
-  outer: MOCK_HOT_COLD.outer,
-  inner: MOCK_HOT_COLD.inner,
-  strikeout: MOCK_HOT_COLD.strikeout,
-  hitDistrib: MOCK_HOT_COLD.hitDistrib,
-};
-
-const FALLBACK_PITCH_ZONE: ZoneGrid = MOCK_PITCH_ZONE;
-const FALLBACK_STRIKEOUT_ZONE: ZoneGrid = MOCK_PITCH_ZONE;
 
 // ─────────────────────────────────────────────────────────────
 // 메인 페이지
@@ -86,7 +70,9 @@ export default function PlayerProfilePage() {
         if (pitcherType) setPitcherStats(data);
         else setHitterStats(data);
       })
-      .catch((err: any) => setStatsError(err?.message ?? "스탯 API 호출 실패"))
+      .catch((err: any) =>
+        setStatsError(err?.message ?? "스탯 데이터를 불러오지 못했습니다."),
+      )
       .finally(() => setStatsLoading(false));
 
     // ── 레이더 초기화 + 로드 ─────────────────────────────
@@ -105,14 +91,14 @@ export default function PlayerProfilePage() {
 
     fetchPlayerChart(pid)
       .then((data) => setChartData(data))
+      .catch(() => setChartData(null))
       .finally(() => setChartLoading(false));
   }, [playerBasic]);
 
-  // ── 차트 데이터 resolve: 실제 DB > MOCK fallback ─────────
-
+  // ── 차트 데이터 resolve: 실패 시 null ────────────────────
   const resolvedHotColdData = useMemo(() => {
     const h = chartData?.hitter;
-    if (!h) return FALLBACK_HOT_COLD_DATA;
+    if (!h) return null;
     return {
       outer: h.hotCold.outer,
       inner: h.hotCold.inner,
@@ -128,17 +114,17 @@ export default function PlayerProfilePage() {
     };
   }, [chartData]);
 
-  const resolvedPitchZone = useMemo<ZoneGrid>(() => {
-    return chartData?.pitcher?.pitchZone ?? FALLBACK_PITCH_ZONE;
+  const resolvedPitchZone = useMemo<ZoneGrid | null>(() => {
+    return chartData?.pitcher?.pitchZone ?? null;
   }, [chartData]);
 
-  const resolvedStrikeoutZone = useMemo<ZoneGrid>(() => {
-    return chartData?.pitcher?.strikeoutZone ?? FALLBACK_STRIKEOUT_ZONE;
+  const resolvedStrikeoutZone = useMemo<ZoneGrid | null>(() => {
+    return chartData?.pitcher?.strikeoutZone ?? null;
   }, [chartData]);
 
   const resolvedHitDistrib = useMemo(() => {
     const h = chartData?.hitter;
-    if (!h) return MOCK_HOT_COLD.hitDistrib;
+    if (!h) return undefined;
     return {
       LF: h.hitDistrib.lf,
       CF: h.hitDistrib.cf,
@@ -146,7 +132,7 @@ export default function PlayerProfilePage() {
     };
   }, [chartData]);
 
-  const chartSource = chartLoading ? "loading" : chartData ? "db" : "mock";
+  const chartSource = chartLoading ? "loading" : chartData ? "db" : null;
 
   // ─────────────────────────────────────────────────────────
   // 검색 핸들러
@@ -313,150 +299,6 @@ export default function PlayerProfilePage() {
     tc.accent === "#000000" ? "#1e1e2e" : tc.accent
   } 55%, #0f0f1a 100%)`;
 
-  const sortedHitter = [...hitterStats].sort((a, b) => b.season - a.season);
-
-  // ─────────────────────────────────────────────────────────
-  // 타자 기본 스탯 탭 (시즌 테이블)
-  // ─────────────────────────────────────────────────────────
-  const HitterStandardContent = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          {
-            label: "타율",
-            val: latestHitter ? fmtAvg(latestHitter.avg) : "-",
-            color: "from-blue-500 to-blue-600",
-          },
-          {
-            label: "홈런",
-            val: latestHitter ? String(latestHitter.hr) : "-",
-            color: "from-red-500 to-red-600",
-          },
-          {
-            label: "타점",
-            val: latestHitter ? String(latestHitter.rbi) : "-",
-            color: "from-amber-500 to-amber-600",
-          },
-          {
-            label: "득점",
-            val: latestHitter ? String(latestHitter.r) : "-",
-            color: "from-green-500 to-green-600",
-          },
-        ].map(({ label, val, color }) => (
-          <div
-            key={label}
-            className={`bg-gradient-to-br ${color} rounded-2xl p-4 text-white`}
-          >
-            <p className="text-white/70 text-xs font-medium">{label}</p>
-            <p className="text-2xl font-black mt-1">{val}</p>
-          </div>
-        ))}
-      </div>
-
-      {statsLoading && (
-        <div className="text-center py-8 text-gray-400 text-sm">
-          스탯 로딩 중...
-        </div>
-      )}
-      {statsError && (
-        <div className="text-center py-8 text-red-400 text-sm">
-          {statsError}
-        </div>
-      )}
-
-      {!statsLoading && sortedHitter.length > 0 && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50">
-                  {[
-                    "시즌",
-                    "팀",
-                    "G",
-                    "PA",
-                    "AB",
-                    "H",
-                    "2B",
-                    "3B",
-                    "HR",
-                    "RBI",
-                    "TB",
-                    "SAC",
-                    "SF",
-                    "AVG",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className={`px-3 py-3 text-xs font-bold text-center ${
-                        h === "AVG" ? "text-blue-600" : "text-gray-400"
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortedHitter.map((row, i) => (
-                  <tr
-                    key={i}
-                    className={`border-t border-gray-50 ${
-                      i === 0 ? "bg-blue-50/40" : "hover:bg-gray-50"
-                    }`}
-                  >
-                    <td className="px-3 py-3 text-center font-bold text-gray-800">
-                      {row.season}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.team}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.g}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.pa}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.ab}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.h}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.b2}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.b3}
-                    </td>
-                    <td className="px-3 py-3 text-center font-bold text-gray-800">
-                      {row.hr}
-                    </td>
-                    <td className="px-3 py-3 text-center font-bold text-gray-800">
-                      {row.rbi}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.tb}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.sac}
-                    </td>
-                    <td className="px-3 py-3 text-center text-gray-500">
-                      {row.sf}
-                    </td>
-                    <td className="px-3 py-3 text-center font-bold text-blue-600">
-                      {fmtAvg(row.avg)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   // ─────────────────────────────────────────────────────────
   // 렌더링
   // ─────────────────────────────────────────────────────────
@@ -518,12 +360,21 @@ export default function PlayerProfilePage() {
                   투구존
                 </h2>
               </div>
-              <PitchZoneTab
-                pitchZone={resolvedPitchZone}
-                strikeoutZone={resolvedStrikeoutZone}
-                loading={chartLoading}
-                dataSource={chartSource}
-              />
+              {chartLoading ? (
+                <div className="text-center py-16 text-gray-400 text-sm">
+                  차트 로딩 중...
+                </div>
+              ) : resolvedPitchZone && resolvedStrikeoutZone ? (
+                <PitchZoneTab
+                  pitchZone={resolvedPitchZone}
+                  strikeoutZone={resolvedStrikeoutZone}
+                  dataSource="db"
+                />
+              ) : (
+                <div className="text-center py-16 text-gray-300 text-sm">
+                  투구존 데이터가 없습니다.
+                </div>
+              )}
             </section>
           </>
         ) : (
@@ -554,11 +405,12 @@ export default function PlayerProfilePage() {
                 <div className="text-center py-16 text-gray-400 text-sm">
                   차트 로딩 중...
                 </div>
+              ) : resolvedHotColdData ? (
+                <HotColdTab data={resolvedHotColdData} dataSource="db" />
               ) : (
-                <HotColdTab
-                  data={resolvedHotColdData}
-                  dataSource={chartSource}
-                />
+                <div className="text-center py-16 text-gray-300 text-sm">
+                  핫/콜드존 데이터가 없습니다.
+                </div>
               )}
             </section>
           </>
