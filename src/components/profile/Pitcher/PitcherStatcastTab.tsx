@@ -211,81 +211,6 @@ export default function PitcherStatcastTab({ stats }: PitcherStatcastTabProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 구종 구성 — Mock */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-5">
-            <div className="w-1 h-5 rounded-full bg-red-500" />
-            <h3 className="font-bold text-gray-800 text-sm">
-              구종 구성 (Pitch Usage)
-            </h3>
-            <span className="ml-auto text-[10px] text-amber-500 font-semibold bg-amber-50 px-2 py-0.5 rounded-full">
-              SAMPLE DATA
-            </span>
-          </div>
-          <PitchArsenalChart />
-          <PitchSummaryCards />
-        </div>
-
-        {/* 연도별 ERA 바 차트 — 실데이터 */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-5 rounded-full bg-orange-500" />
-            <h3 className="font-bold text-gray-800 text-sm">연도별 ERA 추이</h3>
-            {latest && (
-              <span className="ml-auto text-xl font-black text-orange-500">
-                {fmtEra(latest.era)}
-              </span>
-            )}
-          </div>
-          <EraBarChart stats={stats} />
-          {sorted.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              {[
-                {
-                  label: "커리어 최저 ERA",
-                  val: fmtEra(
-                    Math.min(
-                      ...sorted.map((s) => parseFloat(String(s.era ?? 99))),
-                    ),
-                  ),
-                  color: "#10B981",
-                },
-                {
-                  label: "커리어 최고 ERA",
-                  val: fmtEra(
-                    Math.max(
-                      ...sorted.map((s) => parseFloat(String(s.era ?? 0))),
-                    ),
-                  ),
-                  color: "#EF4444",
-                },
-                {
-                  label: "최근 시즌 WHIP",
-                  val: latest ? fmtWhip(latest.whip) : "-",
-                  color: "#3B82F6",
-                },
-                {
-                  label: "최근 시즌 탈삼진",
-                  val: latest ? `${latest.so}K` : "-",
-                  color: "#8B5CF6",
-                },
-              ].map(({ label, val, color }) => (
-                <div
-                  key={label}
-                  className="rounded-xl p-3 bg-gray-50 border border-gray-100"
-                >
-                  <p className="text-xs text-gray-400 leading-tight">{label}</p>
-                  <p className="text-lg font-black mt-0.5" style={{ color }}>
-                    {val}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* 시즌 기록 테이블 — 실데이터 */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
@@ -384,6 +309,81 @@ export default function PitcherStatcastTab({ stats }: PitcherStatcastTabProps) {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* 구종 구성 — Mock */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="w-1 h-5 rounded-full bg-red-500" />
+            <h3 className="font-bold text-gray-800 text-sm">
+              구종 구성 (Pitch Usage)
+            </h3>
+            <span className="ml-auto text-[10px] text-amber-500 font-semibold bg-amber-50 px-2 py-0.5 rounded-full">
+              SAMPLE DATA
+            </span>
+          </div>
+          <PitchArsenalChart />
+          <PitchSummaryCards />
+        </div>
+
+        {/* 연도별 ERA 바 차트 — 실데이터 */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1 h-5 rounded-full bg-orange-500" />
+            <h3 className="font-bold text-gray-800 text-sm">연도별 ERA 추이</h3>
+            {latest && (
+              <span className="ml-auto text-xl font-black text-orange-500">
+                {fmtEra(latest.era)}
+              </span>
+            )}
+          </div>
+          <EraBarChart stats={stats} />
+          {sorted.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              {[
+                {
+                  label: "커리어 최저 ERA",
+                  val: fmtEra(
+                    Math.min(
+                      ...sorted.map((s) => parseFloat(String(s.era ?? 99))),
+                    ),
+                  ),
+                  color: "#10B981",
+                },
+                {
+                  label: "커리어 최고 ERA",
+                  val: fmtEra(
+                    Math.max(
+                      ...sorted.map((s) => parseFloat(String(s.era ?? 0))),
+                    ),
+                  ),
+                  color: "#EF4444",
+                },
+                {
+                  label: "최근 시즌 WHIP",
+                  val: latest ? fmtWhip(latest.whip) : "-",
+                  color: "#3B82F6",
+                },
+                {
+                  label: "최근 시즌 탈삼진",
+                  val: latest ? `${latest.so}K` : "-",
+                  color: "#8B5CF6",
+                },
+              ].map(({ label, val, color }) => (
+                <div
+                  key={label}
+                  className="rounded-xl p-3 bg-gray-50 border border-gray-100"
+                >
+                  <p className="text-xs text-gray-400 leading-tight">{label}</p>
+                  <p className="text-lg font-black mt-0.5" style={{ color }}>
+                    {val}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

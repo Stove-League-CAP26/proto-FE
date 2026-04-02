@@ -4,13 +4,10 @@
 import { useState, useEffect, useMemo } from "react";
 import PlayerSearchBar from "@/components/profile/PlayerSearchBar";
 import PlayerHeroBanner from "@/components/profile/PlayerHeroBanner";
-import PlayerAppLinks from "@/components/profile/PlayerAppLinks";
-import PlayerTabBar from "@/components/profile/PlayerTabBar";
-import HotColdTab from "@/components/profile/HotColdTab";
-import PitchZoneTab from "@/components/profile/PitchZoneTab";
-import HitterStatcastTab from "@/components/profile/HitterStatcastTab";
-import PitcherStatcastTab from "@/components/profile/PitcherStatcastTab";
-import PitcherStandardTab from "@/components/profile/PitcherStandardTab";
+import HotColdTab from "@/components/profile/Hitter/HotColdTab";
+import PitchZoneTab from "@/components/profile/Pitcher/PitchZoneTab";
+import HitterStatcastTab from "@/components/profile/Hitter/HitterStatcastTab";
+import PitcherStatcastTab from "@/components/profile/Pitcher/PitcherStatcastTab";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import { MOCK_HOT_COLD, MOCK_PITCH_ZONE } from "@/mock/statsData";
 import {
@@ -44,25 +41,9 @@ const FALLBACK_PITCH_ZONE: ZoneGrid = MOCK_PITCH_ZONE;
 const FALLBACK_STRIKEOUT_ZONE: ZoneGrid = MOCK_PITCH_ZONE;
 
 // ─────────────────────────────────────────────────────────────
-// 탭 정의
-// ─────────────────────────────────────────────────────────────
-const PITCHER_TABS = [
-  { id: "statcast", label: "스탯캐스트" },
-  { id: "standard", label: "기본 스탯" },
-  { id: "zone", label: "투구존" },
-];
-
-const HITTER_TABS = [
-  { id: "statcast", label: "스탯캐스트" },
-  { id: "standard", label: "기본 스탯" },
-  { id: "hotcold", label: "핫/콜드존" },
-];
-
-// ─────────────────────────────────────────────────────────────
 // 메인 페이지
 // ─────────────────────────────────────────────────────────────
 export default function PlayerProfilePage() {
-  const [activeTab, setActiveTab] = useState("statcast");
   const [searchInput, setSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -182,7 +163,6 @@ export default function PlayerProfilePage() {
         setError(`"${name}" 에 해당하는 선수가 없습니다.`);
       else if (results.length === 1) {
         setPlayerBasic(results[0]);
-        setActiveTab("statcast");
       } else {
         setSearchResults(results);
         setShowResults(true);
@@ -200,7 +180,6 @@ export default function PlayerProfilePage() {
     setSearchResults([]);
     setSearchInput(p.playerName);
     setError(null);
-    setActiveTab("statcast");
   };
 
   const handleBack = () => {
@@ -334,21 +313,7 @@ export default function PlayerProfilePage() {
     tc.accent === "#000000" ? "#1e1e2e" : tc.accent
   } 55%, #0f0f1a 100%)`;
 
-  const playerApps = pitcher
-    ? ["비주얼 리포트", "3D 피칭", "구종 분포", "유사 투수", "스윙 테이크"]
-    : [
-        "일러스트레이터",
-        "선수 비교",
-        "스윙 프로파일",
-        "존 스윙",
-        "유사 선수",
-        "포지셔닝",
-      ];
-
-  const tabs = pitcher ? PITCHER_TABS : HITTER_TABS;
-
   const sortedHitter = [...hitterStats].sort((a, b) => b.season - a.season);
-  const sortedPitcher = [...pitcherStats].sort((a, b) => b.season - a.season);
 
   // ─────────────────────────────────────────────────────────
   // 타자 기본 스탯 탭 (시즌 테이블)
@@ -530,44 +495,62 @@ export default function PlayerProfilePage() {
         radarLoading={radarLoading}
       />
 
-      {/* 탭 바 */}
-      <PlayerTabBar
-        tabs={tabs}
-        activeTab={activeTab}
-        heroAccent={heroAccent}
-        onTabChange={setActiveTab}
-      />
-
-      {/* 탭 콘텐츠 */}
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* 콘텐츠 */}
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-10">
         {pitcher ? (
           <>
-            {activeTab === "statcast" && (
+            {/* 스탯캐스트 */}
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-1 h-5 rounded-full bg-orange-400 inline-block" />
+                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                  스탯캐스트
+                </h2>
+              </div>
               <PitcherStatcastTab stats={pitcherStats} />
-            )}
-            {activeTab === "standard" && (
-              <PitcherStandardTab stats={pitcherStats} />
-            )}
-            {activeTab === "zone" && (
+            </section>
+
+            {/* 투구존 */}
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-1 h-5 rounded-full bg-orange-400 inline-block" />
+                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                  투구존
+                </h2>
+              </div>
               <PitchZoneTab
                 pitchZone={resolvedPitchZone}
                 strikeoutZone={resolvedStrikeoutZone}
                 loading={chartLoading}
                 dataSource={chartSource}
               />
-            )}
+            </section>
           </>
         ) : (
           <>
-            {activeTab === "statcast" && (
+            {/* 스탯캐스트 */}
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-1 h-5 rounded-full bg-blue-400 inline-block" />
+                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                  스탯캐스트
+                </h2>
+              </div>
               <HitterStatcastTab
                 stats={hitterStats}
                 hitDistrib={resolvedHitDistrib}
               />
-            )}
-            {activeTab === "standard" && <HitterStandardContent />}
-            {activeTab === "hotcold" &&
-              (chartLoading ? (
+            </section>
+
+            {/* 핫/콜드존 */}
+            <section>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="w-1 h-5 rounded-full bg-blue-400 inline-block" />
+                <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                  핫/콜드존
+                </h2>
+              </div>
+              {chartLoading ? (
                 <div className="text-center py-16 text-gray-400 text-sm">
                   차트 로딩 중...
                 </div>
@@ -576,7 +559,8 @@ export default function PlayerProfilePage() {
                   data={resolvedHotColdData}
                   dataSource={chartSource}
                 />
-              ))}
+              )}
+            </section>
           </>
         )}
       </div>
