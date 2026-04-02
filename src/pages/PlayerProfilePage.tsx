@@ -2,10 +2,10 @@
 import { useState, useEffect, useMemo } from "react";
 import PlayerSearchBar from "@/components/common/PlayerSearchBar";
 import PlayerHeroBanner from "@/components/profile/PlayerHeroBanner";
-import HotColdTab from "@/components/profile/Hitter/HotColdTab";
-import PitchZoneTab from "@/components/profile/Pitcher/PitchZoneTab";
-import HitterStatcastTab from "@/components/profile/Hitter/HitterStatcastTab";
-import PitcherStatcastTab from "@/components/profile/Pitcher/PitcherStatcastTab";
+import HotColdTab from "@/components/profile/Hitter/HotCold/HotColdTab";
+import PitchZoneTab from "@/components/profile/Pitcher/PitchZone/PitchZoneTab";
+import HitterStatcastTab from "@/components/profile/Hitter/Statcast/HitterStatcastTab";
+import PitcherStatcastTab from "@/components/profile/Pitcher/Statcast/PitcherStatcastTab";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   searchPlayersByName,
