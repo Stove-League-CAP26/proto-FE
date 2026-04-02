@@ -20,6 +20,7 @@ import {
 } from "@/mock/statsData";
 import {
   searchPlayersByName,
+  fetchPlayerBasic, // ← pid로 선수 단건 조회 (기존 함수 재사용)
   fetchHitterStats,
   fetchPitcherStats,
   fetchHitterRadar,
@@ -53,19 +54,15 @@ const MOCK_HITTER_PERCENTILES = [
 
 // ─────────────────────────────────────────────────────────────
 // MOCK fallback — 차트 API 실패 시 사용
-// HotColdTab 기대 포맷과 동일하게 유지
 // ─────────────────────────────────────────────────────────────
 const FALLBACK_HOT_COLD_DATA = {
   outer: MOCK_HOT_COLD.outer,
   inner: MOCK_HOT_COLD.inner,
   strikeout: MOCK_HOT_COLD.strikeout,
-  hitDistrib: MOCK_HOT_COLD.hitDistrib, // { LF, CF, RF }
+  hitDistrib: MOCK_HOT_COLD.hitDistrib,
 };
 
-// 투구 분포도 fallback
 const FALLBACK_PITCH_ZONE: ZoneGrid = MOCK_PITCH_ZONE;
-
-// 탈삼진 분포도 fallback (투구존과 동일 구조, 값만 다름)
 const FALLBACK_STRIKEOUT_ZONE: ZoneGrid = MOCK_PITCH_ZONE;
 
 // ─────────────────────────────────────────────────────────────
@@ -84,9 +81,19 @@ const HITTER_TABS = [
 ];
 
 // ─────────────────────────────────────────────────────────────
+// Props
+// ─────────────────────────────────────────────────────────────
+interface PlayerProfilePageProps {
+  /** TeamPage 로스터에서 선수 클릭 시 전달되는 PID */
+  initialPid?: number | null;
+}
+
+// ─────────────────────────────────────────────────────────────
 // 메인 페이지
 // ─────────────────────────────────────────────────────────────
-export default function PlayerProfilePage() {
+export default function PlayerProfilePage({
+  initialPid,
+}: PlayerProfilePageProps = {}) {
   const [activeTab, setActiveTab] = useState("statcast");
   const [searchInput, setSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -107,18 +114,52 @@ export default function PlayerProfilePage() {
   );
   const [radarLoading, setRadarLoading] = useState(false);
 
-  // ── 차트 (HOT/COLD ZONE, 투구분포도, 타구방향) ───────────
+  // ── 차트 ─────────────────────────────────────────────────
   const [chartData, setChartData] = useState<PlayerChartResponse | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
 
-  // ── 선수 변경 시 스탯 + 레이더 + 차트 API 동시 호출 ──────
+  // ─────────────────────────────────────────────────────────
+  // initialPid 전달 시 → fetchPlayerBasic으로 자동 로드
+  // playerApi.ts의 fetchPlayerBasic(pid) 재사용
+  //   GET /api/players/{pid}
+  // ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!initialPid) return;
+
+    const load = async () => {
+      setSearchLoading(true);
+      setError(null);
+      try {
+        const player = await fetchPlayerBasic(initialPid);
+        if (player) {
+          setPlayerBasic(player);
+          setSearchInput(player.playerName ?? "");
+          setActiveTab("statcast");
+        } else {
+          setError("선수 정보를 불러올 수 없습니다.");
+        }
+      } catch (err: any) {
+        setError(
+          err?.message ?? "선수 정보를 불러오는 중 오류가 발생했습니다.",
+        );
+      } finally {
+        setSearchLoading(false);
+      }
+    };
+
+    load();
+  }, [initialPid]);
+
+  // ─────────────────────────────────────────────────────────
+  // 선수 변경 시 스탯 + 레이더 + 차트 API 동시 호출
+  // ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!playerBasic) return;
 
     const pid = playerBasic.pid as number;
     const pitcherType = isPitcher(playerBasic.playerMPosition);
 
-    // ── 스탯 초기화 + 로드 ──────────────────────────────
+    // 스탯
     setHitterStats([]);
     setPitcherStats([]);
     setStatsError(null);
@@ -133,18 +174,17 @@ export default function PlayerProfilePage() {
       .catch((err: any) => setStatsError(err?.message ?? "스탯 API 호출 실패"))
       .finally(() => setStatsLoading(false));
 
-    // ── 레이더 초기화 + 로드 ─────────────────────────────
+    // 레이더
     setRadarData(null);
     setRadarLoading(true);
 
     const radarFetcher = pitcherType ? fetchPitcherRadar : fetchHitterRadar;
     radarFetcher(pid)
       .then((data) => setRadarData(data))
-      .catch(() => setRadarData(null)) // 실패 시 조용히 null
+      .catch(() => setRadarData(null))
       .finally(() => setRadarLoading(false));
 
-    // ── 차트 초기화 + 로드 ───────────────────────────────
-    // fetchPlayerChart는 내부에서 에러 catch → null 반환하므로 .catch 불필요
+    // 차트
     setChartData(null);
     setChartLoading(true);
 
@@ -153,9 +193,9 @@ export default function PlayerProfilePage() {
       .finally(() => setChartLoading(false));
   }, [playerBasic]);
 
-  // ── 차트 데이터 resolve: 실제 DB > MOCK fallback ─────────
-
-  /** 타자 핫/콜드존 + 삼진분포 + 타구방향 */
+  // ─────────────────────────────────────────────────────────
+  // 차트 데이터 resolve: 실제 DB > MOCK fallback
+  // ─────────────────────────────────────────────────────────
   const resolvedHotColdData = useMemo(() => {
     const h = chartData?.hitter;
     if (!h) return FALLBACK_HOT_COLD_DATA;
@@ -174,20 +214,17 @@ export default function PlayerProfilePage() {
     };
   }, [chartData]);
 
-  /** 투수 투구 분포도 */
   const resolvedPitchZone = useMemo<ZoneGrid>(() => {
     return chartData?.pitcher?.pitchZone ?? FALLBACK_PITCH_ZONE;
   }, [chartData]);
 
-  /** 투수 탈삼진 분포도 */
   const resolvedStrikeoutZone = useMemo<ZoneGrid>(() => {
     return chartData?.pitcher?.strikeoutZone ?? FALLBACK_STRIKEOUT_ZONE;
   }, [chartData]);
 
-  /** 타자 타구 방향 — HitterStatcastTab 스프레이 차트용 */
   const resolvedHitDistrib = useMemo(() => {
     const h = chartData?.hitter;
-    if (!h) return MOCK_HOT_COLD.hitDistrib; // { LF, CF, RF }
+    if (!h) return MOCK_HOT_COLD.hitDistrib;
     return {
       LF: h.hitDistrib.lf,
       CF: h.hitDistrib.cf,
@@ -195,7 +232,6 @@ export default function PlayerProfilePage() {
     };
   }, [chartData]);
 
-  // 차트 데이터 출처 (디버깅/배지용)
   const chartSource = chartLoading ? "loading" : chartData ? "db" : "mock";
 
   // ─────────────────────────────────────────────────────────
@@ -246,7 +282,7 @@ export default function PlayerProfilePage() {
   };
 
   // ─────────────────────────────────────────────────────────
-  // 초기 검색 화면
+  // 초기 검색 화면 (선수 미선택 상태)
   // ─────────────────────────────────────────────────────────
   if (!playerBasic) {
     return (
@@ -301,7 +337,6 @@ export default function PlayerProfilePage() {
       ? [...pitcherStats].sort((a, b) => b.season - a.season)[0]
       : null;
 
-  // 히어로 배너 주요 지표 배지
   const heroBadges = pitcher
     ? [
         {
@@ -385,7 +420,7 @@ export default function PlayerProfilePage() {
   const sortedPitcher = [...pitcherStats].sort((a, b) => b.season - a.season);
 
   // ─────────────────────────────────────────────────────────
-  // 타자 기본 스탯 탭 (시즌 테이블)
+  // 타자 기본 스탯 탭
   // ─────────────────────────────────────────────────────────
   const HitterStandardContent = () => (
     <div className="space-y-6">
@@ -463,9 +498,7 @@ export default function PlayerProfilePage() {
               {sortedHitter.map((row, i) => (
                 <tr
                   key={i}
-                  className={`border-t border-gray-50 ${
-                    i === 0 ? "bg-blue-50/40" : "hover:bg-gray-50"
-                  }`}
+                  className={`border-t border-gray-50 ${i === 0 ? "bg-blue-50/40" : "hover:bg-gray-50"}`}
                 >
                   <td className="px-3 py-3 text-center font-bold text-gray-800">
                     {row.season}
@@ -542,7 +575,7 @@ export default function PlayerProfilePage() {
         onBack={handleBack}
       />
 
-      {/* 히어로 배너 (레이더 차트 포함) */}
+      {/* 히어로 배너 */}
       <PlayerHeroBanner
         playerBasic={playerBasic}
         bgGradient={bgGradient}
@@ -554,12 +587,6 @@ export default function PlayerProfilePage() {
         heroBadges={heroBadges}
         radarData={radarData}
         radarLoading={radarLoading}
-      />
-
-      {/* 퍼센타일 랭킹 */}
-      <PlayerPercentileBar
-        percentiles={percentiles}
-        isPitcherPlayer={pitcher}
       />
 
       {/* 탭 바 */}
@@ -574,42 +601,32 @@ export default function PlayerProfilePage() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         {pitcher ? (
           <>
-            {/* ── 투수 탭 ── */}
             {activeTab === "statcast" && (
               <PitcherStatcastTab stats={pitcherStats} />
             )}
             {activeTab === "standard" && (
               <PitcherStandardTab stats={pitcherStats} />
             )}
-
-            {/* ── 투구존 탭 — 실제 DB 데이터 우선, 없으면 MOCK ── */}
             {activeTab === "zone" && (
               <PitchZoneTab
                 pitchZone={resolvedPitchZone}
                 strikeoutZone={resolvedStrikeoutZone}
                 loading={chartLoading}
-                // 출처 배지: "db" | "mock" | "loading"
                 dataSource={chartSource}
               />
             )}
           </>
         ) : (
           <>
-            {/* ── 타자 탭 ── */}
             {activeTab === "statcast" && (
-              /* hitDistrib: 스프레이 차트 LF/CF/RF 비율을 실제 DB에서 전달
-                 — 컴포넌트 내부의 하드코딩 값을 override */
               <HitterStatcastTab
                 stats={hitterStats}
                 hitDistrib={resolvedHitDistrib}
               />
             )}
             {activeTab === "standard" && <HitterStandardContent />}
-
-            {/* ── 핫/콜드존 탭 — 실제 DB 데이터 우선, 없으면 MOCK ── */}
             {activeTab === "hotcold" &&
               (chartLoading ? (
-                /* 로딩 중 스켈레톤 */
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {[1, 2, 3].map((i) => (
                     <div
