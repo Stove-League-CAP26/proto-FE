@@ -9,6 +9,7 @@ import PitcherStatcastTab from "@/components/profile/Pitcher/Statcast/PitcherSta
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   searchPlayersByName,
+  fetchPlayerBasic, // ← pid로 선수 단건 조회 (기존 함수 재사용)
   fetchHitterStats,
   fetchPitcherStats,
   fetchHitterRadar,

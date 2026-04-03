@@ -22,13 +22,19 @@ interface PlayerSelectModalProps {
   excludeId: number | null;
 }
 
-export default function PlayerSelectModal({ onSelect, onClose, excludeId }: PlayerSelectModalProps) {
+export default function PlayerSelectModal({
+  onSelect,
+  onClose,
+  excludeId,
+}: PlayerSelectModalProps) {
   const [search, setSearch] = useState("");
 
   const filtered = COMPARE_PLAYERS.filter(
     (p) =>
       p.id !== excludeId &&
-      (p.name.includes(search) || p.team.includes(search) || p.pos.includes(search)),
+      (p.name.includes(search) ||
+        p.team.includes(search) ||
+        p.pos.includes(search)),
   );
 
   return (
@@ -41,7 +47,10 @@ export default function PlayerSelectModal({ onSelect, onClose, excludeId }: Play
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100" style={{ background: "#1a1a2e" }}>
+        <div
+          className="flex items-center justify-between px-5 py-4 border-b border-gray-100"
+          style={{ background: "#1a1a2e" }}
+        >
           <h3 className="font-black text-white text-base">선수 찾기</h3>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-1.5">
@@ -53,24 +62,33 @@ export default function PlayerSelectModal({ onSelect, onClose, excludeId }: Play
                 className="bg-transparent text-white text-sm outline-none placeholder-white/30 w-36"
               />
             </div>
-            <button onClick={onClose} className="text-white/50 hover:text-white text-lg font-bold transition-colors">
+            <button
+              onClick={onClose}
+              className="text-white/50 hover:text-white text-lg font-bold transition-colors"
+            >
               ✕
             </button>
           </div>
         </div>
         <div className="p-4 grid grid-cols-4 gap-3 max-h-72 overflow-y-auto">
           {filtered.map((p) => {
-            const tc = TEAM_COLORS[p.team] || { bg: "#64748b", accent: "#94a3b8" };
+            const tc = TEAM_COLORS[p.team] || {
+              bg: "#64748b",
+              accent: "#94a3b8",
+            };
             return (
-              <button
+              // 변경: 외부 <button> → <div> (onClick 동일하게 유지)
+              <div
                 key={p.id}
                 onClick={() => onSelect(p as ComparePlayer)}
-                className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50 transition-all group"
+                className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50 transition-all group cursor-pointer"
               >
                 <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-gray-200 group-hover:border-blue-400 transition-colors">
                   <PlayerAvatar id={p.img} name={p.name} size={56} />
                 </div>
-                <p className="text-xs font-bold text-gray-800 text-center leading-tight">{p.name}</p>
+                <p className="text-xs font-bold text-gray-800 text-center leading-tight">
+                  {p.name}
+                </p>
                 <p className="text-xs text-gray-400">{p.team}</p>
                 <span
                   className="text-xs px-2 py-0.5 rounded-full font-medium"
@@ -84,10 +102,11 @@ export default function PlayerSelectModal({ onSelect, onClose, excludeId }: Play
                 <button
                   className="w-full mt-0.5 text-xs font-bold py-1 rounded-lg bg-gray-100 group-hover:bg-blue-500 group-hover:text-white text-gray-500 transition-all"
                   style={{ borderColor: tc.bg }}
+                  onClick={() => onSelect(p as ComparePlayer)}
                 >
                   선택하기
                 </button>
-              </button>
+              </div>
             );
           })}
         </div>

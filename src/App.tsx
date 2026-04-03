@@ -14,6 +14,12 @@ const NAV_ITEMS = [
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState("player");
+  const [selectedPid, setSelectedPid] = useState<number | null>(null);
+
+  const handleSelectPlayer = (pid: number) => {
+    setSelectedPid(pid);
+    setCurrentPage("player");
+  };
 
   return (
     <div
@@ -49,11 +55,16 @@ export default function App() {
       </nav>
 
       {/* 페이지 라우팅 */}
-      {currentPage === "player" && <PlayerProfilePage />}
+      {currentPage === "player" && (
+        <PlayerProfilePage
+          initialPid={selectedPid}
+          onPidConsumed={() => setSelectedPid(null)}
+        />
+      )}
       {currentPage === "best" && <BestPlayerPage />}
       {currentPage === "compare" && <ComparePage />}
       {currentPage === "team" && (
-        <TeamPage onSelectPlayer={() => setCurrentPage("player")} />
+        <TeamPage onSelectPlayer={handleSelectPlayer} />
       )}
 
       {/* 푸터 */}
