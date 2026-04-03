@@ -1,4 +1,5 @@
-// 투수 탈삼진 분포도 컴포넌트
+// 투수 탈삼진 분포도 — 높음=빨강, 낮음=파랑
+// 투수가 해당 구역으로 던졌을 때 삼진을 많이 잡는 구역을 빨강으로 강조
 import ZoneHeatmap from "@/components/common/ZoneHeatmap";
 import type { ZoneGrid } from "@/components/common/ZoneHeatmap";
 
@@ -24,7 +25,11 @@ export default function PitcherStrikeoutZone({
         <h3 className="font-bold text-gray-800">탈삼진 분포도</h3>
         {badge}
       </div>
-      <ZoneHeatmap zone={zone} footnote="투수 시점 기준" />
+      <ZoneHeatmap
+        zone={zone}
+        footnote="투수 시점 기준 (탈삼진 비율)"
+        colorMode="hotcold"
+      />
     </div>
   );
 }

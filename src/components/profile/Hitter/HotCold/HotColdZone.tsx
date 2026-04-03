@@ -1,4 +1,4 @@
-// 타자 HOT & COLD ZONE 컴포넌트
+// 타자 HOT & COLD ZONE — 높음=빨강, 낮음=파랑
 import ZoneHeatmap from "@/components/common/ZoneHeatmap";
 import type { ZoneGrid } from "@/components/common/ZoneHeatmap";
 
@@ -21,7 +21,11 @@ export default function HotColdZone({ zone, dataSource }: HotColdZoneProps) {
         <h3 className="font-bold text-gray-800">HOT &amp; COLD ZONE</h3>
         {badge}
       </div>
-      <ZoneHeatmap zone={zone} footnote="타자 시점 기준 (타율)" />
+      <ZoneHeatmap
+        zone={zone}
+        footnote="타자 시점 기준 (타율)"
+        colorMode="hotcold"
+      />
     </div>
   );
 }

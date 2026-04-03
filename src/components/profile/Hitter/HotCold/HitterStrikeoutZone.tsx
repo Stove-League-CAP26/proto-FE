@@ -1,4 +1,5 @@
-// 타자 삼진 분포도 컴포넌트
+// 타자 삼진 분포도 — 삼진 많음=파랑, 적음=빨강 (반전)
+// 타자 입장에서 삼진을 많이 당하는 구역이므로 파랑(위험)으로 표현
 import ZoneHeatmap from "@/components/common/ZoneHeatmap";
 import type { ZoneGrid } from "@/components/common/ZoneHeatmap";
 
@@ -24,7 +25,11 @@ export default function HitterStrikeoutZone({
         <h3 className="font-bold text-gray-800">삼진 분포도</h3>
         {badge}
       </div>
-      <ZoneHeatmap zone={zone} footnote="타자 시점 기준 (삼진비율)" />
+      <ZoneHeatmap
+        zone={zone}
+        footnote="타자 시점 기준 (삼진비율)"
+        colorMode="inverted"
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
-// 투수 투구 분포도 컴포넌트
+// 투수 투구 분포도 — 단색 그라데이션 (높음=진빨강, 낮음=연빨강)
+// 잘침/못침 기준이 없으므로 빈도를 단일 색상으로 표현
 import ZoneHeatmap from "@/components/common/ZoneHeatmap";
 import type { ZoneGrid } from "@/components/common/ZoneHeatmap";
 
@@ -21,7 +22,11 @@ export default function PitchZone({ zone, dataSource }: PitchZoneProps) {
         <h3 className="font-bold text-gray-800">투구 분포도</h3>
         {badge}
       </div>
-      <ZoneHeatmap zone={zone} footnote="투수 시점 기준" />
+      <ZoneHeatmap
+        zone={zone}
+        footnote="투수 시점 기준 (투구 빈도)"
+        colorMode="single"
+      />
     </div>
   );
 }
