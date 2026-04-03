@@ -341,7 +341,7 @@ export default function PlayerProfilePage() {
                   스탯캐스트
                 </h2>
               </div>
-              <PitcherStatcastTab stats={pitcherStats} />
+              <PitcherStatcastTab pid={playerBasic.pid} stats={pitcherStats} />
             </section>
 
             <section>

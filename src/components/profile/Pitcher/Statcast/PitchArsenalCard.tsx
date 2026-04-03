@@ -1,54 +1,128 @@
-// 구종 구성 (Pitch Usage) 컴포넌트
-// ⚠️ 현재 SAMPLE DATA — 실데이터 연동 전까지 Mock 사용
+// 구종 구성 (Pitch Usage) 컴포넌트 — 도넛 원그래프 + 구종별 구속
+import { useState, useEffect } from "react";
+import { fetchPitchArsenal } from "@/api/pitchApi";
+import type { PitchArsenalItem } from "@/api/pitchApi";
 
-const MOCK_PITCH_ARSENAL = [
-  {
-    name: "포심 패스트볼",
-    abbr: "FF",
-    pct: 38,
-    avgVelo: 153.2,
-    whiff: 28,
-    color: "#EF4444",
-  },
-  {
-    name: "슬라이더",
-    abbr: "SL",
-    pct: 28,
-    avgVelo: 141.5,
-    whiff: 42,
-    color: "#3B82F6",
-  },
-  {
-    name: "포크볼",
-    abbr: "FS",
-    pct: 18,
-    avgVelo: 143.8,
-    whiff: 51,
-    color: "#F59E0B",
-  },
-  {
-    name: "커브볼",
-    abbr: "CU",
-    pct: 10,
-    avgVelo: 129.4,
-    whiff: 35,
-    color: "#10B981",
-  },
-  {
-    name: "체인지업",
-    abbr: "CH",
-    pct: 6,
-    avgVelo: 139.7,
-    whiff: 38,
-    color: "#8B5CF6",
-  },
-];
+interface PitchArsenalCardProps {
+  pid: number;
+}
 
-export default function PitchArsenalCard() {
-  const top = MOCK_PITCH_ARSENAL[0];
-  const maxSpd = [...MOCK_PITCH_ARSENAL].sort(
-    (a, b) => b.avgVelo - a.avgVelo,
-  )[0];
+// ── 원그래프 SVG 생성 ────────────────────────────────────────────────────────
+function PieChart({ items }: { items: PitchArsenalItem[] }) {
+  const SIZE = 220;
+  const CX = SIZE / 2;
+  const CY = SIZE / 2;
+  const R = 95;
+  const GAP = 1.5;
+
+  const total = items.reduce((s, p) => s + (p.usage ?? 0), 0);
+
+  let cumulative = 0;
+  const slices = items.map((p) => {
+    const pct = total > 0 ? ((p.usage ?? 0) / total) * 100 : 0;
+    const start = cumulative;
+    cumulative += pct;
+    return { ...p, pct, start, end: cumulative };
+  });
+
+  function polarToXY(deg: number, r: number) {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
+  }
+
+  function slicePath(startDeg: number, endDeg: number): string {
+    const s = startDeg + GAP / 2;
+    const e = endDeg - GAP / 2;
+    if (e - s <= 0) return "";
+    const os = polarToXY(s, R);
+    const oe = polarToXY(e, R);
+    const large = e - s > 180 ? 1 : 0;
+    return [
+      `M ${CX} ${CY}`,
+      `L ${os.x.toFixed(2)} ${os.y.toFixed(2)}`,
+      `A ${R} ${R} 0 ${large} 1 ${oe.x.toFixed(2)} ${oe.y.toFixed(2)}`,
+      "Z",
+    ].join(" ");
+  }
+
+  return (
+    <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full h-full">
+      {slices.map((s) => {
+        const startDeg = s.start * 3.6;
+        const endDeg = s.end * 3.6;
+        const midDeg = (startDeg + endDeg) / 2;
+        const labelR = R * 0.62;
+        const lx = CX + labelR * Math.cos(((midDeg - 90) * Math.PI) / 180);
+        const ly = CY + labelR * Math.sin(((midDeg - 90) * Math.PI) / 180);
+        const showLabel = s.pct >= 7;
+        const nameParts = s.name.split(" ");
+        const pctStr = `${Math.round(s.pct * 10) / 10}%`;
+        // 이름 줄 수에 따라 전체 블록 y 중앙 정렬
+        const lineH = 10;
+        const totalLines = nameParts.length + 1; // 이름 줄 + 퍼센트 1줄
+        const blockStartY = ly - ((totalLines - 1) * lineH) / 2;
+        return (
+          <g key={s.abbr}>
+            <path
+              d={slicePath(startDeg, endDeg)}
+              fill={s.color}
+              opacity={0.9}
+            />
+            {showLabel && (
+              <text textAnchor="middle" style={{ pointerEvents: "none" }}>
+                {nameParts.map((part, i) => (
+                  <tspan
+                    key={i}
+                    x={lx.toFixed(2)}
+                    y={(blockStartY + i * lineH).toFixed(2)}
+                    dominantBaseline="middle"
+                    fontSize="8"
+                    fontWeight="700"
+                    fill="white"
+                  >
+                    {part}
+                  </tspan>
+                ))}
+                <tspan
+                  x={lx.toFixed(2)}
+                  y={(blockStartY + nameParts.length * lineH).toFixed(2)}
+                  dominantBaseline="middle"
+                  fontSize="9"
+                  fontWeight="900"
+                  fill="white"
+                  opacity="0.95"
+                >
+                  {pctStr}
+                </tspan>
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
+export default function PitchArsenalCard({ pid }: PitchArsenalCardProps) {
+  const [arsenal, setArsenal] = useState<PitchArsenalItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!pid) return;
+    setLoading(true);
+    setArsenal([]);
+    fetchPitchArsenal(pid)
+      .then(setArsenal)
+      .finally(() => setLoading(false));
+  }, [pid]);
+
+  // usage 합산 후 정규화된 퍼센트 계산
+  const total = arsenal.reduce((s, p) => s + (p.usage ?? 0), 0);
+  const normalized = arsenal.map((p) => ({
+    ...p,
+    pctNorm: total > 0 ? Math.round(((p.usage ?? 0) / total) * 1000) / 10 : 0,
+  }));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
@@ -57,66 +131,59 @@ export default function PitchArsenalCard() {
         <h3 className="font-bold text-gray-800 text-sm">
           구종 구성 (Pitch Usage)
         </h3>
-        <span className="ml-auto text-[10px] text-amber-500 font-semibold bg-amber-50 px-2 py-0.5 rounded-full">
-          SAMPLE DATA
-        </span>
       </div>
 
-      {/* 구종 바 차트 */}
-      <div className="space-y-3">
-        {MOCK_PITCH_ARSENAL.map((p) => (
-          <div key={p.abbr} className="flex items-center gap-3">
-            <div
-              className="w-8 h-6 rounded-md flex items-center justify-center text-white text-xs font-black flex-shrink-0"
-              style={{ backgroundColor: p.color }}
-            >
-              {p.abbr}
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-bold text-gray-700">
+      {loading && (
+        <div className="flex items-center justify-center h-36 text-gray-300 text-sm">
+          로딩 중...
+        </div>
+      )}
+
+      {!loading && arsenal.length === 0 && (
+        <div className="flex items-center justify-center h-36 text-gray-300 text-sm">
+          구종 데이터가 없습니다.
+        </div>
+      )}
+
+      {!loading && arsenal.length > 0 && (
+        <div className="flex items-start gap-5">
+          {/* 원그래프 */}
+          <div className="w-52 h-52 flex-shrink-0">
+            <PieChart items={arsenal} />
+          </div>
+
+          {/* 구종별 목록 */}
+          <div className="flex-1 space-y-2 min-w-0">
+            {normalized.map((p) => (
+              <div key={p.abbr} className="flex items-center gap-2">
+                {/* 색상 도트 + 약어 */}
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: p.color }}
+                />
+                <span className="text-xs font-black text-gray-600 w-6 flex-shrink-0">
+                  {p.abbr}
+                </span>
+                {/* 구종명 */}
+                <span className="text-xs text-gray-500 flex-1 truncate">
                   {p.name}
                 </span>
-                <div className="flex items-center gap-3 text-xs text-gray-400">
-                  <span className="font-bold text-gray-600">
-                    {p.avgVelo}km/h
-                  </span>
-                  <span>Whiff {p.whiff}%</span>
-                </div>
-              </div>
-              <div className="h-5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full flex items-center justify-end pr-2"
-                  style={{
-                    width: `${p.pct}%`,
-                    backgroundColor: p.color + "dd",
-                  }}
+                {/* 구속 */}
+                <span className="text-xs font-bold text-gray-500 flex-shrink-0">
+                  {p.speed != null ? `${p.speed}km/h` : "-"}
+                </span>
+                {/* 비율 */}
+                <span
+                  className="text-xs font-black flex-shrink-0 w-10 text-right"
+                  style={{ color: p.color }}
                 >
-                  <span className="text-white text-xs font-black">
-                    {p.pct}%
-                  </span>
-                </div>
+                  {p.pctNorm}%
+                </span>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {/* 요약 카드 */}
-      <div className="grid grid-cols-2 gap-2 mt-5">
-        <div className="rounded-xl p-3 bg-gray-50 border border-gray-100 text-center">
-          <p className="text-xs text-gray-400">주구종</p>
-          <p className="text-sm font-black mt-0.5" style={{ color: top.color }}>
-            {top.name}
-          </p>
         </div>
-        <div className="rounded-xl p-3 bg-gray-50 border border-gray-100 text-center">
-          <p className="text-xs text-gray-400">최고 구속</p>
-          <p className="text-sm font-black mt-0.5 text-blue-600">
-            {maxSpd.avgVelo}km/h
-          </p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

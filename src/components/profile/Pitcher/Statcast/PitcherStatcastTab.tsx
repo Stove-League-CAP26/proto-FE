@@ -4,15 +4,19 @@ import PitcherSeasonTable from "@/components/profile/Pitcher/Statcast/PitcherSea
 import PitchArsenalCard from "@/components/profile/Pitcher/Statcast/PitchArsenalCard";
 
 interface PitcherStatcastTabProps {
+  pid: number;
   stats: PitcherStatRaw[];
 }
 
-export default function PitcherStatcastTab({ stats }: PitcherStatcastTabProps) {
+export default function PitcherStatcastTab({
+  pid,
+  stats,
+}: PitcherStatcastTabProps) {
   return (
     <div className="space-y-6">
       <PitcherSeasonTable stats={stats} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PitchArsenalCard />
+        <PitchArsenalCard pid={pid} />
       </div>
     </div>
   );
