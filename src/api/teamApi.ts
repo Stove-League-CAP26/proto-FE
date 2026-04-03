@@ -14,7 +14,7 @@ export async function fetchTeamRoster(
 ): Promise<TeamRosterPlayer[] | null> {
   try {
     const res = await fetch(
-      `/api/teams/${encodeURIComponent(teamName)}/roster?season=${season}`,
+      `/api/teams/roster/${encodeURIComponent(teamName)}?season=${season}`,
     );
     if (res.status === 204) return null;
     if (!res.ok) return null;
