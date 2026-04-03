@@ -64,7 +64,7 @@ export interface PitcherRadar {
 }
 
 export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
-  const res = await fetch(`${BASE_URL}/stats/radar/hitter/${pid}`);
+  const res = await fetch(`${BASE_URL}/stats/hitter/radar/${pid}`);
   if (!res.ok)
     throw new Error(
       `타자 레이더 로드 실패 (pid: ${pid}, status: ${res.status})`,
@@ -73,7 +73,7 @@ export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
 }
 
 export async function fetchPitcherRadar(pid: number): Promise<PitcherRadar> {
-  const res = await fetch(`${BASE_URL}/stats/radar/pitcher/${pid}`);
+  const res = await fetch(`${BASE_URL}/stats/pitcher/radar/${pid}`);
   if (!res.ok)
     throw new Error(
       `투수 레이더 로드 실패 (pid: ${pid}, status: ${res.status})`,
@@ -141,8 +141,6 @@ export async function fetchPlayerChart(
     return null;
   }
 }
-// ── playerApi.ts에 추가할 함수 ─────────────────────────────────────────────
-// 기존 파일 하단에 붙여넣기
 
 export interface PitchStat {
   pitchType: string; // "직구", "슬라이더" 등
@@ -152,10 +150,64 @@ export interface PitchStat {
 
 export async function fetchPitchStats(pid: number): Promise<PitchStat[]> {
   try {
-    const res = await fetch(`/api/stats/pitcher/${pid}/pitch`);
+    const res = await fetch(`/api/stats/pitcher/pitch/${pid}`);
     if (!res.ok) return [];
     return res.json();
   } catch {
     return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// BEST 플레이어 API
+// ─────────────────────────────────────────────────────────────
+
+export interface BestRankItem {
+  rank: number;
+  pid: number;
+  name: string;
+  team: string;
+  val: number; // 백엔드에서 Double로 내려옴
+}
+
+export interface HitterBestResponse {
+  season: number;
+  AVG: BestRankItem[];
+  HR: BestRankItem[];
+  RBI: BestRankItem[];
+  H: BestRankItem[];
+  TB: BestRankItem[];
+}
+
+export interface PitcherBestResponse {
+  season: number;
+  ERA: BestRankItem[];
+  WIN: BestRankItem[];
+  KK: BestRankItem[];
+  SAVE: BestRankItem[];
+  WHIP: BestRankItem[];
+}
+
+export async function fetchHitterBest(
+  season = 2025,
+): Promise<HitterBestResponse | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/best/hitter?season=${season}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPitcherBest(
+  season = 2025,
+): Promise<PitcherBestResponse | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/best/pitcher?season=${season}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
   }
 }
