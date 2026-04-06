@@ -1,7 +1,4 @@
-// 팀 상세 뷰 — 화이트 기반 + 팀 컬러 포인트 디자인
-// · 배경: 흰색 + 상단 팀 컬러 워시 그라디언트
-// · 카드: bg-white, border-gray-100, shadow-sm
-// · 팀 컬러: 헤더 강조 / 탭 액티브 / 뱃지 포인트 용도로만 사용
+// 팀 상세 뷰 — 구장 이미지 /images/stadium/{id}.png 로드 추가
 import { useState } from "react";
 import RosterTab from "@/components/team/RosterTab";
 import HistoryTab from "@/components/team/HistoryTab";
@@ -25,9 +22,10 @@ export default function TeamDetail({
   onSelectPlayer,
 }: TeamDetailProps) {
   const [activeTab, setActiveTab] = useState<TabType>("홈");
-  const [stadiumImgError, setStadiumImgError] = useState(
-    !team.stadium.imageUrl,
-  );
+
+  // ── 구장 이미지: team.stadium.imageUrl 우선, 없으면 /images/stadium/{id}.png ──
+  const [stadiumImgError, setStadiumImgError] = useState(false);
+  const stadiumSrc = team.stadium.imageUrl || `/images/stadium/${team.id}.png`;
 
   const tc = team.colors;
   const primary = tc.primary;
@@ -42,17 +40,16 @@ export default function TeamDetail({
           borderBottom: `1px solid ${primary}20`,
         }}
       >
-        {/* 우측 장식 원 */}
         <div
           className="absolute -right-20 -top-20 w-72 h-72 rounded-full pointer-events-none"
           style={{ background: `${primary}08` }}
         />
 
-        <div className="relative px-5 pt-5 pb-7 max-w-4xl mx-auto">
-          {/* 뒤로 가기 */}
+        <div className="relative px-4 pt-5 pb-7 max-w-6xl mx-auto">
           <button
             onClick={onBack}
-            className="flex items-center gap-1.5 text-sm font-semibold mb-5 px-3 py-1.5 rounded-full transition-all hover:bg-black/5 w-fit"
+            className="flex items-center gap-1.5 text-sm font-semibold mb-5 px-3 py-1.5
+                       rounded-full transition-all hover:bg-black/5 w-fit"
             style={{ color: primary }}
           >
             ← 팀 선택으로
@@ -65,9 +62,7 @@ export default function TeamDetail({
               style={{
                 background: team.logoUrl
                   ? "white"
-                  : `linear-gradient(135deg, ${tc.primary}, ${
-                      tc.secondary === "#000000" ? tc.accent : tc.secondary
-                    })`,
+                  : `linear-gradient(135deg, ${tc.primary}, ${tc.secondary === "#000000" ? tc.accent : tc.secondary})`,
                 boxShadow: `0 8px 24px ${primary}33`,
                 border: `1px solid ${primary}20`,
               }}
@@ -102,8 +97,6 @@ export default function TeamDetail({
                 <span className="text-gray-300 text-xs">·</span>
                 <span className="text-gray-400 text-xs">{team.mascotName}</span>
               </div>
-
-              {/* 스탯 뱃지 */}
               <div className="flex gap-2 mt-3 flex-wrap">
                 {[
                   {
@@ -151,18 +144,16 @@ export default function TeamDetail({
 
       {/* ── 탭바 ── */}
       <div
-        className="sticky top-0 z-20 bg-white border-b border-gray-100 px-5"
+        className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4"
         style={{ boxShadow: "0 1px 12px rgba(0,0,0,0.06)" }}
       >
-        <div className="max-w-4xl mx-auto flex gap-1">
+        <div className="max-w-6xl mx-auto flex gap-1">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className="relative flex-shrink-0 px-4 py-3.5 text-sm font-bold transition-all"
-              style={{
-                color: activeTab === tab ? primary : "#94a3b8",
-              }}
+              style={{ color: activeTab === tab ? primary : "#94a3b8" }}
             >
               {tab}
               {activeTab === tab && (
@@ -177,15 +168,16 @@ export default function TeamDetail({
       </div>
 
       {/* ── 탭 콘텐츠 ── */}
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        {/* ──── 홈 탭 ──── */}
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
+        {/* 홈 탭 */}
         {activeTab === "홈" && (
           <>
-            {/* 구장 카드 */}
+            {/* ── 구장 카드 ── */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              {/* 구장 이미지 — imageUrl 없으면 /images/stadium/{id}.png 사용 */}
               {!stadiumImgError ? (
                 <img
-                  src={team.stadium.imageUrl}
+                  src={stadiumSrc}
                   alt={team.stadium.name}
                   className="w-full h-44 object-cover"
                   onError={() => setStadiumImgError(true)}
@@ -276,7 +268,6 @@ export default function TeamDetail({
                 </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                {/* 레이더 차트 — 다크 배경 그대로 유지 (가독성 ↑) */}
                 <div
                   className="rounded-2xl p-3"
                   style={{ background: "#0f172a" }}
@@ -317,7 +308,7 @@ export default function TeamDetail({
           </>
         )}
 
-        {/* ──── 로스터 탭 ──── */}
+        {/* 로스터 탭 */}
         {activeTab === "로스터" && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center gap-2 mb-5">
@@ -334,7 +325,7 @@ export default function TeamDetail({
           </div>
         )}
 
-        {/* ──── 히스토리 탭 ──── */}
+        {/* 히스토리 탭 */}
         {activeTab === "히스토리" && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center gap-2 mb-5">
@@ -348,7 +339,7 @@ export default function TeamDetail({
           </div>
         )}
 
-        {/* ──── 응원가 탭 ──── */}
+        {/* 응원가 탭 */}
         {activeTab === "응원가" && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center gap-2 mb-5">

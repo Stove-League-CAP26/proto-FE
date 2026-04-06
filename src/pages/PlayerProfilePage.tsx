@@ -9,7 +9,7 @@ import PitcherStatcastTab from "@/components/profile/Pitcher/Statcast/PitcherSta
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   searchPlayersByName,
-  fetchPlayerBasic, // ← pid로 선수 단건 조회 (기존 함수 재사용)
+  fetchPlayerBasic,
   fetchHitterStats,
   fetchPitcherStats,
   fetchHitterRadar,
@@ -28,7 +28,16 @@ import type { HitterRadar, PitcherRadar } from "@/api/playerApi";
 import { isPitcher, fmtAvg, fmtEra, fmtWhip } from "@/utils/playerUtils";
 import type { HitterStat, PitcherStat } from "@/types/playerStats";
 
-export default function PlayerProfilePage() {
+// ── 추가된 Props ──────────────────────────────────────────────
+interface PlayerProfilePageProps {
+  initialPid?: number | null; // 팀 페이지에서 선수 클릭 시 전달
+  onPidConsumed?: () => void; // 처리 완료 후 App.tsx selectedPid 초기화
+}
+
+export default function PlayerProfilePage({
+  initialPid,
+  onPidConsumed,
+}: PlayerProfilePageProps = {}) {
   const [searchInput, setSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -55,6 +64,26 @@ export default function PlayerProfilePage() {
   const [ksZone, setKsZone] = useState<ZoneGrid | null>(null);
   const [baZone, setBaZone] = useState<ZoneGrid | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
+
+  // ── ★ 팀 페이지에서 선수 클릭 시 자동 로드 ──────────────────────────────
+  useEffect(() => {
+    if (!initialPid) return;
+
+    fetchPlayerBasic(initialPid)
+      .then((basic) => {
+        setPlayerBasic(basic);
+        setSearchInput(basic.playerName ?? "");
+        setError(null);
+        setShowResults(false);
+      })
+      .catch(() => {
+        setError("선수 정보를 불러오지 못했습니다.");
+      })
+      .finally(() => {
+        onPidConsumed?.();
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPid]);
 
   // ── 선수 변경 시 API 동시 호출 ───────────────────────────────────────────
   useEffect(() => {
