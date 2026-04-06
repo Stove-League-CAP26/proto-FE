@@ -92,12 +92,13 @@ export default function PlayerHeroBanner({
                   size={128}
                 />
               </div>
-              <div className="absolute -bottom-2 -right-2 w-11 h-11 rounded-full overflow-hidden border-2 border-white shadow-lg">
-                <PlayerAvatar
-                  id={playerBasic.pid}
-                  name={playerBasic.playerName}
-                  size={44}
-                />
+              <div
+                className="absolute -bottom-2 -right-2 w-11 h-11 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
+                style={{ backgroundColor: heroAccent }}
+              >
+                <span className="text-white font-black text-xs leading-none">
+                  #{playerBasic.playerNumber}
+                </span>
               </div>
             </div>
 
