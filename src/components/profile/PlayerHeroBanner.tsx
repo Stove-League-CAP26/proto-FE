@@ -122,7 +122,7 @@ export default function PlayerHeroBanner({
                   className="text-xs font-black px-2 py-0.5 rounded-full text-white"
                   style={{ backgroundColor: heroAccent }}
                 >
-                  {isPitcherPlayer ? "🔥 투수" : "🏏 타자"}
+                  {isPitcherPlayer ? "투수" : "타자"}
                 </span>
               </div>
               <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/50">
