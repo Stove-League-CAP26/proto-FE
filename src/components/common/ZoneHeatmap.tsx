@@ -3,7 +3,8 @@
 // colorMode:
 //   "hotcold"  — 높음=빨강, 낮음=파랑 (HOT&COLD ZONE, 탈삼진 분포도)
 //   "inverted" — 높음=파랑, 낮음=빨강 (타자 삼진 분포도)
-//   "single"   — 단색 그라데이션, 높음=진빨강, 낮음=연빨강 (투구 분포도)
+//   "single"   — 단색 그라데이션, 높음=진초록, 낮음=연초록 (투구 분포도)
+//   "single-red" — 단색 그라데이션, 높음=진빨강, 낮음=연빨강 (탈삼진 분포도)
 //
 // step: 백엔드에서 내려오는 1~5 값을 그대로 사용
 
@@ -17,7 +18,7 @@ export interface ZoneGrid {
   inner: ZoneCell[];
 }
 
-export type ZoneColorMode = "hotcold" | "inverted" | "single";
+export type ZoneColorMode = "hotcold" | "inverted" | "single" | "single-red";
 
 interface ZoneHeatmapProps {
   zone: ZoneGrid;
@@ -25,39 +26,47 @@ interface ZoneHeatmapProps {
   colorMode?: ZoneColorMode;
 }
 
-// ── 5단계 팔레트 (네이버 스포츠 톤) ─────────────────────────────────────────
-// step 1=진파랑, 2=중파랑, 3=회색, 4=중빨강, 5=진빨강
+// ── 5단계 팔레트 ─────────────────────────────────────────────────────────────
 
 const PALETTE_HOTCOLD: Record<number, { bg: string; text: string }> = {
-  1: { bg: "#5B9BD5", text: "#ffffff" }, // 진파랑
-  2: { bg: "#92C0E8", text: "#ffffff" }, // 중파랑
-  3: { bg: "#E8E8E8", text: "#888888" }, // 회색
-  4: { bg: "#E07878", text: "#ffffff" }, // 중빨강
-  5: { bg: "#CC4444", text: "#ffffff" }, // 진빨강
+  1: { bg: "#5B9BD5", text: "#ffffff" },
+  2: { bg: "#92C0E8", text: "#ffffff" },
+  3: { bg: "#E8E8E8", text: "#888888" },
+  4: { bg: "#E07878", text: "#ffffff" },
+  5: { bg: "#CC4444", text: "#ffffff" },
 };
 
 const PALETTE_INVERTED: Record<number, { bg: string; text: string }> = {
-  1: { bg: "#CC4444", text: "#ffffff" }, // 진빨강
-  2: { bg: "#E07878", text: "#ffffff" }, // 중빨강
-  3: { bg: "#E8E8E8", text: "#888888" }, // 회색
-  4: { bg: "#92C0E8", text: "#ffffff" }, // 중파랑
-  5: { bg: "#5B9BD5", text: "#ffffff" }, // 진파랑
+  1: { bg: "#CC4444", text: "#ffffff" },
+  2: { bg: "#E07878", text: "#ffffff" },
+  3: { bg: "#E8E8E8", text: "#888888" },
+  4: { bg: "#92C0E8", text: "#ffffff" },
+  5: { bg: "#5B9BD5", text: "#ffffff" },
 };
 
 const PALETTE_SINGLE: Record<number, { bg: string; text: string }> = {
-  1: { bg: "#d3eed3", text: "#1a4a1a" }, // 극연초록
-  2: { bg: "#a3d6a3", text: "#ffffff" }, // 연초록
-  3: { bg: "#6abd6a", text: "#ffffff" }, // 중초록
-  4: { bg: "#359435", text: "#ffffff" }, // 진중초록
-  5: { bg: "#145214", text: "#ffffff" }, // 진초록
+  1: { bg: "#d3eed3", text: "#1a4a1a" },
+  2: { bg: "#a3d6a3", text: "#ffffff" },
+  3: { bg: "#6abd6a", text: "#ffffff" },
+  4: { bg: "#359435", text: "#ffffff" },
+  5: { bg: "#145214", text: "#ffffff" },
 };
 
-// 값 없음("-") 전용 스타일
+// 빨간 단색 팔레트 — 탈삼진 분포도 전용
+const PALETTE_SINGLE_RED: Record<number, { bg: string; text: string }> = {
+  1: { bg: "#fee2e2", text: "#991b1b" }, // 극연빨강
+  2: { bg: "#fca5a5", text: "#7f1d1d" }, // 연빨강
+  3: { bg: "#f87171", text: "#ffffff" }, // 중빨강
+  4: { bg: "#dc2626", text: "#ffffff" }, // 진빨강
+  5: { bg: "#991b1b", text: "#ffffff" }, // 짙은빨강
+};
+
 const EMPTY_STYLE = { bg: "#E8E8E8", text: "#888888" };
 
 function getPalette(mode: ZoneColorMode) {
   if (mode === "inverted") return PALETTE_INVERTED;
   if (mode === "single") return PALETTE_SINGLE;
+  if (mode === "single-red") return PALETTE_SINGLE_RED;
   return PALETTE_HOTCOLD;
 }
 
@@ -90,6 +99,7 @@ const CELL_SIZE = INNER / 3;
 function LegendBar({ mode }: { mode: ZoneColorMode }) {
   const palette = getPalette(mode);
   const isInverted = mode === "inverted";
+  const isSingle = mode === "single" || mode === "single-red";
 
   return (
     <div className="flex items-center gap-1 mt-4">
