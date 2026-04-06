@@ -1,5 +1,6 @@
-// 포지션 그룹별 선수 카드 가로 스크롤 — 라이트 테마
-import { useState, useCallback, useEffect, useRef } from "react";
+// 포지션 그룹별 선수 카드 아코디언 — 펼치기/접기 방식
+// 좌우 스크롤 제거, 그리드 레이아웃으로 변경
+import { useState } from "react";
 import PlayerCard from "@/components/team/PlayerCard";
 import type { RosterPlayer, PositionGroup } from "@/mock/teamRoster";
 
@@ -7,10 +8,18 @@ interface RosterSectionProps {
   title: PositionGroup;
   players: RosterPlayer[];
   teamColor: string;
-  teamBg: string; // 하위 호환 유지 (사용 안 함)
+  teamBg: string;
   season: 2024 | 2025;
   onPlayerClick: (pid: number) => void;
+  defaultExpanded?: boolean;
 }
+
+const POSITION_ICONS: Record<PositionGroup, string> = {
+  투수: "⚾",
+  포수: "🥎",
+  내야수: "🏟️",
+  외야수: "🌿",
+};
 
 export default function RosterSection({
   title,
@@ -18,106 +27,59 @@ export default function RosterSection({
   teamColor,
   season,
   onPlayerClick,
+  defaultExpanded = true,
 }: RosterSectionProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const checkScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    checkScroll();
-    el.addEventListener("scroll", checkScroll, { passive: true });
-    return () => el.removeEventListener("scroll", checkScroll);
-  }, [checkScroll, players]);
-
-  const scroll = (dir: "left" | "right") =>
-    scrollRef.current?.scrollBy({
-      left: dir === "left" ? -240 : 240,
-      behavior: "smooth",
-    });
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   if (players.length === 0) return null;
 
   return (
-    <div className="space-y-2.5">
-      {/* 섹션 헤더 */}
-      <div className="flex items-center gap-2">
+    <div className="rounded-2xl border border-gray-100 overflow-hidden bg-white shadow-sm">
+      {/* 섹션 헤더 — 클릭으로 토글 */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50/70 transition-colors"
+      >
         <div
-          className="w-1 h-4 rounded-full"
+          className="w-1.5 h-6 rounded-full flex-shrink-0"
           style={{ background: teamColor }}
         />
-        <h4 className="text-sm font-extrabold text-gray-700">{title}</h4>
+        <span className="text-lg leading-none">{POSITION_ICONS[title]}</span>
+        <h4 className="text-sm font-extrabold text-gray-800">{title}</h4>
         <span
-          className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-          style={{ background: `${teamColor}15`, color: teamColor }}
+          className="text-[11px] font-bold px-2 py-0.5 rounded-full ml-0.5"
+          style={{ background: `${teamColor}18`, color: teamColor }}
         >
           {players.length}명
         </span>
-      </div>
-
-      {/* 스크롤 영역 */}
-      <div className="relative">
-        {canScrollLeft && (
-          <button
-            onClick={() => scroll("left")}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform bg-white border border-gray-200 text-gray-600"
-            style={{ color: teamColor }}
-          >
-            ‹
-          </button>
-        )}
-        {canScrollRight && (
-          <button
-            onClick={() => scroll("right")}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1 z-10 w-7 h-7 rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform bg-white border border-gray-200"
-            style={{ color: teamColor }}
-          >
-            ›
-          </button>
-        )}
-
-        <div
-          ref={scrollRef}
-          className="flex gap-3 overflow-x-auto py-1"
-          style={{ scrollbarWidth: "none" }}
+        <span
+          className="ml-auto text-sm font-bold transition-transform duration-200"
+          style={{
+            color: teamColor,
+            transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
+            display: "inline-block",
+          }}
         >
-          {players.map((p) => (
-            <PlayerCard
-              key={p.pid}
-              player={p}
-              season={season}
-              teamColor={teamColor}
-              onClick={() => onPlayerClick(p.pid)}
-            />
-          ))}
-        </div>
+          ▼
+        </span>
+      </button>
 
-        {/* 페이드 마스크 — 흰색 배경 기준 */}
-        {canScrollLeft && (
-          <div
-            className="absolute left-0 top-0 bottom-0 w-10 pointer-events-none"
-            style={{
-              background: "linear-gradient(to right, white, transparent)",
-            }}
-          />
-        )}
-        {canScrollRight && (
-          <div
-            className="absolute right-0 top-0 bottom-0 w-10 pointer-events-none"
-            style={{
-              background: "linear-gradient(to left, white, transparent)",
-            }}
-          />
-        )}
-      </div>
+      {/* 선수 카드 그리드 — 펼쳐졌을 때 */}
+      {expanded && (
+        <div className="px-4 pb-4 pt-1">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2.5">
+            {players.map((p) => (
+              <PlayerCard
+                key={p.pid}
+                player={p}
+                season={season}
+                teamColor={teamColor}
+                onClick={() => onPlayerClick(p.pid)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
