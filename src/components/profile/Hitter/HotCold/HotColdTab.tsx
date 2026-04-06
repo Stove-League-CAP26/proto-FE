@@ -13,16 +13,26 @@ interface HotColdTabData {
 interface HotColdTabProps {
   data: HotColdTabData;
   dataSource?: "db" | "loading";
+  battingSide?: string; // "좌타" | "우타" | "양타"
 }
 
-export default function HotColdTab({ data, dataSource }: HotColdTabProps) {
+export default function HotColdTab({
+  data,
+  dataSource,
+  battingSide,
+}: HotColdTabProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <HotColdZone
         zone={{ outer: data.outer, inner: data.inner }}
         dataSource={dataSource}
+        battingSide={battingSide}
       />
-      <HitterStrikeoutZone zone={data.strikeout} dataSource={dataSource} />
+      <HitterStrikeoutZone
+        zone={data.strikeout}
+        dataSource={dataSource}
+        battingSide={battingSide}
+      />
     </div>
   );
 }

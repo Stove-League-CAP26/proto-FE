@@ -125,6 +125,11 @@ export default function PlayerHeroBanner({
                 >
                   {isPitcherPlayer ? "투수" : "타자"}
                 </span>
+                {playerBasic.retired && (
+                  <span className="text-xs font-black px-2 py-0.5 rounded-full bg-white/10 text-white/60 border border-white/20">
+                    🏁 은퇴
+                  </span>
+                )}
               </div>
               <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/50">
                 <span>{hwStr}</span>
