@@ -397,7 +397,11 @@ export default function PlayerProfilePage() {
                   차트 로딩 중...
                 </div>
               ) : hotColdTabData ? (
-                <HotColdTab data={hotColdTabData} dataSource="db" />
+                <HotColdTab
+                  data={hotColdTabData}
+                  dataSource="db"
+                  battingSide={playerBasic.battingSide}
+                />
               ) : (
                 <div className="text-center py-16 text-gray-300 text-sm">
                   핫/콜드존 데이터가 없습니다.
