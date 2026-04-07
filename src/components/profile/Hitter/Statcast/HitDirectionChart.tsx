@@ -1,5 +1,6 @@
 // 타구 방향 분포 컴포넌트
 // 부채꼴을 LF / CF / RF 3등분하고 퍼센테이지 높을수록 노란색이 진해짐
+import fieldImg from "@/assets/field.png";
 
 interface HitDirectionChartProps {
   hitDistrib: { LF: string; CF: string; RF: string };
@@ -11,40 +12,42 @@ function parsePct(val: string): number {
 }
 
 function yellowFill(pct: number, max: number): string {
-  if (max === 0) return "rgba(253, 224, 71, 0.15)";
+  if (max === 0) return "rgba(255, 0, 0, 0.15)";
   const ratio = pct / max;
-  const alpha = 0.15 + ratio * 0.75;
-  return `rgba(253, 224, 71, ${alpha.toFixed(2)})`;
+  const alpha = 0.25 + ratio * 0.7;
+  return `rgba(255, 0, 0, ${alpha.toFixed(2)})`;
 }
 
 function sectorPath(
   cx: number,
   cy: number,
-  r: number,
+  rx: number,
+  ry: number,
   startDeg: number,
   endDeg: number,
 ): string {
   const toRad = (d: number) => ((d - 90) * Math.PI) / 180;
-  const x1 = cx + r * Math.cos(toRad(startDeg));
-  const y1 = cy + r * Math.sin(toRad(startDeg));
-  const x2 = cx + r * Math.cos(toRad(endDeg));
-  const y2 = cy + r * Math.sin(toRad(endDeg));
+  const x1 = cx + rx * Math.cos(toRad(startDeg));
+  const y1 = cy + ry * Math.sin(toRad(startDeg));
+  const x2 = cx + rx * Math.cos(toRad(endDeg));
+  const y2 = cy + ry * Math.sin(toRad(endDeg));
   const large = endDeg - startDeg > 180 ? 1 : 0;
-  return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
+  return `M ${cx} ${cy} L ${x1} ${y1} A ${rx} ${ry} 0 ${large} 1 ${x2} ${y2} Z`;
 }
 
 function labelPos(
   cx: number,
   cy: number,
-  r: number,
+  rx: number,
+  ry: number,
   startDeg: number,
   endDeg: number,
 ): { x: number; y: number } {
   const toRad = (d: number) => ((d - 90) * Math.PI) / 180;
   const mid = (startDeg + endDeg) / 2;
   return {
-    x: cx + r * 0.65 * Math.cos(toRad(mid)),
-    y: cy + r * 0.65 * Math.sin(toRad(mid)),
+    x: cx + rx * 0.75 * Math.cos(toRad(mid)),
+    y: cy + ry * 0.65 * Math.sin(toRad(mid)),
   };
 }
 
@@ -56,9 +59,11 @@ export default function HitDirectionChart({
   const rf = parsePct(hitDistrib.RF);
   const max = Math.max(lf, cf, rf);
 
-  const CX = 99,
+  const CX = 101,
     CY = 182,
-    R = 180;
+    RX = 240,
+    RY = 110;
+
   const sectors = [
     { key: "LF", label: "LF", val: lf, start: -45, end: -20 },
     { key: "CF", label: "CF", val: cf, start: -20, end: 20 },
@@ -79,95 +84,73 @@ export default function HitDirectionChart({
       </div>
 
       <div className="flex justify-center">
-        <svg viewBox="0 0 200 185" className="w-80 h-48">
-          <path d={sectorPath(CX, CY, R, -45, 45)} fill="#4a7c4a" />
-          <rect
-            x="55"
-            y="102"
-            width="70"
-            height="70"
-            fill="#c8a26a"
-            transform="rotate(45 100 146)"
-          />
-          <ellipse cx={CX} cy="140" rx="14" ry="14" fill="#4a7c4a" />
-
-          {sectors.map((s) => (
-            <path
-              key={s.key}
-              d={sectorPath(CX, CY, R, s.start, s.end)}
-              fill={yellowFill(s.val, max)}
-              stroke="rgba(255,255,255,0.3)"
-              strokeWidth="1"
-            />
-          ))}
-
-          {(
-            [
-              [CX, 90],
-              [CX + 43, 133],
-              [CX, 175],
-              [CX - 43, 133],
-            ] as [number, number][]
-          ).map(([x, y], i) => (
-            <rect
-              key={i}
-              x={x - 4}
-              y={y - 4}
-              width="8"
-              height="8"
-              fill="white"
-              transform={`rotate(45 ${x} ${y})`}
-            />
-          ))}
-
-          <polygon
-            points={`${CX - 5},${CY - 4} ${CX + 5},${CY - 4} ${CX + 5},${CY + 2} ${CX},${CY + 6} ${CX - 5},${CY + 2}`}
-            fill="white"
+        <div className="relative w-80 h-48 overflow-hidden rounded-xl">
+          {/* 야구장 배경 이미지 */}
+          <img
+            src={fieldImg}
+            alt="야구장"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
           />
 
-          {sectors.map((s) => (
-            <line
-              key={s.key + "_line"}
-              x1={CX}
-              y1={CY}
-              x2={CX + R * Math.cos(((s.start - 90) * Math.PI) / 180)}
-              y2={CY + R * Math.sin(((s.start - 90) * Math.PI) / 180)}
-              stroke="rgba(255,255,255,0.5)"
-              strokeWidth="1"
-              strokeDasharray="4,3"
-            />
-          ))}
+          {/* 섹터 오버레이 SVG */}
+          <svg viewBox="0 0 200 185" className="absolute inset-0 w-full h-full">
+            {/* 타구 섹터 */}
+            {sectors.map((s) => (
+              <path
+                key={s.key}
+                d={sectorPath(CX, CY, RX, RY, s.start, s.end)}
+                fill={yellowFill(s.val, max)}
+                stroke="rgba(255,255,255,0.3)"
+                strokeWidth="1"
+              />
+            ))}
 
-          {sectors.map((s) => {
-            const pos = labelPos(CX, CY, R, s.start, s.end);
-            return (
-              <g key={s.key + "_label"}>
-                <text
-                  x={pos.x}
-                  y={pos.y - 6}
-                  textAnchor="middle"
-                  fontSize="15"
-                  fontWeight="700"
-                  fill="white"
-                  style={{ textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}
-                >
-                  {s.label}
-                </text>
-                <text
-                  x={pos.x}
-                  y={pos.y + 7}
-                  textAnchor="middle"
-                  fontSize="13"
-                  fontWeight="800"
-                  fill="#ff8800"
-                  style={{ textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}
-                >
-                  {s.val > 0 ? `${s.val}%` : "-"}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+            {/* 구분선 */}
+            {sectors.map((s) => (
+              <line
+                key={s.key + "_line"}
+                x1={CX}
+                y1={CY}
+                x2={CX + RX * Math.cos(((s.start - 90) * Math.PI) / 180)}
+                y2={CY + RY * Math.sin(((s.start - 90) * Math.PI) / 180)}
+                stroke="rgba(255,255,255,0.5)"
+                strokeWidth="1"
+                strokeDasharray="4,3"
+              />
+            ))}
+
+            {/* 라벨 + 퍼센테이지 */}
+            {sectors.map((s) => {
+              const pos = labelPos(CX, CY, RX, RY, s.start, s.end);
+              return (
+                <g key={s.key + "_label"}>
+                  <text
+                    x={pos.x}
+                    y={pos.y - 10}
+                    textAnchor="middle"
+                    fontSize="20"
+                    fontWeight="800"
+                    fill="#ffd900"
+                    style={{ textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}
+                  >
+                    {s.val > 0 ? `${s.val}%` : "-"}
+                  </text>
+                  <text
+                    x={pos.x}
+                    y={pos.y + 5}
+                    textAnchor="middle"
+                    fontSize="10"
+                    fontWeight="700"
+                    fill="white"
+                    style={{ textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}
+                  >
+                    {s.label}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
       </div>
 
       {/* 하단 막대그래프 */}
