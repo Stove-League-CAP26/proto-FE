@@ -1,48 +1,40 @@
 // src/components/common/Navbar.tsx
-type Page =
-  | "main"
-  | "player"
-  | "best"
-  | "compare"
-  | "team"
-  | "login"
-  | "signup";
+import { useLocation } from "react-router-dom";
 
 const NAV_ITEMS = [
-  { id: "main", label: "홈" },
-  { id: "player", label: "선수 정보" },
-  { id: "best", label: "BEST 플레이어" },
-  { id: "compare", label: "선수 비교" },
-  { id: "team", label: "팀 페이지" },
+  { path: "/", label: "홈" },
+  { path: "/player", label: "선수 정보" },
+  { path: "/best", label: "BEST 플레이어" },
+  { path: "/compare", label: "선수 비교" },
+  { path: "/team", label: "팀 페이지" },
 ];
 
 interface NavbarProps {
-  currentPage: Page;
   isLoggedIn: boolean;
   dropdownOpen: boolean;
   isAuthPage: boolean;
-  onNavigate: (page: Page) => void;
   onLogoClick: () => void;
+  onNavigate: (path: string) => void;
   onGoLogin: () => void;
   onGoSignup: () => void;
   onLogout: () => void;
   onDropdownToggle: () => void;
-  onDropdownClose: () => void;
+  onLoginStateChange: (v: boolean) => void;
 }
 
 export default function Navbar({
-  currentPage,
   isLoggedIn,
   dropdownOpen,
   isAuthPage,
-  onNavigate,
   onLogoClick,
+  onNavigate,
   onGoLogin,
   onGoSignup,
   onLogout,
   onDropdownToggle,
-  onDropdownClose,
 }: NavbarProps) {
+  const location = useLocation();
+
   return (
     <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
       <div className="max-w-6xl mx-auto px-4 flex items-center h-14 gap-1">
@@ -61,10 +53,10 @@ export default function Navbar({
         {!isAuthPage &&
           NAV_ITEMS.map((item) => (
             <button
-              key={item.id}
-              onClick={() => onNavigate(item.id as Page)}
+              key={item.path}
+              onClick={() => onNavigate(item.path)}
               className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${
-                currentPage === item.id
+                location.pathname === item.path
                   ? "bg-blue-50 text-blue-600"
                   : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
               }`}
@@ -73,7 +65,7 @@ export default function Navbar({
             </button>
           ))}
 
-        {/* 우측 프로필 아이콘 */}
+        {/* 우측 프로필 */}
         <div className="ml-auto relative" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={onDropdownToggle}
@@ -94,7 +86,6 @@ export default function Navbar({
             </svg>
           </button>
 
-          {/* 드롭다운 */}
           {dropdownOpen && (
             <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
               {isLoggedIn ? (

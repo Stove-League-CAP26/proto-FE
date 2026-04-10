@@ -1,16 +1,10 @@
 // src/pages/SignupPage.tsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { signup } from "@/api/authApi";
 
-interface SignupPageProps {
-  onSignupSuccess: () => void;
-  onGoLogin: () => void;
-}
-
-export default function SignupPage({
-  onSignupSuccess,
-  onGoLogin,
-}: SignupPageProps) {
+export default function SignupPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     nickname: "",
     email: "",
@@ -28,13 +22,11 @@ export default function SignupPage({
     if (!form.nickname) newErrors.nickname = "닉네임을 입력해주세요";
     if (!form.email) newErrors.email = "이메일을 입력해주세요";
     if (!form.password) newErrors.password = "비밀번호를 입력해주세요";
-    if (form.password !== form.passwordConfirm) {
+    if (form.password !== form.passwordConfirm)
       newErrors.passwordConfirm = "비밀번호가 일치하지 않습니다";
-    }
     const pwPattern = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,16}$/;
-    if (form.password && !pwPattern.test(form.password)) {
+    if (form.password && !pwPattern.test(form.password))
       newErrors.password = "비밀번호는 6~16자, 영문과 숫자를 포함해야 합니다";
-    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -49,7 +41,7 @@ export default function SignupPage({
         password: form.password,
       });
       alert("회원가입이 완료되었습니다!");
-      onSignupSuccess();
+      navigate("/login");
     } catch (err: any) {
       setErrors(err);
     } finally {
@@ -126,14 +118,12 @@ export default function SignupPage({
           </div>
         ))}
 
-        {/* 서버 에러 */}
         {errors.error && (
           <div className="mb-4 px-4 py-3 bg-red-50 border border-red-100 rounded-xl">
             <p className="text-xs text-red-500">{errors.error}</p>
           </div>
         )}
 
-        {/* 회원가입 버튼 */}
         <button
           onClick={handleSubmit}
           disabled={loading}
@@ -144,7 +134,7 @@ export default function SignupPage({
 
         <div className="mt-4 text-center">
           <button
-            onClick={onGoLogin}
+            onClick={() => navigate("/login")}
             className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
             이미 계정이 있으신가요? 로그인

@@ -1,30 +1,30 @@
-/**
- * src/pages/TeamPage.tsx
- * KBO 팀 페이지 — props 기반 네비게이션 (react-router-dom 미사용)
- *
- * 선수 클릭 플로우:
- *   TeamPage → TeamDetail → RosterTab → RosterSection → PlayerCard
- *   → onSelectPlayer(pid) 호출 → App 레벨에서 PlayerProfilePage({ initialPid: pid }) 렌더링
- */
+// src/pages/TeamPage.tsx
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import TeamLanding from "@/components/team/TeamLanding";
 import TeamDetail from "@/components/team/TeamDetail";
 import type { Team } from "@/mock/teamData";
 
-export default function TeamPage({
-  onSelectPlayer,
-}: {
-  onSelectPlayer: (pid: number) => void;
-}) {
+export default function TeamPage() {
+  const navigate = useNavigate();
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+
   const handleSelect = useCallback((t: Team) => setSelectedTeam(t), []);
   const handleBack = useCallback(() => setSelectedTeam(null), []);
+
+  // 선수 클릭 시 pid를 state로 전달하며 /player로 이동
+  const handleSelectPlayer = useCallback(
+    (pid: number) => {
+      navigate("/player", { state: { pid } });
+    },
+    [navigate],
+  );
 
   return selectedTeam ? (
     <TeamDetail
       team={selectedTeam}
       onBack={handleBack}
-      onSelectPlayer={onSelectPlayer}
+      onSelectPlayer={handleSelectPlayer}
     />
   ) : (
     <TeamLanding onSelect={handleSelect} />
