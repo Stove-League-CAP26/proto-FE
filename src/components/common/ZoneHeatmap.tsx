@@ -2,7 +2,7 @@
 //
 // colorMode:
 //   "hotcold"  — 높음=빨강, 낮음=파랑 (HOT&COLD ZONE, 탈삼진 분포도)
-//   "inverted" — 높음=파랑, 낮음=빨강 (타자 삼진 분포도)
+//   "inverted" — 파란 단색 그라데이션 (타자 삼진 분포도)
 //   "single"   — 단색 그라데이션, 높음=진초록, 낮음=연초록 (투구 분포도)
 //   "single-red" — 단색 그라데이션, 높음=진빨강, 낮음=연빨강 (탈삼진 분포도)
 //
@@ -31,7 +31,7 @@ interface ZoneHeatmapProps {
 const PALETTE_HOTCOLD: Record<number, { bg: string; text: string }> = {
   1: { bg: "#5B9BD5", text: "#ffffff" },
   2: { bg: "#92C0E8", text: "#ffffff" },
-  3: { bg: "#cde7f2", text: "#656565" },
+  3: { bg: "#d9eef7", text: "#656565" },
   4: { bg: "#E07878", text: "#ffffff" },
   5: { bg: "#CC4444", text: "#ffffff" },
 };
@@ -64,7 +64,6 @@ const PALETTE_SINGLE_RED: Record<number, { bg: string; text: string }> = {
 const EMPTY_STYLE = { bg: "#E8E8E8", text: "#888888" };
 
 // colorMode에 따라 값 표시 포맷 결정
-// inverted(삼진 분포도)는 % 붙임, 나머지는 그대로
 function displayVal(val: string, mode: ZoneColorMode): string {
   if (!val || val === "-") return "-";
   if (mode === "inverted") return `${val}%`;
@@ -102,12 +101,20 @@ const INNER = 168;
 const INNER_OFFSET = OUTER - 85;
 const CELL_SIZE = INNER / 3;
 
+// 스트라이크존 테두리
+const STRIKE_PADDING = 6;
+const STRIKE_LEFT = INNER_OFFSET - STRIKE_PADDING;
+const STRIKE_TOP = INNER_OFFSET - STRIKE_PADDING;
+const STRIKE_SIZE = INNER + STRIKE_PADDING * 2;
+
+// 볼존 테두리 — 전체 TOTAL 영역을 감쌈
+const BALL_PADDING = 4;
+
 // ── 범례 ─────────────────────────────────────────────────────────────────────
 
 function LegendBar({ mode }: { mode: ZoneColorMode }) {
   const palette = getPalette(mode);
   const isInverted = mode === "inverted";
-  const isSingle = mode === "single" || mode === "single-red";
 
   return (
     <div className="flex items-center gap-1 mt-4">
@@ -145,8 +152,38 @@ export default function ZoneHeatmap({
 
   return (
     <div className="flex flex-col items-center w-full">
+      {/* 볼존 라벨 — 박스 위 */}
+      <div
+        style={{
+          width: TOTAL,
+          textAlign: "left",
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#555555",
+          letterSpacing: "0.05em",
+          marginBottom: 4,
+        }}
+      >
+        볼존
+      </div>
+
       <div style={{ position: "relative", width: TOTAL, height: TOTAL }}>
-        {/* 외곽 코너 4칸 */}
+        {/* 볼존 테두리 박스 — 전체 영역 감쌈 */}
+        <div
+          style={{
+            position: "absolute",
+            top: -BALL_PADDING,
+            left: -BALL_PADDING,
+            width: TOTAL + BALL_PADDING * 2,
+            height: TOTAL + BALL_PADDING * 2,
+            border: "3px solid #555555",
+            borderRadius: 8,
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* 외곽 코너 4칸 (볼존) */}
         {[
           { cell: tl, top: 0, left: 0, ai: "flex-start", jc: "flex-start" },
           {
@@ -186,6 +223,7 @@ export default function ZoneHeatmap({
               padding: 8,
               fontSize: 13,
               fontWeight: 700,
+              zIndex: 2,
               ...getStyle(c?.val ?? "-", c?.step ?? 3, colorMode),
             }}
           >
@@ -193,7 +231,41 @@ export default function ZoneHeatmap({
           </div>
         ))}
 
-        {/* 내부 3×3 */}
+        {/* 스트라이크존 테두리 박스 */}
+        <div
+          style={{
+            position: "absolute",
+            top: STRIKE_TOP + 2,
+            left: STRIKE_LEFT + 2,
+            width: STRIKE_SIZE,
+            height: STRIKE_SIZE,
+            border: "3px solid #ff0000",
+            borderRadius: 6,
+            zIndex: 9,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* 스트라이크존 라벨 */}
+        <div
+          style={{
+            position: "absolute",
+            top: STRIKE_TOP - 15,
+            left: STRIKE_LEFT,
+            width: STRIKE_SIZE,
+            textAlign: "left",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#ff0000",
+            letterSpacing: "0.05em",
+            zIndex: 11,
+            pointerEvents: "none",
+          }}
+        >
+          스트라이크존
+        </div>
+
+        {/* 내부 3×3 (스트라이크존) */}
         <div
           style={{
             position: "absolute",
@@ -219,7 +291,7 @@ export default function ZoneHeatmap({
                 fontSize: 12,
                 borderRadius: 3,
                 border: "1.5px solid rgba(255,255,255,0.6)",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
+                boxShadow: "0 1px 4px rgba(0, 0, 0, 0.74)",
                 ...getStyle(c?.val ?? "-", c?.step ?? 3, colorMode),
               }}
             >
