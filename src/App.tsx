@@ -1,29 +1,32 @@
 // src/App.tsx
 import { useState } from "react";
+import Navbar from "@/components/common/Navbar";
 import PlayerProfilePage from "@/pages/PlayerProfilePage";
 import BestPlayerPage from "@/pages/BestPlayerPage";
 import ComparePage from "@/pages/ComparePage";
 import TeamPage from "@/pages/TeamPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
+import MainPage from "@/pages/MainPage";
 
-type Page = "player" | "best" | "compare" | "team" | "login" | "signup";
-
-const NAV_ITEMS = [
-  { id: "player", label: "선수 정보" },
-  { id: "best", label: "BEST 플레이어" },
-  { id: "compare", label: "선수 비교" },
-  { id: "team", label: "팀 페이지" },
-];
+type Page =
+  | "main"
+  | "player"
+  | "best"
+  | "compare"
+  | "team"
+  | "login"
+  | "signup";
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("player");
-  const [prevPage, setPrevPage] = useState<Page>("player");
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(
     !!localStorage.getItem("accessToken"),
   );
+
+  const isAuthPage = currentPage === "login" || currentPage === "signup";
 
   const handleSelectPlayer = (pid: number) => {
     setSelectedPid(pid);
@@ -31,20 +34,18 @@ export default function App() {
   };
 
   const goToLogin = () => {
-    setPrevPage(currentPage);
     setCurrentPage("login");
     setDropdownOpen(false);
   };
 
   const goToSignup = () => {
-    setPrevPage(currentPage);
     setCurrentPage("signup");
     setDropdownOpen(false);
   };
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
-    setCurrentPage(prevPage);
+    setCurrentPage("main");
   };
 
   const handleLogout = () => {
@@ -53,119 +54,37 @@ export default function App() {
     setDropdownOpen(false);
   };
 
-  if (currentPage === "login") {
-    return (
-      <LoginPage onLoginSuccess={handleLoginSuccess} onGoSignup={goToSignup} />
-    );
-  }
-
-  if (currentPage === "signup") {
-    return <SignupPage onSignupSuccess={goToLogin} onGoLogin={goToLogin} />;
-  }
-
   return (
     <div
       className="min-h-screen bg-gray-50"
       style={{ fontFamily: "'Noto Sans KR', sans-serif" }}
       onClick={() => setDropdownOpen(false)}
     >
-      {/* 네비게이션 바 */}
-      <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 flex items-center h-14 gap-1">
-          <button
-            onClick={() => setCurrentPage("player")}
-            className="flex items-center gap-2 mr-4 flex-shrink-0"
-          >
-            <span className="text-xl">⚾</span>
-            <span className="font-black text-gray-900 text-lg tracking-tight">
-              스토브리그
-            </span>
-          </button>
-
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setCurrentPage(item.id as Page)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${
-                currentPage === item.id
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-
-          {/* 우측 프로필 아이콘 */}
-          <div
-            className="ml-auto relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setDropdownOpen((prev) => !prev)}
-              className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors border border-gray-200"
-            >
-              <svg
-                className="w-5 h-5 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
-              </svg>
-            </button>
-
-            {/* 드롭다운 */}
-            {dropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-44 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
-                {isLoggedIn ? (
-                  <>
-                    <div className="px-4 py-3 border-b border-gray-50">
-                      <p className="text-xs text-gray-400">로그인됨</p>
-                    </div>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                      <span className="text-base">🚪</span>
-                      로그아웃
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="px-4 py-3 border-b border-gray-50">
-                      <p className="text-xs font-bold text-gray-500">
-                        ⚾ 스토브리그
-                      </p>
-                    </div>
-                    <button
-                      onClick={goToLogin}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                      <span className="text-base">🔑</span>
-                      로그인
-                    </button>
-                    <button
-                      onClick={goToSignup}
-                      className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-50"
-                    >
-                      <span className="text-base">✏️</span>
-                      회원가입
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      <Navbar
+        currentPage={currentPage}
+        isLoggedIn={isLoggedIn}
+        dropdownOpen={dropdownOpen}
+        isAuthPage={isAuthPage}
+        onNavigate={setCurrentPage}
+        onLogoClick={() => setCurrentPage(isLoggedIn ? "main" : "player")}
+        onGoLogin={goToLogin}
+        onGoSignup={goToSignup}
+        onLogout={handleLogout}
+        onDropdownToggle={() => setDropdownOpen((prev) => !prev)}
+        onDropdownClose={() => setDropdownOpen(false)}
+      />
 
       {/* 페이지 라우팅 */}
+      {currentPage === "main" && <MainPage />}
+      {currentPage === "login" && (
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+          onGoSignup={goToSignup}
+        />
+      )}
+      {currentPage === "signup" && (
+        <SignupPage onSignupSuccess={goToLogin} onGoLogin={goToLogin} />
+      )}
       {currentPage === "player" && (
         <PlayerProfilePage
           initialPid={selectedPid}
@@ -178,15 +97,17 @@ export default function App() {
         <TeamPage onSelectPlayer={handleSelectPlayer} />
       )}
 
-      {/* 푸터 */}
-      <footer className="border-t border-gray-100 bg-white mt-8">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between">
-          <p className="text-xs text-gray-400">
-            ⚾ 스토브리그 · KBO 야구 팬 플랫폼 프로토타입
-          </p>
-          <p className="text-xs text-gray-300">© 2025 Stoveleague</p>
-        </div>
-      </footer>
+      {/* 푸터 - 인증 페이지에서는 숨김 */}
+      {!isAuthPage && (
+        <footer className="border-t border-gray-100 bg-white mt-8">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between">
+            <p className="text-xs text-gray-400">
+              ⚾ 스토브리그 · KBO 야구 팬 플랫폼 프로토타입
+            </p>
+            <p className="text-xs text-gray-300">© 2025 Stoveleague</p>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }
