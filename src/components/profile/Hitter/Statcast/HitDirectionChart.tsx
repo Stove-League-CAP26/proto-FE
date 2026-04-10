@@ -1,5 +1,6 @@
 // 타구 방향 분포 컴포넌트
-// 부채꼴을 LF / CF / RF 3등분하고 퍼센테이지 높을수록 노란색이 진해짐
+// 부채꼴을 LF / CF / RF 3등분하고 퍼센테이지 높을수록 빨간색이 진해짐
+// max 대비 상대 비율로 alpha 계산 (기본 0.50 ~ 최대 0.95)
 import fieldImg from "@/assets/field.png";
 
 interface HitDirectionChartProps {
@@ -11,10 +12,11 @@ function parsePct(val: string): number {
   return parseFloat(val.replace("%", "").trim()) || 0;
 }
 
-function yellowFill(pct: number, max: number): string {
-  if (max === 0) return "rgba(255, 0, 0, 0.15)";
+// max 대비 상대 비율로 alpha 결정: 0/null/- → 완전 투명, max → 0.95, 나머지는 비례
+function redFill(pct: number, max: number): string {
+  if (pct <= 0 || max === 0) return "rgba(255, 0, 0, 0)";
   const ratio = pct / max;
-  const alpha = 0.25 + ratio * 0.7;
+  const alpha = 0.20 + ratio * 0.7; // 0.50 ~ 0.95
   return `rgba(255, 0, 0, ${alpha.toFixed(2)})`;
 }
 
@@ -65,15 +67,15 @@ export default function HitDirectionChart({
     RY = 110;
 
   const sectors = [
-    { key: "LF", label: "LF", val: lf, start: -45, end: -20 },
-    { key: "CF", label: "CF", val: cf, start: -20, end: 20 },
-    { key: "RF", label: "RF", val: rf, start: 20, end: 45 },
+    { key: "LF", val: lf, start: -45, end: -20 },
+    { key: "CF", val: cf, start: -20, end: 20 },
+    { key: "RF", val: rf, start: 20, end: 45 },
   ];
 
   const bars = [
-    { key: "LF", val: lf, display: hitDistrib.LF },
-    { key: "CF", val: cf, display: hitDistrib.CF },
-    { key: "RF", val: rf, display: hitDistrib.RF },
+    { key: "좌측", val: lf, display: hitDistrib.LF },
+    { key: "중앙", val: cf, display: hitDistrib.CF },
+    { key: "우측", val: rf, display: hitDistrib.RF },
   ];
 
   return (
@@ -99,8 +101,8 @@ export default function HitDirectionChart({
               <path
                 key={s.key}
                 d={sectorPath(CX, CY, RX, RY, s.start, s.end)}
-                fill={yellowFill(s.val, max)}
-                stroke="rgba(255,255,255,0.3)"
+                fill={redFill(s.val, max)}
+                stroke="rgba(255,255,255,0.25)"
                 strokeWidth="1"
               />
             ))}
@@ -119,48 +121,38 @@ export default function HitDirectionChart({
               />
             ))}
 
-            {/* 라벨 + 퍼센테이지 */}
+            {/* 퍼센테이지만 표시 (필드 라벨 제거) */}
             {sectors.map((s) => {
               const pos = labelPos(CX, CY, RX, RY, s.start, s.end);
               return (
-                <g key={s.key + "_label"}>
-                  <text
-                    x={pos.x}
-                    y={pos.y - 10}
-                    textAnchor="middle"
-                    fontSize="20"
-                    fontWeight="800"
-                    fill="#ffd900"
-                    style={{ textShadow: "1px 1px 1px rgba(0,0,0,0.8)" }}
-                  >
-                    {s.val > 0 ? `${s.val}%` : "-"}
-                  </text>
-                  <text
-                    x={pos.x}
-                    y={pos.y + 5}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fontWeight="700"
-                    fill="white"
-                    style={{ textShadow: "0 1px 2px rgba(0,0,0,0.6)" }}
-                  >
-                    {s.label}
-                  </text>
-                </g>
+                <text
+                  key={s.key + "_label"}
+                  x={pos.x}
+                  y={pos.y - 4}
+                  textAnchor="middle"
+                  fontSize="20"
+                  fontWeight="800"
+                  fill="white"
+                  style={{ filter: "drop-shadow(1px 1px 2px rgba(0,0,0,0.9))" }}
+                >
+                  {s.val > 0 ? `${s.val}%` : "-"}
+                </text>
               );
             })}
           </svg>
         </div>
       </div>
 
-      {/* 하단 막대그래프 */}
+      {/* 하단 막대그래프 — max 대비 비율로 그라데이션 */}
       <div className="mt-4 space-y-2">
         {bars.map(({ key, val, display }) => {
           const isMax = val === max && max > 0;
           const barPct = max > 0 ? (val / max) * 100 : 0;
+          const ratio = max > 0 ? val / max : 0;
+          const endAlpha = (0.50 + ratio * 0.45).toFixed(2);
           return (
             <div key={key} className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-500 w-6 flex-shrink-0">
+              <span className="text-xs font-bold text-gray-500 w-8 flex-shrink-0">
                 {key}
               </span>
               <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
@@ -168,17 +160,25 @@ export default function HitDirectionChart({
                   className="h-full rounded-full transition-all duration-500 flex items-center justify-end pr-2"
                   style={{
                     width: `${barPct}%`,
-                    backgroundColor: isMax ? "#f59e0b" : "#9ca3af",
+                    background: val > 0
+                      ? `linear-gradient(to right, rgba(255,0,0,0.50), rgba(255,0,0,${endAlpha}))`
+                      : "#e5e7eb",
                     minWidth: val > 0 ? "2rem" : "0",
                   }}
                 >
-                  <span className="text-white text-xs font-bold">
+                  <span
+                    className="text-white text-xs font-bold"
+                    style={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}
+                  >
                     {display || "-"}
                   </span>
                 </div>
               </div>
               {isMax && (
-                <span className="text-xs font-black text-amber-500 flex-shrink-0">
+                <span
+                  className="text-xs font-black flex-shrink-0"
+                  style={{ color: "#ff0000" }}
+                >
                   MOST
                 </span>
               )}

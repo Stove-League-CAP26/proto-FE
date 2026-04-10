@@ -31,17 +31,17 @@ interface ZoneHeatmapProps {
 const PALETTE_HOTCOLD: Record<number, { bg: string; text: string }> = {
   1: { bg: "#5B9BD5", text: "#ffffff" },
   2: { bg: "#92C0E8", text: "#ffffff" },
-  3: { bg: "#E8E8E8", text: "#888888" },
+  3: { bg: "#cde7f2", text: "#656565" },
   4: { bg: "#E07878", text: "#ffffff" },
   5: { bg: "#CC4444", text: "#ffffff" },
 };
 
 const PALETTE_INVERTED: Record<number, { bg: string; text: string }> = {
-  1: { bg: "#CC4444", text: "#ffffff" },
-  2: { bg: "#E07878", text: "#ffffff" },
-  3: { bg: "#E8E8E8", text: "#888888" },
-  4: { bg: "#92C0E8", text: "#ffffff" },
-  5: { bg: "#5B9BD5", text: "#ffffff" },
+  1: { bg: "#dbeafe", text: "#1e3a8a" }, // 극연파랑
+  2: { bg: "#93c5fd", text: "#1e3a8a" }, // 연파랑
+  3: { bg: "#3b82f6", text: "#ffffff" }, // 중파랑
+  4: { bg: "#1d4ed8", text: "#ffffff" }, // 진파랑
+  5: { bg: "#1e3a8a", text: "#ffffff" }, // 짙은파랑
 };
 
 const PALETTE_SINGLE: Record<number, { bg: string; text: string }> = {
@@ -62,6 +62,14 @@ const PALETTE_SINGLE_RED: Record<number, { bg: string; text: string }> = {
 };
 
 const EMPTY_STYLE = { bg: "#E8E8E8", text: "#888888" };
+
+// colorMode에 따라 값 표시 포맷 결정
+// inverted(삼진 분포도)는 % 붙임, 나머지는 그대로
+function displayVal(val: string, mode: ZoneColorMode): string {
+  if (!val || val === "-") return "-";
+  if (mode === "inverted") return `${val}%`;
+  return val;
+}
 
 function getPalette(mode: ZoneColorMode) {
   if (mode === "inverted") return PALETTE_INVERTED;
@@ -181,7 +189,7 @@ export default function ZoneHeatmap({
               ...getStyle(c?.val ?? "-", c?.step ?? 3, colorMode),
             }}
           >
-            {c?.val ?? "-"}
+            {displayVal(c?.val ?? "-", colorMode)}
           </div>
         ))}
 
@@ -215,7 +223,7 @@ export default function ZoneHeatmap({
                 ...getStyle(c?.val ?? "-", c?.step ?? 3, colorMode),
               }}
             >
-              {c?.val ?? "-"}
+              {displayVal(c?.val ?? "-", colorMode)}
             </div>
           ))}
         </div>
