@@ -7,10 +7,11 @@ import { searchPlayersByName } from "@/api/playerApi";
 import { isPitcher } from "@/utils/playerUtils";
 
 interface ComparePlayerSlotProps {
-  player: any | null; // playerBasic object
+  player: any | null;
   sideLabel: "A" | "B";
   onPlayerSelected: (playerBasic: any) => void;
   loading?: boolean;
+  filterType?: "hitter" | "pitcher"; // ✅ 추가
 }
 
 export default function ComparePlayerSlot({
@@ -18,6 +19,7 @@ export default function ComparePlayerSlot({
   sideLabel,
   onPlayerSelected,
   loading = false,
+  filterType,
 }: ComparePlayerSlotProps) {
   const [searching, setSearching] = useState(false);
   const [input, setInput] = useState("");
@@ -35,8 +37,27 @@ export default function ComparePlayerSlot({
     setResults([]);
     try {
       const res = await searchPlayersByName(name);
-      if (res.length === 0) setError(`"${name}" 선수를 찾을 수 없습니다`);
-      else setResults(res);
+
+      // ✅ filterType에 따라 투수/타자 필터링
+      const filtered = filterType
+        ? res.filter((p: any) =>
+            filterType === "pitcher"
+              ? isPitcher(p.playerMPosition)
+              : !isPitcher(p.playerMPosition),
+          )
+        : res;
+
+      if (filtered.length === 0) {
+        const typeLabel =
+          filterType === "pitcher"
+            ? "투수"
+            : filterType === "hitter"
+              ? "타자"
+              : "선수";
+        setError(`"${name}" ${typeLabel}를 찾을 수 없습니다`);
+      } else {
+        setResults(filtered);
+      }
     } catch {
       setError("검색 중 오류가 발생했습니다");
     } finally {
@@ -56,6 +77,18 @@ export default function ComparePlayerSlot({
   if (searching) {
     return (
       <div className="flex flex-col gap-3 w-full">
+        {/* ✅ 슬롯 타입 안내 */}
+        {filterType && (
+          <p
+            className="text-xs font-bold text-center"
+            style={{ color: filterType === "pitcher" ? "#F97316" : "#3B82F6" }}
+          >
+            {filterType === "pitcher"
+              ? "⚾ 투수만 검색됩니다"
+              : "🏏 타자만 검색됩니다"}
+          </p>
+        )}
+
         {/* 검색바 */}
         <div className="flex gap-2">
           <input
@@ -63,7 +96,13 @@ export default function ComparePlayerSlot({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder="선수 이름 검색..."
+            placeholder={
+              filterType === "pitcher"
+                ? "투수 이름 검색..."
+                : filterType === "hitter"
+                  ? "타자 이름 검색..."
+                  : "선수 이름 검색..."
+            }
             className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm
                        outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
           />
@@ -160,11 +199,19 @@ export default function ComparePlayerSlot({
           className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl"
           style={{ background: `${sideColor}10` }}
         >
-          👤
+          {filterType === "pitcher"
+            ? "⚾"
+            : filterType === "hitter"
+              ? "🏏"
+              : "👤"}
         </div>
         <div className="text-center">
           <p className="text-sm font-bold" style={{ color: sideColor }}>
-            선수 {sideLabel} 선택
+            {filterType === "pitcher"
+              ? "투수 선택"
+              : filterType === "hitter"
+                ? "타자 선택"
+                : `선수 ${sideLabel} 선택`}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">클릭하여 검색</p>
         </div>
@@ -182,15 +229,12 @@ export default function ComparePlayerSlot({
 
   return (
     <div className="flex flex-col items-center gap-2 p-3 w-full">
-      {/* 선수 사진 */}
       <div
         className="w-20 h-20 rounded-2xl overflow-hidden border-4 shadow-lg"
         style={{ borderColor: sideColor + "80" }}
       >
         <PlayerAvatar id={player.pid} name={player.playerName} size={80} />
       </div>
-
-      {/* 선수 정보 */}
       <div className="text-center">
         <div className="flex items-center justify-center gap-1.5 mb-0.5">
           <span className="text-xs text-gray-400">#{player.playerNumber}</span>
@@ -208,12 +252,9 @@ export default function ComparePlayerSlot({
           {player.playerEnter} · {player.playerMPosition}
         </p>
       </div>
-
-      {/* 변경하기 버튼 */}
       <button
         onClick={() => setSearching(true)}
-        className="mt-1 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all
-                   hover:shadow-md"
+        className="mt-1 px-3 py-1.5 rounded-xl text-xs font-bold border-2 transition-all hover:shadow-md"
         style={{
           borderColor: sideColor,
           color: sideColor,

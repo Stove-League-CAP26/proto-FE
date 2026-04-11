@@ -1,19 +1,47 @@
-// 응원가 탭 — 타입별 필터 + YouTube embed
-import { useState, useMemo } from "react";
-import type { CheeringSong, Team } from "@/mock/teamData";
+// 응원가 탭 — API fetch + 타입별 필터 + YouTube embed
+import { useState, useMemo, useEffect } from "react";
 
-interface SongsTabProps {
-  songs: CheeringSong[];
-  team: Team;
+interface CheeringSongApi {
+  id: number;
+  team: string;
+  title: string;
+  type: string;
+  youtubeUrl: string;
+  videoId: string;
 }
 
-export default function SongsTab({ songs, team }: SongsTabProps) {
+interface SongsTabProps {
+  teamId: string; // team.id (예: "kia")
+  teamColor: string; // team.colors.primary
+}
+
+export default function SongsTab({ teamId, teamColor }: SongsTabProps) {
+  const [songs, setSongs] = useState<CheeringSongApi[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>("전체");
-  const primary = team.colors.primary;
-  const isReal = (id: string) => id !== "TO_BE_REPLACED" && id.length > 5;
+  const primary = teamColor;
+  const isReal = (id: string) =>
+    !!id && id !== "TO_BE_REPLACED" && id.length > 5;
 
-  // 존재하는 타입 목록 동적 추출 (순서 고정)
+  useEffect(() => {
+    setLoading(true);
+    setError(false);
+    setPlayingId(null);
+    setActiveFilter("전체");
+
+    fetch(`/api/cheering-songs?team=${teamId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("fetch failed");
+        return res.json() as Promise<CheeringSongApi[]>;
+      })
+      .then(setSongs)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [teamId]);
+
+  // ── Hooks는 early return 전에 모두 선언 ──────────────────
   const TYPE_ORDER = [
     "전체",
     "팀가",
@@ -23,25 +51,44 @@ export default function SongsTab({ songs, team }: SongsTabProps) {
     "레거시",
     "기타",
   ];
+
   const existingTypes = useMemo(() => {
-    const types = new Set(songs.map((s) => s.type));
+    const types = new Set(songs.map((s) => s.type ?? "기타"));
     return TYPE_ORDER.filter((t) => t === "전체" || types.has(t));
   }, [songs]);
 
-  // 필터링된 곡 목록
   const filtered = useMemo(
     () =>
       activeFilter === "전체"
         ? songs
-        : songs.filter((s) => s.type === activeFilter),
+        : songs.filter((s) => (s.type ?? "기타") === activeFilter),
     [songs, activeFilter],
   );
 
-  // 필터 변경 시 재생 중지
   const handleFilter = (type: string) => {
     setActiveFilter(type);
     setPlayingId(null);
   };
+
+  // ── Early return (Hooks 이후) ─────────────────────────────
+  if (loading)
+    return (
+      <div className="text-center py-10 text-gray-400 text-sm">
+        응원가 불러오는 중...
+      </div>
+    );
+  if (error)
+    return (
+      <div className="text-center py-10 text-gray-400 text-sm">
+        응원가 정보를 불러올 수 없습니다.
+      </div>
+    );
+  if (songs.length === 0)
+    return (
+      <div className="text-center py-10 text-gray-400 text-sm">
+        등록된 응원가가 없습니다.
+      </div>
+    );
 
   return (
     <div className="space-y-4">
@@ -86,13 +133,13 @@ export default function SongsTab({ songs, team }: SongsTabProps) {
       <div className="space-y-2">
         {filtered.map((song, i) => (
           <div
-            key={`${song.youtubeId}-${i}`}
+            key={`${song.videoId}-${i}`}
             className="rounded-xl overflow-hidden border transition-colors"
             style={{
               background:
-                playingId === song.youtubeId ? `${primary}06` : "#fafafa",
+                playingId === song.videoId ? `${primary}06` : "#fafafa",
               borderColor:
-                playingId === song.youtubeId ? `${primary}30` : "#f0f0f0",
+                playingId === song.videoId ? `${primary}30` : "#f0f0f0",
             }}
           >
             <div className="flex items-center justify-between p-3.5">
@@ -102,11 +149,11 @@ export default function SongsTab({ songs, team }: SongsTabProps) {
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-black"
                   style={{
                     background:
-                      playingId === song.youtubeId ? primary : `${primary}12`,
-                    color: playingId === song.youtubeId ? "white" : primary,
+                      playingId === song.videoId ? primary : `${primary}12`,
+                    color: playingId === song.videoId ? "white" : primary,
                   }}
                 >
-                  {playingId === song.youtubeId ? "♪" : i + 1}
+                  {playingId === song.videoId ? "♪" : i + 1}
                 </div>
                 <div className="min-w-0">
                   <p className="text-gray-800 text-sm font-bold truncate">
@@ -122,21 +169,21 @@ export default function SongsTab({ songs, team }: SongsTabProps) {
               </div>
 
               {/* 재생/정지 버튼 */}
-              {isReal(song.youtubeId) ? (
+              {isReal(song.videoId) ? (
                 <button
                   onClick={() =>
                     setPlayingId(
-                      playingId === song.youtubeId ? null : song.youtubeId,
+                      playingId === song.videoId ? null : song.videoId,
                     )
                   }
                   className="flex-shrink-0 ml-3 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all"
                   style={{
                     background:
-                      playingId === song.youtubeId ? "#EF4444" : primary,
-                    boxShadow: `0 2px 6px ${playingId === song.youtubeId ? "#EF444433" : primary + "33"}`,
+                      playingId === song.videoId ? "#EF4444" : primary,
+                    boxShadow: `0 2px 6px ${playingId === song.videoId ? "#EF444433" : primary + "33"}`,
                   }}
                 >
-                  {playingId === song.youtubeId ? "■ 정지" : "▶ 재생"}
+                  {playingId === song.videoId ? "■ 정지" : "▶ 재생"}
                 </button>
               ) : (
                 <span className="text-gray-300 text-xs flex-shrink-0 ml-3">
@@ -146,12 +193,12 @@ export default function SongsTab({ songs, team }: SongsTabProps) {
             </div>
 
             {/* YouTube embed */}
-            {playingId === song.youtubeId && isReal(song.youtubeId) && (
+            {playingId === song.videoId && isReal(song.videoId) && (
               <div className="px-3.5 pb-3.5">
                 <iframe
                   className="w-full rounded-xl"
                   height="200"
-                  src={`https://www.youtube.com/embed/${song.youtubeId}?autoplay=1`}
+                  src={`https://www.youtube.com/embed/${song.videoId}?autoplay=1`}
                   allow="autoplay; encrypted-media"
                   allowFullScreen
                 />

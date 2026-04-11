@@ -211,3 +211,46 @@ export async function fetchPitcherBest(
     return null;
   }
 }
+
+export interface VsHitterRecord {
+  pitcherPid: number;
+  pitcherTeam: string;
+  pitcherName: string;
+  batterPid: number;
+  batterTeam: string;
+  batterName: string;
+  season: number;
+  pa: number;
+  ab: number;
+  hit: number;
+  h2: number;
+  h3: number;
+  hr: number;
+  rbi: number;
+  bb: number;
+  so: number;
+  gdp: number;
+  avg: number;
+  obp: number;
+  slg: number;
+  ops: number;
+}
+
+/**
+ * GET /api/vs?pitcherPid=50720&batterPid=63123
+ * → 최근 3시즌 상대전적
+ */
+export async function fetchVsRecord(
+  pitcherPid: number,
+  batterPid: number,
+): Promise<VsHitterRecord[]> {
+  try {
+    const res = await fetch(
+      `/api/vs?pitcherPid=${pitcherPid}&batterPid=${batterPid}`,
+    );
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}

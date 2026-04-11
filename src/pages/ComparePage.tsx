@@ -5,6 +5,7 @@ import CompareStatPanel from "@/components/compare/CompareStatPanel";
 import CompareZonePanel from "@/components/compare/CompareZonePanel";
 import HvPMatchupPanel from "@/components/compare/HvPMatchupPanel";
 import HvPZoneSection from "@/components/compare/HvPZoneSection";
+import VsHitterTable from "@/components/compare/VsHitterTable";
 import RadarChart from "@/components/common/RadarChart";
 import {
   fetchHitterStats,
@@ -26,8 +27,6 @@ import {
   mapPitcherRadar,
 } from "@/utils/playerUtils";
 import {
-  MOCK_HVP_SEASON_RECORDS,
-  MOCK_HVP_CAREER_SUMMARY,
   MOCK_HVP_INSIGHTS,
   MOCK_HVP_HITTER_HOTCOLD,
   MOCK_HVP_HITTER_STRIKEOUT,
@@ -161,24 +160,18 @@ export default function ComparePage() {
     !slotB.loading
   );
 
-  // HvP Mock 데이터 (hasBoth 시 표시, 추후 API로 교체)
-  const hvpSeasonRecords =
-    hasBoth && mode === "HvP" ? MOCK_HVP_SEASON_RECORDS : null;
-  const hvpCareerSummary =
-    hasBoth && mode === "HvP" ? MOCK_HVP_CAREER_SUMMARY : null;
+  // HvP — DB 상대전적용 pid (A=타자, B=투수)
+  const hvpBatterPid =
+    hasBoth && mode === "HvP" ? (slotA.basic?.pid as number) : null;
+  const hvpPitcherPid =
+    hasBoth && mode === "HvP" ? (slotB.basic?.pid as number) : null;
+
+  // 존 데이터: DB 우선, 없으면 Mock
   const hvpHitHot =
     hasBoth && mode === "HvP" ? (slotA.zone ?? MOCK_HVP_HITTER_HOTCOLD) : null;
-  const hvpHitSo =
-    hasBoth && mode === "HvP"
-      ? (slotA.strikeoutZone ?? MOCK_HVP_HITTER_STRIKEOUT)
-      : null;
   const hvpPitPitch =
     hasBoth && mode === "HvP"
       ? (slotB.zone ?? MOCK_HVP_PITCHER_PITCHZONE)
-      : null;
-  const hvpPitSo =
-    hasBoth && mode === "HvP"
-      ? (slotB.strikeoutZone ?? MOCK_HVP_PITCHER_STRIKEOUT)
       : null;
 
   return (
@@ -227,6 +220,13 @@ export default function ComparePage() {
               sideLabel="A"
               onPlayerSelected={(p) => loadPlayer(p, "A")}
               loading={slotA.loading}
+              filterType={
+                mode === "HvP"
+                  ? "hitter"
+                  : mode === "HvH"
+                    ? "hitter"
+                    : "pitcher"
+              }
             />
           </div>
 
@@ -239,7 +239,8 @@ export default function ComparePage() {
             >
               {mode === "HvP" ? "⚔️" : "VS"}
             </div>
-            {/* 간략 비교 바 (HvH/PvP 전용) */}
+
+            {/* 간략 비교 바 (HvH / PvP) */}
             {slotA.latestStat && slotB.latestStat && mode !== "HvP" && (
               <div className="w-full space-y-1.5 px-2">
                 {(mode === "HvH"
@@ -332,15 +333,22 @@ export default function ComparePage() {
               sideLabel="B"
               onPlayerSelected={(p) => loadPlayer(p, "B")}
               loading={slotB.loading}
+              filterType={
+                mode === "HvP"
+                  ? "pitcher"
+                  : mode === "HvH"
+                    ? "hitter"
+                    : "pitcher"
+              }
             />
           </div>
         </div>
       </div>
 
-      {/* ── 비교 콘텐츠 ── */}
+      {/* 비교 콘텐츠 */}
       {hasAny && (
         <>
-          {/* HvH / PvP */}
+          {/* ─── HvH / PvP ─── */}
           {(mode === "HvH" || mode === "PvP") && (
             <>
               <CompareZonePanel
@@ -352,6 +360,7 @@ export default function ComparePage() {
                 loadingA={slotA.loading}
                 loadingB={slotB.loading}
               />
+
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <CompareStatPanel
@@ -408,74 +417,31 @@ export default function ComparePage() {
             </>
           )}
 
-          {/* HvP */}
+          {/* ─── HvP ─── */}
           {mode === "HvP" && (
             <div className="space-y-6">
-              {/* Row 1: 상대전적 — 전체 너비 */}
+              {/* ✅ DB 상대전적 테이블 — 두 선수 모두 선택 시 표시 */}
+              {hvpBatterPid && hvpPitcherPid && (
+                <VsHitterTable
+                  pitcherPid={hvpPitcherPid}
+                  batterPid={hvpBatterPid}
+                  pitcherName={slotB.basic?.playerName ?? ""}
+                  batterName={slotA.basic?.playerName ?? ""}
+                />
+              )}
+
+              {/* 기존 매치업 패널 (seasonRecords/careerSummary는 DB 연동 전까지 null) */}
               <HvPMatchupPanel
-                seasonRecords={hvpSeasonRecords}
-                careerSummary={hvpCareerSummary}
+                seasonRecords={null}
+                careerSummary={null}
                 insights={MOCK_HVP_INSIGHTS}
                 pitcherName={slotB.basic?.playerName ?? ""}
                 hitterName={slotA.basic?.playerName ?? ""}
                 loading={slotA.loading || slotB.loading}
               />
-              {/* Row 2: 레이더(1/3) + 존분석(2/3) */}
+
+              {/* 레이더 + 존 */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                <div className="lg:col-span-1 space-y-4">
-                  {[
-                    {
-                      r: radarA,
-                      t: "light",
-                      n: slotA.basic?.playerName,
-                      c: "#3B82F6",
-                      role: "타자",
-                    },
-                    {
-                      r: radarB,
-                      t: "dark",
-                      n: slotB.basic?.playerName,
-                      c: "#EF4444",
-                      role: "투수",
-                    },
-                  ]
-                    .filter((x) => x.r)
-                    .map((x, i) => (
-                      <div
-                        key={i}
-                        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ background: x.c }}
-                          />
-                          <p
-                            className="text-xs font-black"
-                            style={{ color: x.c }}
-                          >
-                            {x.n}
-                          </p>
-                          <span className="text-[9px] text-gray-400 ml-auto">
-                            {x.role}
-                          </span>
-                        </div>
-                        <div className="w-full aspect-square max-w-[200px] mx-auto">
-                          <RadarChart
-                            data={x.r!}
-                            theme={x.t as "light" | "dark"}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  {!radarA && !radarB && (
-                    <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-                      <p className="text-xs text-gray-300">
-                        선수 선택 후 레이더 표시
-                      </p>
-                    </div>
-                  )}
-                </div>
                 <div className="lg:col-span-2">
                   <HvPZoneSection
                     hitterName={slotA.basic?.playerName ?? "타자"}

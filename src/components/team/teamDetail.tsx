@@ -349,7 +349,7 @@ export default function TeamDetail({
               />
               <h3 className="text-gray-800 text-sm font-extrabold">응원가</h3>
             </div>
-            <SongsTab songs={team.songs} team={team} />
+            <SongsTab teamId={team.id} teamColor={primary} />
           </div>
         )}
       </div>
