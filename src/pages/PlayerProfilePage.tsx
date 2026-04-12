@@ -233,7 +233,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#F97316",
+          color: "#FFFFFF",
         },
         {
           label: "W-L",
@@ -242,7 +242,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#10B981",
+          color: "#FFFFFF",
         },
         {
           label: "WHIP",
@@ -251,7 +251,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#8B5CF6",
+          color: "#FFFFFF",
         },
       ]
     : [
@@ -262,7 +262,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#3B82F6",
+          color: "#FFFFFF",
         },
         {
           label: "HR",
@@ -271,7 +271,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#EF4444",
+          color: "#FFFFFF",
         },
         {
           label: "RBI",
@@ -280,7 +280,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#F59E0B",
+          color: "#FFFFFF",
         },
       ];
 
