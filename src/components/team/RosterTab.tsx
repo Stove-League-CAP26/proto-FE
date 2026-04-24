@@ -76,7 +76,7 @@ function groupApiRoster(
 }
 
 export default function RosterTab({ team, onSelectPlayer }: RosterTabProps) {
-  const [season, setSeason] = useState<2024 | 2025>(2025);
+  const [season, setSeason] = useState<2024 | 2025 | 2026>(2026);
   const [apiPlayers, setApiPlayers] = useState<TeamRosterPlayer[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [usingMock, setUsingMock] = useState(false);
@@ -129,7 +129,7 @@ export default function RosterTab({ team, onSelectPlayer }: RosterTabProps) {
     <div className="space-y-6">
       {/* 시즌 토글 */}
       <div className="flex items-center gap-2">
-        {([2025, 2024] as const).map((yr) => (
+        {([2026, 2025, 2024] as const).map((yr) => (
           <button
             key={yr}
             onClick={() => setSeason(yr)}

@@ -5,7 +5,7 @@ import { POS_COLORS } from "@/constants/teamConstants";
 
 interface PlayerCardProps {
   player: RosterPlayer;
-  season: 2024 | 2025;
+  season: 2024 | 2025 | 2026;
   teamColor: string;
   onClick: () => void;
 }
@@ -31,7 +31,12 @@ export default function PlayerCard({
         className="w-full aspect-square rounded-lg overflow-hidden relative"
         style={{ background: `${teamColor}10` }}
       >
-        <PlayerAvatar id={player.pid} name={player.name} size={80} />
+        <PlayerAvatar
+          id={player.pid}
+          name={player.name}
+          size={80}
+          season={season}
+        />
         {/* 등번호 뱃지 */}
         <span
           className="absolute bottom-0 right-0 text-[9px] font-black px-1 py-0.5

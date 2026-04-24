@@ -9,7 +9,7 @@ interface RosterSectionProps {
   players: RosterPlayer[];
   teamColor: string;
   teamBg: string;
-  season: 2024 | 2025;
+  season: 2024 | 2025 | 2026;
   onPlayerClick: (pid: number) => void;
   defaultExpanded?: boolean;
 }

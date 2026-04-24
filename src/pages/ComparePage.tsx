@@ -29,9 +29,7 @@ import {
 import {
   MOCK_HVP_INSIGHTS,
   MOCK_HVP_HITTER_HOTCOLD,
-  MOCK_HVP_HITTER_STRIKEOUT,
   MOCK_HVP_PITCHER_PITCHZONE,
-  MOCK_HVP_PITCHER_STRIKEOUT,
 } from "@/mock/hvpData";
 
 type Mode = "HvH" | "PvP" | "HvP";
@@ -57,9 +55,9 @@ const empty = (): PlayerSlot => ({
 });
 
 const MODES = [
-  { id: "HvH" as Mode, label: "타자 vs 타자", icon: "🏏" },
-  { id: "PvP" as Mode, label: "투수 vs 투수", icon: "⚾" },
-  { id: "HvP" as Mode, label: "타자 vs 투수", icon: "⚔️" },
+  { id: "HvH" as Mode, label: "타자 vs 타자" },
+  { id: "PvP" as Mode, label: "투수 vs 투수" },
+  { id: "HvP" as Mode, label: "타자 vs 투수" },
 ];
 
 export default function ComparePage() {
@@ -152,23 +150,24 @@ export default function ComparePage() {
       : mapHitterRadar(slotB.radar as any)
     : null;
 
-  const hasAny = !!(slotA.basic || slotB.basic);
+  // 두 선수 모두 선택 + 로딩 완료 시에만 비교 콘텐츠 표시
   const hasBoth = !!(
     slotA.basic &&
     slotB.basic &&
     !slotA.loading &&
     !slotB.loading
   );
+  const eitherSelected = !!(slotA.basic || slotB.basic);
 
-  // HvP — DB 상대전적용 pid (A=타자, B=투수)
   const hvpBatterPid =
     hasBoth && mode === "HvP" ? (slotA.basic?.pid as number) : null;
   const hvpPitcherPid =
     hasBoth && mode === "HvP" ? (slotB.basic?.pid as number) : null;
 
-  // 존 데이터: DB 우선, 없으면 Mock
   const hvpHitHot =
     hasBoth && mode === "HvP" ? (slotA.zone ?? MOCK_HVP_HITTER_HOTCOLD) : null;
+  const hvpHitSo =
+    hasBoth && mode === "HvP" ? (slotA.strikeoutZone ?? null) : null;
   const hvpPitPitch =
     hasBoth && mode === "HvP"
       ? (slotB.zone ?? MOCK_HVP_PITCHER_PITCHZONE)
@@ -189,7 +188,7 @@ export default function ComparePage() {
           <button
             key={m.id}
             onClick={() => changeMode(m.id)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all"
+            className="px-5 py-2.5 rounded-xl text-sm font-black transition-all"
             style={
               mode === m.id
                 ? {
@@ -200,8 +199,7 @@ export default function ComparePage() {
                 : { color: "#9CA3AF" }
             }
           >
-            <span>{m.icon}</span>
-            <span>{m.label}</span>
+            {m.label}
           </button>
         ))}
       </div>
@@ -209,10 +207,11 @@ export default function ComparePage() {
       {/* 선수 선택 카드 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="grid grid-cols-3 items-stretch gap-4">
+          {/* 슬롯 A */}
           <div>
             {mode === "HvP" && (
               <p className="text-xs font-black text-blue-500 text-center mb-2">
-                🏏 타자 선택
+                타자 선택
               </p>
             )}
             <ComparePlayerSlot
@@ -230,89 +229,95 @@ export default function ComparePage() {
             />
           </div>
 
+          {/* 중앙 */}
           <div className="flex flex-col items-center justify-center gap-3">
             <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-black text-white shadow-xl"
+              className="w-14 h-14 rounded-full flex items-center justify-center text-sm
+                           font-black text-white shadow-xl"
               style={{
                 background: "linear-gradient(135deg,#3B82F6,#7C3AED,#EF4444)",
               }}
             >
-              {mode === "HvP" ? "⚔️" : "VS"}
+              {mode === "HvP" ? "vs" : "VS"}
             </div>
 
-            {/* 간략 비교 바 (HvH / PvP) */}
-            {slotA.latestStat && slotB.latestStat && mode !== "HvP" && (
-              <div className="w-full space-y-1.5 px-2">
-                {(mode === "HvH"
-                  ? [
-                      {
-                        l: "타율",
-                        vA: slotA.latestStat.avg,
-                        vB: slotB.latestStat.avg,
-                        low: false,
-                        f: (v: number) => v?.toFixed(3) ?? "−",
-                      },
-                      {
-                        l: "홈런",
-                        vA: slotA.latestStat.hr,
-                        vB: slotB.latestStat.hr,
-                        low: false,
-                        f: (v: number) => String(v ?? "-"),
-                      },
-                      {
-                        l: "타점",
-                        vA: slotA.latestStat.rbi,
-                        vB: slotB.latestStat.rbi,
-                        low: false,
-                        f: (v: number) => String(v ?? "-"),
-                      },
-                    ]
-                  : [
-                      {
-                        l: "ERA",
-                        vA: slotA.latestStat.era,
-                        vB: slotB.latestStat.era,
-                        low: true,
-                        f: (v: number) => v?.toFixed(2) ?? "−",
-                      },
-                      {
-                        l: "K",
-                        vA: slotA.latestStat.so,
-                        vB: slotB.latestStat.so,
-                        low: false,
-                        f: (v: number) => String(v ?? "-"),
-                      },
-                      {
-                        l: "WHIP",
-                        vA: slotA.latestStat.whip,
-                        vB: slotB.latestStat.whip,
-                        low: true,
-                        f: (v: number) => v?.toFixed(2) ?? "−",
-                      },
-                    ]
-                ).map((s) => {
-                  const nA = parseFloat(String(s.vA ?? 0)),
-                    nB = parseFloat(String(s.vB ?? 0));
-                  const raw = nA + nB > 0 ? (nA / (nA + nB)) * 100 : 50;
-                  const pct = s.low ? 100 - raw : raw;
-                  return (
-                    <div key={s.l} className="space-y-0.5">
-                      <div className="flex justify-between text-[10px] font-bold">
-                        <span className="text-blue-500">{s.f(s.vA)}</span>
-                        <span className="text-gray-400">{s.l}</span>
-                        <span className="text-red-500">{s.f(s.vB)}</span>
+            {/* 간략 비교 바 (HvH / PvP, 두 선수 모두 선택 시) */}
+            {hasBoth &&
+              slotA.latestStat &&
+              slotB.latestStat &&
+              mode !== "HvP" && (
+                <div className="w-full space-y-1.5 px-2">
+                  {(mode === "HvH"
+                    ? [
+                        {
+                          l: "타율",
+                          vA: slotA.latestStat.avg,
+                          vB: slotB.latestStat.avg,
+                          low: false,
+                          f: (v: number) => v?.toFixed(3) ?? "−",
+                        },
+                        {
+                          l: "홈런",
+                          vA: slotA.latestStat.hr,
+                          vB: slotB.latestStat.hr,
+                          low: false,
+                          f: (v: number) => String(v ?? "-"),
+                        },
+                        {
+                          l: "타점",
+                          vA: slotA.latestStat.rbi,
+                          vB: slotB.latestStat.rbi,
+                          low: false,
+                          f: (v: number) => String(v ?? "-"),
+                        },
+                      ]
+                    : [
+                        {
+                          l: "ERA",
+                          vA: slotA.latestStat.era,
+                          vB: slotB.latestStat.era,
+                          low: true,
+                          f: (v: number) => v?.toFixed(2) ?? "−",
+                        },
+                        {
+                          l: "K",
+                          vA: slotA.latestStat.so,
+                          vB: slotB.latestStat.so,
+                          low: false,
+                          f: (v: number) => String(v ?? "-"),
+                        },
+                        {
+                          l: "WHIP",
+                          vA: slotA.latestStat.whip,
+                          vB: slotB.latestStat.whip,
+                          low: true,
+                          f: (v: number) => v?.toFixed(2) ?? "−",
+                        },
+                      ]
+                  ).map((s) => {
+                    const nA = parseFloat(String(s.vA ?? 0)),
+                      nB = parseFloat(String(s.vB ?? 0));
+                    const raw = nA + nB > 0 ? (nA / (nA + nB)) * 100 : 50;
+                    const pct = s.low ? 100 - raw : raw;
+                    return (
+                      <div key={s.l} className="space-y-0.5">
+                        <div className="flex justify-between text-[10px] font-bold">
+                          <span className="text-blue-500">{s.f(s.vA)}</span>
+                          <span className="text-gray-400">{s.l}</span>
+                          <span className="text-red-500">{s.f(s.vB)}</span>
+                        </div>
+                        <div className="h-1.5 bg-red-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full transition-all duration-700"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-1.5 bg-red-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-500 rounded-full transition-all duration-700"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+
             {mode === "HvP" && !hasBoth && (
               <p className="text-xs text-gray-400 text-center px-3">
                 타자와 투수를
@@ -322,10 +327,11 @@ export default function ComparePage() {
             )}
           </div>
 
+          {/* 슬롯 B */}
           <div>
             {mode === "HvP" && (
               <p className="text-xs font-black text-red-500 text-center mb-2">
-                ⚾ 투수 선택
+                투수 선택
               </p>
             )}
             <ComparePlayerSlot
@@ -345,10 +351,10 @@ export default function ComparePage() {
         </div>
       </div>
 
-      {/* 비교 콘텐츠 */}
-      {hasAny && (
+      {/* ── 비교 콘텐츠 — 두 선수 모두 선택 시에만 표시 ── */}
+      {hasBoth && (
         <>
-          {/* ─── HvH / PvP ─── */}
+          {/* HvH / PvP */}
           {(mode === "HvH" || mode === "PvP") && (
             <>
               <CompareZonePanel
@@ -417,10 +423,9 @@ export default function ComparePage() {
             </>
           )}
 
-          {/* ─── HvP ─── */}
+          {/* HvP */}
           {mode === "HvP" && (
             <div className="space-y-6">
-              {/* ✅ DB 상대전적 테이블 — 두 선수 모두 선택 시 표시 */}
               {hvpBatterPid && hvpPitcherPid && (
                 <VsHitterTable
                   pitcherPid={hvpPitcherPid}
@@ -430,38 +435,39 @@ export default function ComparePage() {
                 />
               )}
 
-              {/* 기존 매치업 패널 (seasonRecords/careerSummary는 DB 연동 전까지 null) */}
               <HvPMatchupPanel
                 seasonRecords={null}
                 careerSummary={null}
                 insights={MOCK_HVP_INSIGHTS}
                 pitcherName={slotB.basic?.playerName ?? ""}
                 hitterName={slotA.basic?.playerName ?? ""}
-                loading={slotA.loading || slotB.loading}
+                loading={false}
               />
 
-              {/* 레이더 + 존 */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                <div className="lg:col-span-2">
-                  <HvPZoneSection
-                    hitterName={slotA.basic?.playerName ?? "타자"}
-                    pitcherName={slotB.basic?.playerName ?? "투수"}
-                    hitterHotCold={hvpHitHot}
-                    pitcherPitchZone={hvpPitPitch}
-                  />
-                </div>
-              </div>
+              <HvPZoneSection
+                hitterName={slotA.basic?.playerName ?? "타자"}
+                pitcherName={slotB.basic?.playerName ?? "투수"}
+                hitterHotCold={hvpHitHot}
+                hitterStrikeout={hvpHitSo}
+                pitcherPitchZone={hvpPitPitch}
+              />
             </div>
           )}
         </>
       )}
 
-      {/* 빈 상태 */}
-      {!hasAny && (
+      {/* 한 명만 선택됐을 때 안내 */}
+      {eitherSelected && !hasBoth && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+          <p className="text-sm text-gray-400">
+            상대 선수를 선택하면 비교가 시작됩니다
+          </p>
+        </div>
+      )}
+
+      {/* 아무도 선택 안 됐을 때 */}
+      {!eitherSelected && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 flex flex-col items-center gap-4">
-          <div className="text-6xl">
-            {MODES.find((m) => m.id === mode)?.icon}
-          </div>
           <div className="text-center">
             <p className="font-black text-gray-900 text-lg mb-1">
               {MODES.find((m) => m.id === mode)?.label}
@@ -472,12 +478,12 @@ export default function ComparePage() {
                 : "선수를 선택하면 실시간으로 비교가 시작됩니다"}
             </p>
           </div>
-          <div className="flex gap-6 mt-2">
+          <div className="flex gap-8 mt-2">
             {(mode === "HvP"
               ? [
                   { icon: "📊", text: "상대전적" },
-                  { icon: "🎯", text: "존 오버레이" },
-                  { icon: "🤖", text: "매치업 인사이트" },
+                  { icon: "🎯", text: "제구 전략" },
+                  { icon: "분석", text: "매치업 인사이트" },
                 ]
               : [
                   { icon: "📊", text: "스탯 비교" },
