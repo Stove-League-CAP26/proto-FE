@@ -2,17 +2,22 @@
 // 메인 페이지 — 경기일정 / 리그순위 / 뉴스 / 유튜브 / 중계사이트
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   fetchGamesByDate,
   fetchRecentGames,
   fetchUpcomingGames,
   fetchStandings,
+  fetchGameScore,
   formatGameTime,
   formatGameDate,
   getStatusLabel,
   type GameInfo,
   type LeagueStanding,
+  type GameScore,
+  type LineupPlayer,
+  type PitcherInfo,
 } from "@/api/gameApi";
 import {
   MOCK_NEWS,
@@ -23,8 +28,9 @@ import {
 } from "@/mock/homeData";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
-// (현재 사용 props 없음 — 향후 확장용으로 유지)
-interface MainPageProps {}
+interface MainPageProps {
+  onSelectPlayer?: (pid: number) => void;
+}
 
 // ── 날짜 유틸 ─────────────────────────────────────────────────────────────────
 function buildDateTabs() {
@@ -38,22 +44,13 @@ function buildDateTabs() {
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
     const dateStr = `${yyyy}-${mm}-${dd}`;
-    const label =
-      i === -1
-        ? "어제"
-        : i === 0
-          ? "오늘"
-          : i === 1
-            ? "내일"
-            : i === -2
-              ? `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]})`
-              : `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]})`;
+    const label = `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]})`;
     tabs.push({ dateStr, label, isToday: i === 0 });
   }
   return tabs;
 }
 
-// ── 팀 코드 → 한글 팀명 매핑 (순위표 팀명과 일치용) ──────────────────────────
+// ── 팀 코드 → 한글 팀명 ──────────────────────────────────────────────────────
 const TEAM_CODE_TO_NAME: Record<string, string> = {
   LG: "LG",
   KT: "KT",
@@ -66,6 +63,8 @@ const TEAM_CODE_TO_NAME: Record<string, string> = {
   HH: "한화",
   WO: "키움",
 };
+
+// ── 팀 코드 → 로컬 이미지 (경기 카드용) ─────────────────────────────────────
 const TEAM_CODE_TO_IMAGE: Record<string, string> = {
   LG: "/images/teams/lg.png",
   KT: "/images/teams/kt.png",
@@ -78,6 +77,8 @@ const TEAM_CODE_TO_IMAGE: Record<string, string> = {
   HH: "/images/teams/hanwha.png",
   WO: "/images/teams/kiwoom.png",
 };
+
+// ── 팀명 → 로컬 이미지 (순위표용) ────────────────────────────────────────────
 const TEAM_NAME_TO_IMAGE: Record<string, string> = {
   LG: "/images/teams/lg.png",
   KT: "/images/teams/kt.png",
@@ -91,8 +92,53 @@ const TEAM_NAME_TO_IMAGE: Record<string, string> = {
   키움: "/images/teams/kiwoom.png",
 };
 
+// ── 선수 이미지 URL ───────────────────────────────────────────────────────────
+function getPlayerImageUrl(pcode: string): string {
+  return `https://koreabaseball.com/DATA/Player/2026/${pcode}.gif`;
+}
+
+// ── 선수 아바타 ───────────────────────────────────────────────────────────────
+function PlayerAvatar({
+  pcode,
+  name,
+  size = "sm",
+  onClick,
+}: {
+  pcode: string;
+  name: string;
+  size?: "sm" | "md";
+  onClick?: () => void;
+}) {
+  const dim = size === "md" ? "w-14 h-14" : "w-10 h-10";
+  return (
+    <button
+      onClick={onClick}
+      className={`${dim} rounded-full overflow-hidden bg-gray-100 border-2 border-white shadow flex-shrink-0 ${
+        onClick
+          ? "cursor-pointer hover:scale-110 transition-transform"
+          : "cursor-default"
+      }`}
+      title={name}
+    >
+      <img
+        src={getPlayerImageUrl(pcode)}
+        alt={name}
+        className="w-full h-full object-cover object-top"
+        onError={(e) => {
+          const img = e.currentTarget;
+          const parent = img.parentElement;
+          if (parent) {
+            parent.style.background = "#e5e7eb";
+            parent.innerHTML = `<span style="font-size:11px;color:#9ca3af;display:flex;align-items:center;justify-content:center;height:100%;width:100%">${name.slice(0, 1)}</span>`;
+          }
+        }}
+      />
+    </button>
+  );
+}
+
 // ── 경기 카드 ─────────────────────────────────────────────────────────────────
-function GameCard({ game }: { game: GameInfo }) {
+function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
   const homeTeamName =
     TEAM_CODE_TO_NAME[game.homeTeamCode] ?? game.homeTeamName;
   const awayTeamName =
@@ -107,7 +153,10 @@ function GameCard({ game }: { game: GameInfo }) {
   const awayWin = game.winner === "AWAY";
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+    <div
+      onClick={onClick}
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer"
+    >
       {/* 상태 & 구장 */}
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
         <span className="text-[10px] text-gray-400 truncate max-w-[70%]">
@@ -135,13 +184,9 @@ function GameCard({ game }: { game: GameInfo }) {
 
       {/* 원정 vs 홈 */}
       <div className="flex items-center px-3 py-2 gap-2 flex-1">
-        {/* 원정팀 */}
         <div
-          className={`flex-1 flex flex-col items-center gap-1 ${
-            isResult && !awayWin ? "opacity-40" : ""
-          }`}
+          className={`flex-1 flex flex-col items-center gap-1 ${isResult && !awayWin ? "opacity-40" : ""}`}
         >
-          {/* 원정팀 이미지 */}
           <img
             src={
               TEAM_CODE_TO_IMAGE[game.awayTeamCode] ?? game.awayTeamEmblemUrl
@@ -166,10 +211,13 @@ function GameCard({ game }: { game: GameInfo }) {
           </span>
           {isResult && (
             <span
-              className={`text-xl font-black leading-none ${
-                awayWin ? "text-gray-900" : "text-gray-400"
-              }`}
+              className={`text-xl font-black leading-none ${awayWin ? "text-gray-900" : "text-gray-400"}`}
             >
+              {game.awayTeamScore}
+            </span>
+          )}
+          {isLive && (
+            <span className="text-xl font-black leading-none text-gray-900">
               {game.awayTeamScore}
             </span>
           )}
@@ -177,13 +225,9 @@ function GameCard({ game }: { game: GameInfo }) {
 
         <span className="text-xs font-bold text-gray-200">VS</span>
 
-        {/* 홈팀 */}
         <div
-          className={`flex-1 flex flex-col items-center gap-1 ${
-            isResult && !homeWin ? "opacity-40" : ""
-          }`}
+          className={`flex-1 flex flex-col items-center gap-1 ${isResult && !homeWin ? "opacity-40" : ""}`}
         >
-          {/* 홈팀 이미지 */}
           <img
             src={
               TEAM_CODE_TO_IMAGE[game.homeTeamCode] ?? game.homeTeamEmblemUrl
@@ -208,17 +252,25 @@ function GameCard({ game }: { game: GameInfo }) {
           </span>
           {isResult && (
             <span
-              className={`text-xl font-black leading-none ${
-                homeWin ? "text-gray-900" : "text-gray-400"
-              }`}
+              className={`text-xl font-black leading-none ${homeWin ? "text-gray-900" : "text-gray-400"}`}
             >
+              {game.homeTeamScore}
+            </span>
+          )}
+          {isLive && (
+            <span className="text-xl font-black leading-none text-gray-900">
               {game.homeTeamScore}
             </span>
           )}
         </div>
       </div>
 
-      {/* 결과 배지 */}
+      {isLive && (
+        <div className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-bold text-red-500 bg-red-50">
+          {game.statusInfo || "진행 중"}
+        </div>
+      )}
+
       {isResult && game.winner !== "DRAW" && (
         <div
           className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-black text-white"
@@ -233,7 +285,6 @@ function GameCard({ game }: { game: GameInfo }) {
         </div>
       )}
 
-      {/* 승/패 투수 (결과 경기) */}
       {isResult && game.winPitcherName && (
         <div className="mx-3 mb-2 text-center">
           <span className="text-[10px] text-green-600 font-bold">
@@ -246,8 +297,7 @@ function GameCard({ game }: { game: GameInfo }) {
         </div>
       )}
 
-      {/* 선발 투수 (예정 경기) */}
-      {!isResult && !isCancel && game.homeStarterName && (
+      {!isResult && !isLive && !isCancel && game.homeStarterName && (
         <div className="flex justify-between mx-3 mb-2 text-[10px] text-gray-400 border-t pt-1.5">
           <span>{game.awayStarterName || "-"}</span>
           <span className="text-gray-300">선발</span>
@@ -255,15 +305,13 @@ function GameCard({ game }: { game: GameInfo }) {
         </div>
       )}
 
-      {/* 중계 채널 */}
       {game.broadChannel && (
         <div className="text-center text-[10px] text-gray-400 mb-2.5 px-2">
           📺 {game.broadChannel.replace("^", " / ")}
         </div>
       )}
 
-      {/* 예정 시간 (중계 없을 때) */}
-      {!isResult && !isCancel && !game.broadChannel && (
+      {!isResult && !isLive && !isCancel && !game.broadChannel && (
         <p className="text-center text-[10px] text-gray-400 mb-2.5 px-2">
           {formatGameDate(game.gameDate)} {formatGameTime(game.gameDateTime)}
         </p>
@@ -274,6 +322,316 @@ function GameCard({ game }: { game: GameInfo }) {
           취소
         </p>
       )}
+    </div>
+  );
+}
+
+// ── 라인스코어 모달 ───────────────────────────────────────────────────────────
+function LineScoreModal({
+  game,
+  score,
+  loading,
+  onClose,
+  onSelectPlayer,
+}: {
+  game: GameInfo;
+  score: GameScore | null;
+  loading: boolean;
+  onClose: () => void;
+  onSelectPlayer: (pid: number) => void;
+}) {
+  const homeTeamName =
+    TEAM_CODE_TO_NAME[game.homeTeamCode] ?? game.homeTeamName;
+  const awayTeamName =
+    TEAM_CODE_TO_NAME[game.awayTeamCode] ?? game.awayTeamName;
+  const homeColor = TEAM_COLORS[homeTeamName]?.bg ?? "#334155";
+  const awayColor = TEAM_COLORS[awayTeamName]?.bg ?? "#334155";
+  const innings = score?.innings ?? [];
+
+  const handlePlayer = (pcode: string) => {
+    if (!pcode) return;
+    onClose();
+    onSelectPlayer(Number(pcode));
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.55)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="overflow-y-auto flex-1">
+          {/* 헤더 */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-gray-600">
+                {game.stadium}
+              </span>
+              <span className="text-xs text-gray-300">|</span>
+              <span className="text-xs text-gray-400">
+                {formatGameDate(game.gameDate)}
+              </span>
+              {game.statusCode === "LIVE" && (
+                <span className="flex items-center gap-1 text-xs font-black text-red-500 animate-pulse ml-1">
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
+                  LIVE
+                </span>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 text-lg w-7 h-7 flex items-center justify-center"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* 최종 스코어 */}
+          <div className="flex items-center justify-center gap-6 py-5 px-5">
+            <div className="flex flex-col items-center gap-1.5 flex-1">
+              <img
+                src={TEAM_CODE_TO_IMAGE[game.awayTeamCode]}
+                alt={awayTeamName}
+                className="w-10 h-10 object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              <span className="text-xs font-bold text-gray-600">
+                {awayTeamName}
+              </span>
+              <span className="text-xs text-gray-400">
+                {score?.awayHit ?? "-"}안타
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span
+                className="text-5xl font-black"
+                style={{ color: awayColor }}
+              >
+                {score?.awayScore ?? game.awayTeamScore}
+              </span>
+              <span className="text-2xl text-gray-200 font-bold">:</span>
+              <span
+                className="text-5xl font-black"
+                style={{ color: homeColor }}
+              >
+                {score?.homeScore ?? game.homeTeamScore}
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5 flex-1">
+              <img
+                src={TEAM_CODE_TO_IMAGE[game.homeTeamCode]}
+                alt={homeTeamName}
+                className="w-10 h-10 object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              <span className="text-xs font-bold text-gray-600">
+                {homeTeamName}
+              </span>
+              <span className="text-xs text-gray-400">
+                {score?.homeHit ?? "-"}안타
+              </span>
+            </div>
+          </div>
+
+          {/* 라인스코어 테이블 */}
+          {loading ? (
+            <div className="h-16 mx-5 mb-4 bg-gray-100 rounded-xl animate-pulse" />
+          ) : innings.length > 0 ? (
+            <div className="px-5 mb-4 overflow-x-auto">
+              <table className="w-full text-xs text-center border-collapse">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-2 py-2 text-left font-bold text-gray-500 w-14">
+                      팀
+                    </th>
+                    {innings.map((inn) => (
+                      <th
+                        key={inn.inning}
+                        className="px-1.5 py-2 font-bold text-gray-400 w-7"
+                      >
+                        {inn.inning}
+                      </th>
+                    ))}
+                    <th className="px-2 py-2 font-black text-gray-700 w-8">
+                      R
+                    </th>
+                    <th className="px-2 py-2 font-bold text-gray-400 w-8">H</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-gray-100">
+                    <td className="px-2 py-2.5 text-left font-bold text-gray-700">
+                      {awayTeamName}
+                    </td>
+                    {innings.map((inn) => (
+                      <td
+                        key={inn.inning}
+                        className={`px-1.5 py-2.5 font-medium ${inn.awayScore !== "0" && inn.awayScore !== "-" ? "text-gray-900 font-bold" : "text-gray-400"}`}
+                      >
+                        {inn.awayScore}
+                      </td>
+                    ))}
+                    <td className="px-2 py-2.5 font-black text-gray-900">
+                      {score?.awayScore}
+                    </td>
+                    <td className="px-2 py-2.5 text-gray-400">
+                      {score?.awayHit}
+                    </td>
+                  </tr>
+                  <tr className="border-t border-gray-100">
+                    <td className="px-2 py-2.5 text-left font-bold text-gray-700">
+                      {homeTeamName}
+                    </td>
+                    {innings.map((inn) => (
+                      <td
+                        key={inn.inning}
+                        className={`px-1.5 py-2.5 font-medium ${inn.homeScore !== "0" && inn.homeScore !== "-" ? "text-gray-900 font-bold" : "text-gray-400"}`}
+                      >
+                        {inn.homeScore}
+                      </td>
+                    ))}
+                    <td className="px-2 py-2.5 font-black text-gray-900">
+                      {score?.homeScore}
+                    </td>
+                    <td className="px-2 py-2.5 text-gray-400">
+                      {score?.homeHit}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+
+          {/* 승/패 투수 (있을 때만) */}
+          {!loading && (score?.winPitcher || score?.losePitcher) && (
+            <div className="px-5 mb-4">
+              <div className="flex gap-3">
+                {score?.winPitcher && (
+                  <div className="flex-1 flex items-center gap-3 bg-blue-50 rounded-xl px-3 py-2.5">
+                    <PlayerAvatar
+                      pcode={score.winPitcher.pcode}
+                      name={score.winPitcher.name}
+                      size="md"
+                      onClick={() => handlePlayer(score.winPitcher!.pcode)}
+                    />
+                    <div>
+                      <p className="text-[10px] font-bold text-blue-400">
+                        승리투수
+                      </p>
+                      <p className="text-sm font-black text-gray-800">
+                        {score.winPitcher.name}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {score?.losePitcher && (
+                  <div className="flex-1 flex items-center gap-3 bg-red-50 rounded-xl px-3 py-2.5">
+                    <PlayerAvatar
+                      pcode={score.losePitcher.pcode}
+                      name={score.losePitcher.name}
+                      size="md"
+                      onClick={() => handlePlayer(score.losePitcher!.pcode)}
+                    />
+                    <div>
+                      <p className="text-[10px] font-bold text-red-400">
+                        패전투수
+                      </p>
+                      <p className="text-sm font-black text-gray-800">
+                        {score.losePitcher.name}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* 선발 라인업 */}
+          {!loading &&
+          (score?.awayLineup?.length || score?.homeLineup?.length) ? (
+            <div className="px-5 mb-4">
+              <p className="text-xs font-black text-gray-400 mb-3">
+                선발 라인업
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs font-bold text-gray-500 mb-2">
+                    {awayTeamName}
+                  </p>
+                  <div className="space-y-1.5">
+                    {score?.awayLineup?.map((p) => (
+                      <div key={p.pcode} className="flex items-center gap-2">
+                        <PlayerAvatar
+                          pcode={p.pcode}
+                          name={p.name}
+                          size="sm"
+                          onClick={() => handlePlayer(p.pcode)}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-800 truncate">
+                            {p.name}
+                          </p>
+                          <p className="text-[10px] text-gray-400">
+                            {p.batOrder > 0 ? `${p.batOrder}번 ` : ""}
+                            {p.pos}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-500 mb-2">
+                    {homeTeamName}
+                  </p>
+                  <div className="space-y-1.5">
+                    {score?.homeLineup?.map((p) => (
+                      <div key={p.pcode} className="flex items-center gap-2">
+                        <PlayerAvatar
+                          pcode={p.pcode}
+                          name={p.name}
+                          size="sm"
+                          onClick={() => handlePlayer(p.pcode)}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-gray-800 truncate">
+                            {p.name}
+                          </p>
+                          <p className="text-[10px] text-gray-400">
+                            {p.batOrder > 0 ? `${p.batOrder}번 ` : ""}
+                            {p.pos}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* 문자중계 버튼 — 고정 하단 */}
+        <div className="px-5 py-4 border-t border-gray-100">
+          <a
+            href={`https://m.sports.naver.com/game/${game.gameId}/relay`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-black text-white transition-all hover:opacity-90"
+            style={{ backgroundColor: "#03C75A" }}
+          >
+            <span>📋</span> 네이버 문자중계 보기
+          </a>
+        </div>
+      </div>
     </div>
   );
 }
@@ -336,14 +694,9 @@ function StandingsTable({
               return (
                 <tr
                   key={s.teamName}
-                  className={`border-t border-gray-50 transition-colors ${
-                    onTeamClick
-                      ? "cursor-pointer hover:bg-amber-50/40"
-                      : "hover:bg-gray-50/40"
-                  }`}
+                  className={`border-t border-gray-50 transition-colors ${onTeamClick ? "cursor-pointer hover:bg-amber-50/40" : "hover:bg-gray-50/40"}`}
                   onClick={() => onTeamClick?.(s.teamName)}
                 >
-                  {/* 순위 */}
                   <td className="px-3 py-2.5">
                     <span
                       className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${
@@ -359,8 +712,6 @@ function StandingsTable({
                       {s.rankNum}
                     </span>
                   </td>
-
-                  {/* 팀 */}
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <img
@@ -375,7 +726,6 @@ function StandingsTable({
                           if (next) next.style.display = "flex";
                         }}
                       />
-                      {/* 이미지 로드 실패 시 fallback */}
                       <div
                         className="w-6 h-6 rounded-lg items-center justify-center text-white text-[9px] font-black flex-shrink-0 hidden"
                         style={{ backgroundColor: tc?.bg ?? "#64748b" }}
@@ -387,40 +737,26 @@ function StandingsTable({
                       </span>
                     </div>
                   </td>
-
-                  {/* 경기수 */}
                   <td className="px-3 py-2.5 text-center text-xs text-gray-400">
                     {s.totalGames}
                   </td>
-
-                  {/* 승 */}
                   <td className="px-3 py-2.5 text-center text-sm font-bold text-blue-600">
                     {s.wins}
                   </td>
-
-                  {/* 패 */}
                   <td className="px-3 py-2.5 text-center text-sm font-bold text-red-500">
                     {s.losses}
                   </td>
-
-                  {/* 무 */}
                   <td className="px-3 py-2.5 text-center text-xs text-gray-400">
                     {s.draws}
                   </td>
-
-                  {/* 승률 */}
                   <td className="px-3 py-2.5 text-center text-sm font-black text-gray-800">
                     {s.winPct != null ? s.winPct.toFixed(3) : "-"}
                   </td>
-
-                  {/* GB */}
                   <td className="px-3 py-2.5 text-center text-xs text-gray-400">
                     {s.gamesBehind === 0
                       ? "-"
                       : (s.gamesBehind?.toFixed(1) ?? "-")}
                   </td>
-
-                  {/* 연속 */}
                   <td className="px-3 py-2.5 text-center hidden sm:table-cell">
                     <span
                       className={`text-xs font-bold px-2 py-0.5 rounded-full ${
@@ -434,18 +770,12 @@ function StandingsTable({
                       {s.streak ?? "-"}
                     </span>
                   </td>
-
-                  {/* 팀 타율 */}
                   <td className="px-3 py-2.5 text-center text-xs font-bold text-blue-500 hidden md:table-cell">
                     {s.teamAvg != null ? s.teamAvg.toFixed(3) : "-"}
                   </td>
-
-                  {/* 팀 ERA */}
                   <td className="px-3 py-2.5 text-center text-xs font-bold text-orange-500 hidden md:table-cell">
                     {s.teamEra != null ? s.teamEra.toFixed(2) : "-"}
                   </td>
-
-                  {/* 최근 5경기 */}
                   <td className="px-3 py-2.5 text-center hidden lg:table-cell">
                     <div className="flex items-center justify-center gap-0.5">
                       {s.last5 ? (
@@ -552,7 +882,8 @@ function SectionHeader({
 }
 
 // ── 메인 페이지 ───────────────────────────────────────────────────────────────
-export default function MainPage({}: MainPageProps) {
+export default function MainPage({ onSelectPlayer }: MainPageProps) {
+  const navigate = useNavigate();
   const todayStr = new Date().toISOString().split("T")[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [games, setGames] = useState<GameInfo[]>([]);
@@ -562,24 +893,46 @@ export default function MainPage({}: MainPageProps) {
   const [standingsLoading, setStandingsLoading] = useState(true);
   const [activeNewsTab, setActiveNewsTab] = useState<string>("전체");
   const [showAllStandings, setShowAllStandings] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<GameInfo | null>(null);
+  const [gameScore, setGameScore] = useState<GameScore | null>(null);
+  const [scoreLoading, setScoreLoading] = useState(false);
 
   const dateTabs = buildDateTabs();
 
-  // 경기 로드 — 오늘 경기 없으면 자동으로 최근/예정 표시
+  const handleSelectPlayer = (pid: number) => {
+    if (onSelectPlayer) {
+      onSelectPlayer(pid);
+    } else {
+      navigate("/player", { state: { pid } });
+    }
+  };
+
+  const handleGameClick = async (game: GameInfo) => {
+    setSelectedGame(game);
+    setGameScore(null);
+    setScoreLoading(true);
+    try {
+      const score = await fetchGameScore(game.gameId);
+      setGameScore(score);
+    } catch {
+      // 스코어 없어도 모달 표시
+    } finally {
+      setScoreLoading(false);
+    }
+  };
+
+  // 경기 로드
   useEffect(() => {
-    const load = async () => {
-      setGamesLoading(true);
+    const load = async (silent = false): Promise<GameInfo[]> => {
+      if (!silent) setGamesLoading(true);
       try {
         let data = await fetchGamesByDate(selectedDate);
-
         if (data.length === 0 && selectedDate === todayStr) {
-          // 오늘 경기 없음 → 최근 결과
           const recent = await fetchRecentGames();
           if (recent.length > 0) {
             data = recent;
             setDisplayDate(recent[0].gameDate);
           } else {
-            // 최근 결과도 없음 → 다음 예정
             const upcoming = await fetchUpcomingGames();
             data = upcoming;
             if (upcoming.length > 0) setDisplayDate(upcoming[0].gameDate);
@@ -587,16 +940,27 @@ export default function MainPage({}: MainPageProps) {
         } else {
           setDisplayDate(selectedDate);
         }
-
         setGames(data);
+        return data;
       } catch (e) {
         console.error("경기 로드 실패:", e);
-        setGames([]);
+        if (!silent) setGames([]);
+        return [];
       } finally {
-        setGamesLoading(false);
+        if (!silent) setGamesLoading(false);
       }
     };
-    load();
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+    load().then((data) => {
+      const hasLive = data.some((g) => g.statusCode === "LIVE");
+      if (selectedDate === todayStr && hasLive) {
+        interval = setInterval(() => load(true), 30_000);
+      }
+    });
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [selectedDate]);
 
   // 순위 로드
@@ -621,15 +985,23 @@ export default function MainPage({}: MainPageProps) {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-10">
-      {/* ══ 섹션 1: 경기 일정 / 결과 ══════════════════════════════════════════ */}
+      {selectedGame && (
+        <LineScoreModal
+          game={selectedGame}
+          score={gameScore}
+          loading={scoreLoading}
+          onClose={() => setSelectedGame(null)}
+          onSelectPlayer={handleSelectPlayer}
+        />
+      )}
+
+      {/* ══ 섹션 1: 경기 일정 / 결과 */}
       <section>
         <SectionHeader
           title="경기 일정 & 결과"
           subtitle={`KBO 2026 시즌 · ${formatGameDate(displayDate)}`}
           color="#EF4444"
         />
-
-        {/* 날짜 탭 */}
         <div
           className="flex gap-1.5 mb-4 overflow-x-auto pb-1"
           style={{ scrollbarWidth: "none" }}
@@ -651,7 +1023,6 @@ export default function MainPage({}: MainPageProps) {
             </button>
           ))}
         </div>
-
         {gamesLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[...Array(5)].map((_, i) => (
@@ -671,13 +1042,17 @@ export default function MainPage({}: MainPageProps) {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {games.map((g) => (
-              <GameCard key={g.gameId} game={g} />
+              <GameCard
+                key={g.gameId}
+                game={g}
+                onClick={() => handleGameClick(g)}
+              />
             ))}
           </div>
         )}
       </section>
 
-      {/* ══ 섹션 2: 리그 순위 ════════════════════════════════════════════════ */}
+      {/* ══ 섹션 2: 리그 순위 */}
       <section>
         <SectionHeader title="리그 순위" subtitle="2026 KBO" color="#F59E0B" />
         {standingsLoading ? (
@@ -695,7 +1070,7 @@ export default function MainPage({}: MainPageProps) {
         )}
       </section>
 
-      {/* ══ 섹션 3: 야구 뉴스 ════════════════════════════════════════════════ */}
+      {/* ══ 섹션 3: 야구 뉴스 */}
       <section>
         <SectionHeader
           title="야구 뉴스"
@@ -727,7 +1102,7 @@ export default function MainPage({}: MainPageProps) {
         </div>
       </section>
 
-      {/* ══ 섹션 4: 야구 유튜브 ══════════════════════════════════════════════ */}
+      {/* ══ 섹션 4: 야구 유튜브 */}
       <section>
         <SectionHeader
           title="야구 유튜브"
@@ -762,7 +1137,7 @@ export default function MainPage({}: MainPageProps) {
         </div>
       </section>
 
-      {/* ══ 섹션 5: 팀별 편파 채널 ══════════════════════════════════════════ */}
+      {/* ══ 섹션 5: 팀별 편파 채널 */}
       <section>
         <SectionHeader
           title="팀별 편파 채널"
@@ -798,7 +1173,7 @@ export default function MainPage({}: MainPageProps) {
         </div>
       </section>
 
-      {/* ══ 섹션 6: 중계 사이트 ══════════════════════════════════════════════ */}
+      {/* ══ 섹션 6: 중계 사이트 */}
       <section>
         <SectionHeader
           title="중계 사이트"
@@ -839,7 +1214,7 @@ export default function MainPage({}: MainPageProps) {
         </div>
       </section>
 
-      {/* ══ 섹션 7: 커뮤니티 ════════════════════════════════════════════════ */}
+      {/* ══ 섹션 7: 커뮤니티 */}
       <section>
         <SectionHeader
           title="야구 커뮤니티"
