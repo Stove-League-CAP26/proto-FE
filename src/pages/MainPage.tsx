@@ -23,9 +23,8 @@ import {
 } from "@/mock/homeData";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
-interface MainPageProps {
-  onSelectPlayer?: (pid: number) => void;
-}
+// (현재 사용 props 없음 — 향후 확장용으로 유지)
+interface MainPageProps {}
 
 // ── 날짜 유틸 ─────────────────────────────────────────────────────────────────
 function buildDateTabs() {
@@ -78,6 +77,18 @@ const TEAM_CODE_TO_IMAGE: Record<string, string> = {
   SS: "/images/teams/samsung.png",
   HH: "/images/teams/hanwha.png",
   WO: "/images/teams/kiwoom.png",
+};
+const TEAM_NAME_TO_IMAGE: Record<string, string> = {
+  LG: "/images/teams/lg.png",
+  KT: "/images/teams/kt.png",
+  SSG: "/images/teams/ssg.png",
+  NC: "/images/teams/nc.png",
+  두산: "/images/teams/doosan.png",
+  KIA: "/images/teams/kia.png",
+  롯데: "/images/teams/lotte.png",
+  삼성: "/images/teams/samsung.png",
+  한화: "/images/teams/hanwha.png",
+  키움: "/images/teams/kiwoom.png",
 };
 
 // ── 경기 카드 ─────────────────────────────────────────────────────────────────
@@ -352,8 +363,21 @@ function StandingsTable({
                   {/* 팀 */}
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
+                      <img
+                        src={TEAM_NAME_TO_IMAGE[s.teamName]}
+                        alt={s.teamName}
+                        className="w-6 h-6 object-contain flex-shrink-0"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          img.style.display = "none";
+                          const next =
+                            img.nextElementSibling as HTMLElement | null;
+                          if (next) next.style.display = "flex";
+                        }}
+                      />
+                      {/* 이미지 로드 실패 시 fallback */}
                       <div
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0"
+                        className="w-6 h-6 rounded-lg items-center justify-center text-white text-[9px] font-black flex-shrink-0 hidden"
                         style={{ backgroundColor: tc?.bg ?? "#64748b" }}
                       >
                         {s.teamName.slice(0, 2)}
@@ -527,44 +551,8 @@ function SectionHeader({
   );
 }
 
-// ── 주목 선수 ─────────────────────────────────────────────────────────────────
-const SPOTLIGHT_PLAYERS = [
-  {
-    pid: 65207,
-    name: "양의지",
-    team: "두산",
-    pos: "포수",
-    stat: "타율 .337",
-    emoji: "🥇",
-  },
-  {
-    pid: 76232,
-    name: "김도영",
-    team: "KIA",
-    pos: "유격수",
-    stat: "WAR 6.2",
-    emoji: "⚡",
-  },
-  {
-    pid: 68001,
-    name: "안우진",
-    team: "키움",
-    pos: "선발",
-    stat: "ERA 2.11",
-    emoji: "🔥",
-  },
-  {
-    pid: 68003,
-    name: "원태인",
-    team: "삼성",
-    pos: "선발",
-    stat: "ERA 2.45",
-    emoji: "👑",
-  },
-];
-
 // ── 메인 페이지 ───────────────────────────────────────────────────────────────
-export default function MainPage({ onSelectPlayer }: MainPageProps) {
+export default function MainPage({}: MainPageProps) {
   const todayStr = new Date().toISOString().split("T")[0];
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [games, setGames] = useState<GameInfo[]>([]);
@@ -689,104 +677,53 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
         )}
       </section>
 
-      {/* ══ 섹션 2: 리그 순위 + 뉴스 2열 ════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* 리그 순위 */}
-        <div className="lg:col-span-2">
-          <SectionHeader
-            title="리그 순위"
-            subtitle="2026 KBO"
-            color="#F59E0B"
-          />
-          {standingsLoading ? (
-            <div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />
-          ) : (
-            <>
-              <StandingsTable standings={displayedStandings} />
-              <button
-                onClick={() => setShowAllStandings((v) => !v)}
-                className="w-full mt-2 py-2.5 text-xs font-bold text-gray-400 hover:text-gray-600 bg-white rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
-              >
-                {showAllStandings ? "접기 ▲" : "전체 보기 ▼"}
-              </button>
-            </>
-          )}
-        </div>
+      {/* ══ 섹션 2: 리그 순위 ════════════════════════════════════════════════ */}
+      <section>
+        <SectionHeader title="리그 순위" subtitle="2026 KBO" color="#F59E0B" />
+        {standingsLoading ? (
+          <div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />
+        ) : (
+          <>
+            <StandingsTable standings={displayedStandings} />
+            <button
+              onClick={() => setShowAllStandings((v) => !v)}
+              className="w-full mt-2 py-2.5 text-xs font-bold text-gray-400 hover:text-gray-600 bg-white rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
+            >
+              {showAllStandings ? "접기 ▲" : "전체 보기 ▼"}
+            </button>
+          </>
+        )}
+      </section>
 
-        {/* 야구 뉴스 */}
-        <div className="lg:col-span-3">
-          <SectionHeader
-            title="야구 뉴스"
-            subtitle="최신 KBO 소식"
-            color="#3B82F6"
-          />
-          <div
-            className="flex gap-1.5 mb-3 overflow-x-auto pb-1"
-            style={{ scrollbarWidth: "none" }}
-          >
-            {newsCategories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveNewsTab(cat)}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                  activeNewsTab === cat
-                    ? "bg-blue-500 text-white"
-                    : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-          <div className="space-y-2.5">
-            {filteredNews.map((news) => (
-              <NewsCard key={news.id} news={news} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ══ 섹션 3: 주목 선수 ════════════════════════════════════════════════ */}
+      {/* ══ 섹션 3: 야구 뉴스 ════════════════════════════════════════════════ */}
       <section>
         <SectionHeader
-          title="주목 선수"
-          subtitle="선수를 클릭하면 프로필로 이동"
-          color="#10B981"
+          title="야구 뉴스"
+          subtitle="최신 KBO 소식"
+          color="#3B82F6"
         />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {SPOTLIGHT_PLAYERS.map((p) => {
-            const tc = TEAM_COLORS[p.team];
-            return (
-              <button
-                key={p.pid}
-                onClick={() => onSelectPlayer?.(p.pid)}
-                className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col items-center gap-2 transition-all text-center group ${
-                  onSelectPlayer
-                    ? "hover:shadow-md hover:-translate-y-1 cursor-pointer"
-                    : "cursor-default"
-                }`}
-              >
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform"
-                  style={{ backgroundColor: (tc?.bg ?? "#64748b") + "20" }}
-                >
-                  {p.emoji}
-                </div>
-                <div>
-                  <p className="text-sm font-black text-gray-900">{p.name}</p>
-                  <p className="text-xs text-gray-400">
-                    {p.team} · {p.pos}
-                  </p>
-                </div>
-                <span
-                  className="text-xs font-bold px-2.5 py-1 rounded-full text-white"
-                  style={{ backgroundColor: tc?.bg ?? "#64748b" }}
-                >
-                  {p.stat}
-                </span>
-              </button>
-            );
-          })}
+        <div
+          className="flex gap-1.5 mb-3 overflow-x-auto pb-1"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {newsCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveNewsTab(cat)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                activeNewsTab === cat
+                  ? "bg-blue-500 text-white"
+                  : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-2.5">
+          {filteredNews.map((news) => (
+            <NewsCard key={news.id} news={news} />
+          ))}
         </div>
       </section>
 

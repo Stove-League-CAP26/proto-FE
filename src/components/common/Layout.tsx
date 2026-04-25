@@ -1,24 +1,24 @@
 // src/components/common/Layout.tsx
-import { useState } from 'react'
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import Navbar from './Navbar'
+import { useState } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import Navbar from "./Navbar";
 
 export default function Layout() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(
-    !!localStorage.getItem('accessToken')
-  )
+    !!localStorage.getItem("accessToken"),
+  );
 
   const isAuthPage =
-    location.pathname === '/login' || location.pathname === '/signup'
+    location.pathname === "/login" || location.pathname === "/signup";
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken')
-    setIsLoggedIn(false)
-    setDropdownOpen(false)
-  }
+    localStorage.removeItem("accessToken");
+    setIsLoggedIn(false);
+    setDropdownOpen(false);
+  };
 
   // LoginPage에서 로그인 성공 시 호출 — Layout이 isLoggedIn 상태를 관리하므로
   // LoginPage는 이 함수를 context 없이 받을 수 없음
@@ -36,10 +36,16 @@ export default function Layout() {
         isLoggedIn={isLoggedIn}
         dropdownOpen={dropdownOpen}
         isAuthPage={isAuthPage}
-        onLogoClick={() => navigate(isLoggedIn ? '/' : '/player')}
+        onLogoClick={() => navigate("/")}
         onNavigate={(path) => navigate(path)}
-        onGoLogin={() => { navigate('/login'); setDropdownOpen(false) }}
-        onGoSignup={() => { navigate('/signup'); setDropdownOpen(false) }}
+        onGoLogin={() => {
+          navigate("/login");
+          setDropdownOpen(false);
+        }}
+        onGoSignup={() => {
+          navigate("/signup");
+          setDropdownOpen(false);
+        }}
         onLogout={handleLogout}
         onDropdownToggle={() => setDropdownOpen((prev) => !prev)}
         onLoginStateChange={setIsLoggedIn}
@@ -58,5 +64,5 @@ export default function Layout() {
         </footer>
       )}
     </div>
-  )
+  );
 }
