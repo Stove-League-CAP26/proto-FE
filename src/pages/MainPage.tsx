@@ -1218,7 +1218,7 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
       <section>
         <SectionHeader
           title="야구 커뮤니티"
-          subtitle="팬들의 이야기"
+          subtitle="팬들의 이야기 "
           color="#F97316"
         />
         <div className="flex flex-wrap gap-2">
