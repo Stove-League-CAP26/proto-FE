@@ -19,7 +19,7 @@ type Page =
   | "signup";
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>("player");
+  const [currentPage, setCurrentPage] = useState<Page>("main");
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(
@@ -66,7 +66,7 @@ export default function App() {
         dropdownOpen={dropdownOpen}
         isAuthPage={isAuthPage}
         onNavigate={setCurrentPage}
-        onLogoClick={() => setCurrentPage(isLoggedIn ? "main" : "player")}
+        onLogoClick={() => setCurrentPage("main")}
         onGoLogin={goToLogin}
         onGoSignup={goToSignup}
         onLogout={handleLogout}
@@ -75,7 +75,9 @@ export default function App() {
       />
 
       {/* 페이지 라우팅 */}
-      {currentPage === "main" && <MainPage />}
+      {currentPage === "main" && (
+        <MainPage onSelectPlayer={handleSelectPlayer} />
+      )}
       {currentPage === "login" && (
         <LoginPage
           onLoginSuccess={handleLoginSuccess}
