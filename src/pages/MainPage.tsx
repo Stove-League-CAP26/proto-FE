@@ -20,12 +20,19 @@ import {
   type PitcherInfo,
 } from "@/api/gameApi";
 import {
-  MOCK_NEWS,
   YOUTUBE_CHANNELS,
   TEAM_FAN_CHANNELS,
   BROADCAST_SITES,
   COMMUNITY_LINKS,
 } from "@/mock/homeData";
+import {
+  fetchNews,
+  filterNewsByCategory,
+  formatNewsDate,
+  NEWS_CATEGORIES,
+  type NewsItem,
+  type NewsCategory,
+} from "@/api/newsApi";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 interface MainPageProps {
@@ -147,7 +154,7 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
   const awayColor = TEAM_COLORS[awayTeamName]?.bg ?? "#334155";
 
   const isResult = game.statusCode === "RESULT";
-  const isLive = game.statusCode === "LIVE";
+  const isLive = game.statusCode === "LIVE" || game.statusCode === "STARTED";
   const isCancel = game.cancel;
   const homeWin = game.winner === "HOME";
   const awayWin = game.winner === "AWAY";
@@ -159,13 +166,14 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
     >
       {/* 상태 & 구장 */}
       <div className="flex items-center justify-between px-3 pt-3 pb-1">
-        <span className="text-[10px] text-gray-400 truncate max-w-[70%]">
+        <span className="text-[10px] text-gray-400 truncate max-w-[60%]">
           {game.stadium}
         </span>
         {isLive ? (
-          <span className="flex items-center gap-1 text-[10px] font-black text-red-500 animate-pulse flex-shrink-0">
-            <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-            LIVE
+          <span className="flex items-center gap-1 text-[10px] font-black text-red-500 flex-shrink-0">
+            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping absolute" />
+            <span className="w-1.5 h-1.5 bg-red-500 rounded-full relative" />
+            {game.statusInfo || "LIVE"}
           </span>
         ) : isResult ? (
           <span className="text-[10px] font-bold text-gray-400 flex-shrink-0">
@@ -182,7 +190,7 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
         )}
       </div>
 
-      {/* 원정 vs 홈 */}
+      {/* 원정 vs 홈 — LIVE면 스코어 강조 표시 */}
       <div className="flex items-center px-3 py-2 gap-2 flex-1">
         <div
           className={`flex-1 flex flex-col items-center gap-1 ${isResult && !awayWin ? "opacity-40" : ""}`}
@@ -217,13 +225,25 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
             </span>
           )}
           {isLive && (
-            <span className="text-xl font-black leading-none text-gray-900">
+            <span
+              className="text-2xl font-black leading-none"
+              style={{ color: awayColor }}
+            >
               {game.awayTeamScore}
             </span>
           )}
         </div>
 
-        <span className="text-xs font-bold text-gray-200">VS</span>
+        {isLive ? (
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[9px] font-black text-red-400 animate-pulse">
+              LIVE
+            </span>
+            <span className="text-xs font-bold text-gray-300">:</span>
+          </div>
+        ) : (
+          <span className="text-xs font-bold text-gray-200">VS</span>
+        )}
 
         <div
           className={`flex-1 flex flex-col items-center gap-1 ${isResult && !homeWin ? "opacity-40" : ""}`}
@@ -258,18 +278,15 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
             </span>
           )}
           {isLive && (
-            <span className="text-xl font-black leading-none text-gray-900">
+            <span
+              className="text-2xl font-black leading-none"
+              style={{ color: homeColor }}
+            >
               {game.homeTeamScore}
             </span>
           )}
         </div>
       </div>
-
-      {isLive && (
-        <div className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-bold text-red-500 bg-red-50">
-          {game.statusInfo || "진행 중"}
-        </div>
-      )}
 
       {isResult && game.winner !== "DRAW" && (
         <div
@@ -811,40 +828,49 @@ function StandingsTable({
 // ── 뉴스 카드 ────────────────────────────────────────────────────────────────
 const CATEGORY_COLOR: Record<string, string> = {
   경기결과: "#3B82F6",
-  선수: "#10B981",
-  팀소식: "#F59E0B",
-  예고: "#8B5CF6",
-  리그: "#EF4444",
+  투수: "#8B5CF6",
+  타자: "#10B981",
+  홈런: "#EF4444",
+  트레이드: "#F59E0B",
+  FA: "#06B6D4",
+  부상: "#F97316",
+  팀소식: "#64748b",
 };
-function NewsCard({ news }: { news: (typeof MOCK_NEWS)[0] }) {
+
+function NewsCard({ news }: { news: NewsItem }) {
   const catColor = CATEGORY_COLOR[news.category] ?? "#64748b";
+  const url = news.originallink || news.link;
   return (
     <a
-      href={news.url}
+      href={url}
       target="_blank"
       rel="noopener noreferrer"
       className="flex items-start gap-3 bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:shadow-md hover:-translate-y-0.5 transition-all"
     >
       <div
-        className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-2xl"
-        style={{ backgroundColor: catColor + "15" }}
+        className="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center text-xl flex-none"
+        style={{ backgroundColor: catColor + "18" }}
       >
         ⚾
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span
-            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-            style={{ backgroundColor: catColor + "15", color: catColor }}
+            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: catColor + "18", color: catColor }}
           >
             {news.category}
           </span>
-          <span className="text-[10px] text-gray-300">{news.source}</span>
+          <span className="text-[10px] text-gray-300 truncate">
+            {formatNewsDate(news.pubDate)}
+          </span>
         </div>
         <p className="text-sm font-bold text-gray-800 leading-snug line-clamp-2">
           {news.title}
         </p>
-        <p className="text-xs text-gray-400 mt-1">{news.date}</p>
+        <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+          {news.description}
+        </p>
       </div>
     </a>
   );
@@ -891,8 +917,12 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
   const [standings, setStandings] = useState<LeagueStanding[]>([]);
   const [gamesLoading, setGamesLoading] = useState(true);
   const [standingsLoading, setStandingsLoading] = useState(true);
-  const [activeNewsTab, setActiveNewsTab] = useState<string>("전체");
   const [showAllStandings, setShowAllStandings] = useState(false);
+  const [activeNewsTab, setActiveNewsTab] = useState<NewsCategory>("전체");
+  const [newsList, setNewsList] = useState<NewsItem[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState(false);
+  const [newsVisible, setNewsVisible] = useState(5);
   const [selectedGame, setSelectedGame] = useState<GameInfo | null>(null);
   const [gameScore, setGameScore] = useState<GameScore | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
@@ -952,12 +982,11 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
     };
 
     let interval: ReturnType<typeof setInterval> | null = null;
-    load().then((data) => {
-      const hasLive = data.some((g) => g.statusCode === "LIVE");
-      if (selectedDate === todayStr && hasLive) {
-        interval = setInterval(() => load(true), 30_000);
-      }
-    });
+    load();
+    // 오늘 탭이면 항상 30초 폴링 — BEFORE일 때도 LIVE 전환 감지
+    if (selectedDate === todayStr) {
+      interval = setInterval(() => load(true), 30_000);
+    }
     return () => {
       if (interval) clearInterval(interval);
     };
@@ -971,14 +1000,16 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
       .finally(() => setStandingsLoading(false));
   }, []);
 
-  const newsCategories = [
-    "전체",
-    ...Array.from(new Set(MOCK_NEWS.map((n) => n.category))),
-  ];
-  const filteredNews =
-    activeNewsTab === "전체"
-      ? MOCK_NEWS
-      : MOCK_NEWS.filter((n) => n.category === activeNewsTab);
+  // 뉴스 로드 — 마운트 시 한 번만 fetch
+  useEffect(() => {
+    setNewsLoading(true);
+    setNewsError(false);
+    fetchNews()
+      .then(setNewsList)
+      .catch(() => setNewsError(true))
+      .finally(() => setNewsLoading(false));
+  }, []);
+
   const displayedStandings = showAllStandings
     ? standings
     : standings.slice(0, 5);
@@ -1074,32 +1105,89 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
       <section>
         <SectionHeader
           title="야구 뉴스"
-          subtitle="최신 KBO 소식"
+          subtitle="최신 KBO 소식 · 네이버 뉴스"
           color="#3B82F6"
         />
+        {/* 카테고리 탭 */}
         <div
           className="flex gap-1.5 mb-3 overflow-x-auto pb-1"
           style={{ scrollbarWidth: "none" }}
         >
-          {newsCategories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveNewsTab(cat)}
-              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                activeNewsTab === cat
-                  ? "bg-blue-500 text-white"
-                  : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+          {NEWS_CATEGORIES.map((cat) => {
+            const count =
+              cat === "전체"
+                ? newsList.length
+                : newsList.filter((n) => n.category === cat).length;
+            return (
+              <button
+                key={cat}
+                onClick={() => {
+                  setActiveNewsTab(cat);
+                  setNewsVisible(5);
+                }}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${
+                  activeNewsTab === cat
+                    ? "bg-blue-500 text-white"
+                    : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {cat}
+                {!newsLoading && count > 0 && (
+                  <span
+                    className={`text-[10px] px-1 rounded-full ${activeNewsTab === cat ? "bg-white/30 text-white" : "bg-gray-100 text-gray-400"}`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div className="space-y-2.5">
-          {filteredNews.map((news) => (
-            <NewsCard key={news.id} news={news} />
-          ))}
-        </div>
+
+        {/* 뉴스 목록 */}
+        {newsLoading ? (
+          <div className="space-y-2.5">
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                className="h-20 bg-gray-100 rounded-xl animate-pulse"
+              />
+            ))}
+          </div>
+        ) : newsError ? (
+          <div className="text-center py-10 bg-white rounded-xl border border-gray-100">
+            <p className="text-gray-400 text-sm">뉴스를 불러오지 못했습니다</p>
+          </div>
+        ) : (
+          (() => {
+            const filtered = filterNewsByCategory(newsList, activeNewsTab);
+            const visible = filtered.slice(0, newsVisible);
+            const hasMore = filtered.length > newsVisible;
+            return (
+              <>
+                <div className="space-y-2.5">
+                  {visible.length === 0 ? (
+                    <div className="text-center py-10 bg-white rounded-xl border border-gray-100">
+                      <p className="text-gray-400 text-sm">
+                        해당 카테고리 기사가 없습니다
+                      </p>
+                    </div>
+                  ) : (
+                    visible.map((news, i) => <NewsCard key={i} news={news} />)
+                  )}
+                </div>
+                {hasMore && (
+                  <button
+                    onClick={() => setNewsVisible((v) => v + 5)}
+                    className="w-full mt-3 py-2.5 text-xs font-bold text-gray-400 hover:text-gray-600 bg-white rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
+                  >
+                    더 보기 ({filtered.length - newsVisible}개 남음) ▼
+                  </button>
+                )}
+              </>
+            );
+          })()
+        )}
       </section>
 
       {/* ══ 섹션 4: 야구 유튜브 */}
@@ -1218,7 +1306,7 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
       <section>
         <SectionHeader
           title="야구 커뮤니티"
-          subtitle="팬들의 이야기 "
+          subtitle="팬들의 이야기"
           color="#F97316"
         />
         <div className="flex flex-wrap gap-2">

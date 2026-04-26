@@ -17,7 +17,7 @@ export interface GameInfo {
   awayTeamEmblemUrl: string;
 
   winner: "HOME" | "AWAY" | "DRAW";
-  statusCode: "RESULT" | "BEFORE" | "LIVE";
+  statusCode: "RESULT" | "BEFORE" | "LIVE" | "STARTED";
   statusInfo: string;
   cancel: boolean;
 
@@ -137,6 +137,7 @@ export function getStatusLabel(game: GameInfo): string {
     case "RESULT":
       return "종료";
     case "LIVE":
+    case "STARTED":
       return "🔴 LIVE";
     case "BEFORE":
       return formatGameTime(game.gameDateTime);
