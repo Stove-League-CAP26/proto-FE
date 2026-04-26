@@ -1,11 +1,10 @@
 // src/components/team/TeamLanding.tsx
-// · SVG 한반도 지도 — 실제 위도경도 기반 정확한 마커 배치
+// · 남한 SVG 지도 (public/images/south-korea.svg) — img + 절대좌표 마커 오버레이
 // · 잠실(LG+두산) 공동구장: 호버 시 팀 선택 팝업
 // · 좌우 5팀 카드 리스트 유지
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { KBO_TEAMS, LEFT_TEAMS, RIGHT_TEAMS, type Team } from "@/mock/teamData";
-import { KOREA_PATH } from "@/constants/teamConstants";
 
 interface TeamLandingProps {
   onSelect: (t: Team) => void;
@@ -14,51 +13,56 @@ interface TeamLandingProps {
 const stadiumUrl = (id: string) => `/images/stadium/${id}.png`;
 const logoUrl = (id: string) => `/images/teams/${id}.png`;
 
-// ── 위도경도 → SVG 좌표 변환 ─────────────────────────────────
-// viewBox: 320 × 390, 경로 transform: scale(1.3) translate(-31,-7)
-// 기준점 보정: SSG 인천(NW) ↔ 롯데 부산(SE) 두 점으로 캘리브레이션
-//   lng 126.693 → x 104  /  lng 129.061 → x 198   scale_x ≈ 40.4 px/°
-//   lat 37.437  → y 143  /  lat 35.194  → y 278    scale_y ≈ -60.0 px/°
-
+// ── 위도경도 → SVG px 좌표 (viewBox 800×1200, translate 106.96 19.46) ───────
+// 캘리브레이션: SSG 인천(126.693, 37.437) → (226, 242)
+//               롯데 부산(129.061, 35.194) → (597, 719)
 function lngLatToSVG(lng: number, lat: number): { x: number; y: number } {
-  const SCALE_X = 40.4;
-  const SCALE_Y = -60.0;
+  const SCALE_X = 156.7; // px/°
+  const SCALE_Y = -212.7; // px/° (북위 증가 → y 감소)
   const REF_LNG = 126.693;
-  const REF_X = 104;
+  const REF_X = 226;
   const REF_LAT = 37.437;
-  const REF_Y = 143;
+  const REF_Y = 242;
   return {
-    x: Math.round(REF_X + (lng - REF_LNG) * SCALE_X),
-    y: Math.round(REF_Y + (lat - REF_LAT) * SCALE_Y),
+    x: REF_X + (lng - REF_LNG) * SCALE_X,
+    y: REF_Y + (lat - REF_LAT) * SCALE_Y,
   };
 }
 
-// ── 각 팀 구장 위도경도 ──────────────────────────────────────
+// SVG px → 컨테이너 % (img는 800×1200 비율로 표시)
+function svgToPercent(x: number, y: number) {
+  return { xPct: (x / 800) * 100, yPct: (y / 1200) * 100 };
+}
+
+// ── 구장 위도경도 ────────────────────────────────────────────────────────────
 const STADIUM_LATLON: Record<string, { lat: number; lng: number }> = {
   ssg: { lat: 37.437, lng: 126.693 }, // 인천 SSG 랜더스필드
-  kiwoom: { lat: 37.4985, lng: 126.8672 }, // 서울 고척 스카이돔
-  lg: { lat: 37.5122, lng: 127.0719 }, // 서울 잠실야구장
-  doosan: { lat: 37.5122, lng: 127.0719 }, // 서울 잠실야구장 (공동)
-  kt: { lat: 37.299, lng: 127.0097 }, // 수원 KT 위즈파크
-  hanwha: { lat: 36.3172, lng: 127.4295 }, // 대전 한화생명이글스파크
-  kia: { lat: 35.168, lng: 126.8891 }, // 광주 기아 챔피언스필드
-  samsung: { lat: 35.8412, lng: 128.6814 }, // 대구 삼성 라이온즈파크
-  nc: { lat: 35.2225, lng: 128.5826 }, // 창원 NC 파크
-  lotte: { lat: 35.1938, lng: 129.0611 }, // 부산 사직야구장
+  kiwoom: { lat: 37.499, lng: 126.867 }, // 서울 고척 스카이돔
+  lg: { lat: 37.512, lng: 127.072 }, // 서울 잠실 (공동)
+  doosan: { lat: 37.512, lng: 127.072 }, // 서울 잠실 (공동)
+  kt: { lat: 37.299, lng: 127.01 }, // 수원 KT 위즈파크
+  hanwha: { lat: 36.317, lng: 127.43 }, // 대전 한화생명이글스파크
+  kia: { lat: 35.168, lng: 126.889 }, // 광주 기아 챔피언스필드
+  samsung: { lat: 35.841, lng: 128.681 }, // 대구 삼성 라이온즈파크
+  nc: { lat: 35.223, lng: 128.583 }, // 창원 NC 파크
+  lotte: { lat: 35.194, lng: 129.061 }, // 부산 사직야구장
 };
 
-// 사전 계산된 SVG 좌표 (런타임에 계산되지만 상수로 캐싱)
-const MAP_COORDS: Record<string, { x: number; y: number }> = Object.fromEntries(
+// 사전 계산 좌표
+const MAP_SVG: Record<string, { x: number; y: number }> = Object.fromEntries(
   Object.entries(STADIUM_LATLON).map(([id, { lat, lng }]) => [
     id,
     lngLatToSVG(lng, lat),
   ]),
 );
+const MAP_PCT: Record<string, { xPct: number; yPct: number }> =
+  Object.fromEntries(
+    Object.entries(MAP_SVG).map(([id, { x, y }]) => [id, svgToPercent(x, y)]),
+  );
 
-// 잠실 공동 좌표 (LG=Doosan 이므로 하나만)
-const JAMSIL = MAP_COORDS["lg"]; // { x:≈125, y:≈131 }
+const JAMSIL_PCT = MAP_PCT["lg"];
 
-// ── 구장 툴팁 (카드 옆 표시) ─────────────────────────────────
+// ── 구장 툴팁 ────────────────────────────────────────────────────────────────
 function StadiumTooltip({
   team,
   side,
@@ -108,7 +112,7 @@ function StadiumTooltip({
   );
 }
 
-// ── 팀 카드 (좌/우 리스트) ────────────────────────────────────
+// ── 팀 카드 (좌/우) ──────────────────────────────────────────────────────────
 function TeamCard({
   team,
   globalActiveId,
@@ -191,288 +195,184 @@ function TeamCard({
   );
 }
 
-// ── SVG 지도 ─────────────────────────────────────────────────
-function KoreaMap({
-  globalActiveId,
-  jamsilHovered,
-  onMapHover,
-  onJamsilHover,
-  onSelect,
+// ── 지도 마커 (단일팀) ────────────────────────────────────────────────────────
+function TeamMarker({
+  team,
+  isActive,
+  isDimmed,
+  onEnter,
+  onLeave,
+  onClick,
 }: {
-  globalActiveId: string | null;
-  jamsilHovered: boolean;
-  onMapHover: (id: string | null) => void;
-  onJamsilHover: (v: boolean) => void;
-  onSelect: (t: Team) => void;
+  team: Team;
+  isActive: boolean;
+  isDimmed: boolean;
+  onEnter: () => void;
+  onLeave: () => void;
+  onClick: () => void;
 }) {
-  // 잠실 제외 단독 팀
-  const soloTeams = KBO_TEAMS.filter((t) => t.id !== "lg" && t.id !== "doosan");
-  const lgTeam = KBO_TEAMS.find((t) => t.id === "lg")!;
-  const doosanTeam = KBO_TEAMS.find((t) => t.id === "doosan")!;
-
-  const jamsilActive =
-    jamsilHovered || globalActiveId === "lg" || globalActiveId === "doosan";
-
+  const pct = MAP_PCT[team.id];
   return (
-    <svg
-      viewBox="0 0 320 390"
-      className="w-full h-full"
-      style={{ filter: "drop-shadow(0 4px 20px rgba(59,130,246,0.10))" }}
+    <div
+      className="absolute cursor-pointer"
+      style={{
+        left: `${pct.xPct}%`,
+        top: `${pct.yPct}%`,
+        transform: "translate(-50%, -50%)",
+        opacity: isDimmed ? 0.2 : 1,
+        transition: "opacity 0.2s",
+        zIndex: isActive ? 20 : 10,
+      }}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      onClick={onClick}
     >
-      <defs>
-        <linearGradient id="lg-land" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#EFF6FF" />
-          <stop offset="100%" stopColor="#DBEAFE" />
-        </linearGradient>
-        <pattern
-          id="pg-sea"
-          x="0"
-          y="0"
-          width="12"
-          height="12"
-          patternUnits="userSpaceOnUse"
-        >
-          <path
-            d="M0 6 Q3 4 6 6 Q9 8 12 6"
-            fill="none"
-            stroke="#BFDBFE"
-            strokeWidth="0.6"
-            opacity="0.5"
-          />
-        </pattern>
-        {/* 잠실 클립 */}
-        <clipPath id="clip-m-jamsil">
-          <circle cx={JAMSIL.x} cy={JAMSIL.y} r="14" />
-        </clipPath>
-        {/* 단독팀 클립 */}
-        {soloTeams.map((t) => {
-          const c = MAP_COORDS[t.id];
-          return (
-            <clipPath key={t.id} id={`clip-m-${t.id}`}>
-              <circle cx={c.x} cy={c.y} r="12" />
-            </clipPath>
-          );
-        })}
-      </defs>
-
-      {/* 바다 */}
-      <rect width="320" height="390" fill="url(#pg-sea)" rx="18" />
-      <rect width="320" height="390" fill="#F0F9FF" opacity="0.55" rx="18" />
-
-      {/* 한반도 */}
-      <g transform="scale(1.3) translate(-31, -7)">
-        <path
-          d={KOREA_PATH}
-          fill="url(#lg-land)"
-          stroke="#93C5FD"
-          strokeWidth="1.2"
-          strokeLinejoin="round"
-        />
-      </g>
-
-      {/* ── 단독팀 마커 ── */}
-      {soloTeams.map((team) => {
-        const c = MAP_COORDS[team.id];
-        const isActive = globalActiveId === team.id;
-        const isDimmed =
-          (globalActiveId !== null || jamsilHovered) && !isActive;
-        return (
-          <g
-            key={team.id}
-            style={{
-              cursor: "pointer",
-              opacity: isDimmed ? 0.2 : 1,
-              transition: "opacity 0.2s",
-            }}
-            onMouseEnter={() => onMapHover(team.id)}
-            onMouseLeave={() => onMapHover(null)}
-            onClick={() => onSelect(team)}
-          >
-            {isActive && (
-              <circle
-                cx={c.x}
-                cy={c.y}
-                r="21"
-                fill={team.colors.primary}
-                opacity="0.13"
-              />
-            )}
-            <circle
-              cx={c.x}
-              cy={c.y}
-              r="14"
-              fill="white"
-              stroke={team.colors.primary}
-              strokeWidth={isActive ? 2.5 : 1.5}
-              style={{
-                filter: isActive
-                  ? `drop-shadow(0 2px 8px ${team.colors.primary}55)`
-                  : "none",
-                transition: "stroke-width 0.15s",
-              }}
-            />
-            <image
-              href={logoUrl(team.id)}
-              x={c.x - 10}
-              y={c.y - 10}
-              width="20"
-              height="20"
-              clipPath={`url(#clip-m-${team.id})`}
-              preserveAspectRatio="xMidYMid meet"
-            />
-            {isActive && (
-              <g>
-                <rect
-                  x={c.x - 27}
-                  y={c.y - 34}
-                  width="54"
-                  height="15"
-                  rx="5"
-                  fill={team.colors.primary}
-                />
-                <text
-                  x={c.x}
-                  y={c.y - 26}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize="7"
-                  fontWeight="800"
-                  fill="white"
-                  style={{ userSelect: "none" }}
-                >
-                  {team.shortName}
-                </text>
-              </g>
-            )}
-          </g>
-        );
-      })}
-
-      {/* ── 잠실 공동 마커 (LG + 두산) ── */}
-      <g
-        style={{
-          cursor: "pointer",
-          opacity: globalActiveId !== null && !jamsilActive ? 0.2 : 1,
-          transition: "opacity 0.2s",
-        }}
-        onMouseEnter={() => onJamsilHover(true)}
-        onMouseLeave={() => onJamsilHover(false)}
-      >
-        {/* 광채 */}
-        {jamsilActive && (
-          <circle
-            cx={JAMSIL.x}
-            cy={JAMSIL.y}
-            r="24"
-            fill="#8B5CF6"
-            opacity="0.12"
-          />
-        )}
-        {/* 바깥 원 — 두산 색 */}
-        <circle
-          cx={JAMSIL.x}
-          cy={JAMSIL.y}
-          r="17"
-          fill="white"
-          stroke={jamsilActive ? "#8B5CF6" : "#CBD5E1"}
-          strokeWidth={jamsilActive ? 2.5 : 1.5}
+      {/* 광채 */}
+      {isActive && (
+        <div
+          className="absolute inset-0 rounded-full"
           style={{
-            filter: jamsilActive
-              ? "drop-shadow(0 2px 10px rgba(139,92,246,0.4))"
-              : "none",
+            width: 42,
+            height: 42,
+            left: -7,
+            top: -7,
+            background: team.colors.primary,
+            opacity: 0.15,
           }}
         />
-        {/* 반반 로고 영역 */}
-        {/* LG 로고 - 왼쪽 절반 */}
-        <clipPath id="clip-jamsil-lg">
-          <rect x={JAMSIL.x - 14} y={JAMSIL.y - 14} width="14" height="28" />
-        </clipPath>
-        <image
-          href={logoUrl("lg")}
-          x={JAMSIL.x - 13}
-          y={JAMSIL.y - 13}
-          width="26"
-          height="26"
-          clipPath="url(#clip-jamsil-lg)"
-          preserveAspectRatio="xMidYMid meet"
+      )}
+      {/* 원 */}
+      <div
+        className="w-7 h-7 rounded-full bg-white flex items-center justify-center overflow-hidden"
+        style={{
+          border: `${isActive ? 2.5 : 1.5}px solid ${team.colors.primary}`,
+          boxShadow: isActive
+            ? `0 2px 8px ${team.colors.primary}55`
+            : "0 1px 4px rgba(0,0,0,0.15)",
+          transition: "border-width 0.15s",
+        }}
+      >
+        <img
+          src={logoUrl(team.id)}
+          alt={team.shortName}
+          className="w-5 h-5 object-contain"
+          onError={(e) => {
+            const img = e.currentTarget;
+            img.style.display = "none";
+          }}
         />
-        {/* 두산 로고 - 오른쪽 절반 */}
-        <clipPath id="clip-jamsil-doosan">
-          <rect x={JAMSIL.x} y={JAMSIL.y - 14} width="14" height="28" />
-        </clipPath>
-        <image
-          href={logoUrl("doosan")}
-          x={JAMSIL.x - 13}
-          y={JAMSIL.y - 13}
-          width="26"
-          height="26"
-          clipPath="url(#clip-jamsil-doosan)"
-          preserveAspectRatio="xMidYMid meet"
-        />
-        {/* 중앙 구분선 */}
-        <line
-          x1={JAMSIL.x}
-          y1={JAMSIL.y - 13}
-          x2={JAMSIL.x}
-          y2={JAMSIL.y + 13}
-          stroke="white"
-          strokeWidth="1.5"
-        />
-        {/* 호버 라벨 */}
-        {jamsilActive && !jamsilHovered && (
-          <g>
-            <rect
-              x={JAMSIL.x - 32}
-              y={JAMSIL.y - 35}
-              width="64"
-              height="15"
-              rx="5"
-              fill="#8B5CF6"
-            />
-            <text
-              x={JAMSIL.x}
-              y={JAMSIL.y - 27}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="6.5"
-              fontWeight="800"
-              fill="white"
-              style={{ userSelect: "none" }}
-            >
-              LG · 두산 (잠실)
-            </text>
-          </g>
-        )}
-      </g>
-
-      <rect
-        width="320"
-        height="390"
-        fill="none"
-        stroke="#BFDBFE"
-        strokeWidth="1"
-        rx="18"
-      />
-    </svg>
+      </div>
+      {/* 팝업 라벨 */}
+      {isActive && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-0.5 rounded-md text-white text-[9px] font-black whitespace-nowrap"
+          style={{ background: team.colors.primary }}
+        >
+          {team.shortName}
+        </div>
+      )}
+    </div>
   );
 }
 
-// ── 잠실 팀 선택 팝업 ─────────────────────────────────────────
+// ── 잠실 공동 마커 ────────────────────────────────────────────────────────────
+function JamsilMarker({
+  jamsilActive,
+  isDimmed,
+  onEnter,
+  onLeave,
+}: {
+  jamsilActive: boolean;
+  isDimmed: boolean;
+  onEnter: () => void;
+  onLeave: () => void;
+}) {
+  return (
+    <div
+      className="absolute cursor-pointer"
+      style={{
+        left: `${JAMSIL_PCT.xPct}%`,
+        top: `${JAMSIL_PCT.yPct}%`,
+        transform: "translate(-50%, -50%)",
+        opacity: isDimmed ? 0.2 : 1,
+        transition: "opacity 0.2s",
+        zIndex: jamsilActive ? 20 : 10,
+      }}
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+    >
+      {jamsilActive && (
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 46,
+            height: 46,
+            left: -8,
+            top: -8,
+            background: "#8B5CF6",
+            opacity: 0.12,
+          }}
+        />
+      )}
+      {/* 반반 로고 원 */}
+      <div
+        className="w-8 h-8 rounded-full bg-white overflow-hidden flex items-center justify-center relative"
+        style={{
+          border: `${jamsilActive ? 2.5 : 1.5}px solid ${jamsilActive ? "#8B5CF6" : "#CBD5E1"}`,
+          boxShadow: jamsilActive
+            ? "0 2px 10px rgba(139,92,246,0.4)"
+            : "0 1px 4px rgba(0,0,0,0.15)",
+        }}
+      >
+        {/* LG 좌측 */}
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{ clipPath: "inset(0 50% 0 0)" }}
+        >
+          <img
+            src={logoUrl("lg")}
+            alt="LG"
+            className="w-6 h-6 object-contain absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          />
+        </div>
+        {/* 두산 우측 */}
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{ clipPath: "inset(0 0 0 50%)" }}
+        >
+          <img
+            src={logoUrl("doosan")}
+            alt="두산"
+            className="w-6 h-6 object-contain absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          />
+        </div>
+        {/* 중앙선 */}
+        <div className="absolute top-0 bottom-0 w-px bg-white left-1/2" />
+      </div>
+      {/* 팝업 라벨 */}
+      {jamsilActive && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1 px-2 py-0.5 rounded-md bg-purple-500 text-white text-[9px] font-black whitespace-nowrap">
+          LG · 두산 (잠실)
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 잠실 팀 선택 팝업 ────────────────────────────────────────────────────────
 function JamsilPicker({ onSelect }: { onSelect: (t: Team) => void }) {
   const lgTeam = KBO_TEAMS.find((t) => t.id === "lg")!;
   const doosanTeam = KBO_TEAMS.find((t) => t.id === "doosan")!;
-
   return (
     <div
       className="absolute z-50 bg-white rounded-2xl shadow-2xl border border-purple-100 p-3 w-52"
       style={{
-        left: `${(JAMSIL.x / 320) * 100}%`,
-        top: `${(JAMSIL.y / 390) * 100}%`,
-        transform: "translate(-50%, calc(-100% - 30px))",
+        left: `${JAMSIL_PCT.xPct}%`,
+        top: `${JAMSIL_PCT.yPct}%`,
+        transform: "translate(-50%, calc(-100% - 36px))",
         animation: "stFadeIn 0.15s ease-out",
       }}
     >
-      {/* 말풍선 꼭짓점 */}
       <div
         className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0"
         style={{
@@ -518,13 +418,12 @@ function JamsilPicker({ onSelect }: { onSelect: (t: Team) => void }) {
   );
 }
 
-// ── 메인 ─────────────────────────────────────────────────────
+// ── 메인 ─────────────────────────────────────────────────────────────────────
 export default function TeamLanding({ onSelect }: TeamLandingProps) {
   const [cardHoveredId, setCardHoveredId] = useState<string | null>(null);
   const [mapHoveredId, setMapHoveredId] = useState<string | null>(null);
   const [jamsilHovered, setJamsilHovered] = useState(false);
 
-  // 잠실 호버 중에는 카드 dimming 없음 (globalActiveId=null)
   const globalActiveId = cardHoveredId ?? (jamsilHovered ? null : mapHoveredId);
   const activeTeam = KBO_TEAMS.find((t) => t.id === globalActiveId);
 
@@ -536,10 +435,16 @@ export default function TeamLanding({ onSelect }: TeamLandingProps) {
     (id: string | null) => setMapHoveredId(id),
     [],
   );
-  const handleJamsilHover = useCallback(
-    (v: boolean) => setJamsilHovered(v),
-    [],
-  );
+  const handleJamsilEnter = useCallback(() => setJamsilHovered(true), []);
+  const handleJamsilLeave = useCallback(() => setJamsilHovered(false), []);
+
+  // 잠실 제외 단독팀
+  const soloTeams = KBO_TEAMS.filter((t) => t.id !== "lg" && t.id !== "doosan");
+
+  const jamsilActive =
+    jamsilHovered || globalActiveId === "lg" || globalActiveId === "doosan";
+  const jamsilDimmed =
+    (globalActiveId !== null || jamsilHovered) && !jamsilActive;
 
   return (
     <div className="min-h-screen" style={{ background: "#f8fafc" }}>
@@ -574,23 +479,54 @@ export default function TeamLanding({ onSelect }: TeamLandingProps) {
           {/* 중앙 지도 */}
           <div className="flex flex-col items-center gap-3">
             <div
-              className="w-full rounded-3xl bg-white border border-blue-100 relative"
+              className="w-full rounded-3xl bg-white border border-blue-100 relative overflow-hidden"
               style={{
                 boxShadow:
                   "0 8px 40px rgba(59,130,246,0.08), 0 2px 8px rgba(0,0,0,0.04)",
-                aspectRatio: "320 / 390",
-                minHeight: 440,
+                aspectRatio: "800 / 1100",
               }}
             >
-              <KoreaMap
-                globalActiveId={globalActiveId}
-                jamsilHovered={jamsilHovered}
-                onMapHover={handleMapHover}
-                onJamsilHover={handleJamsilHover}
-                onSelect={onSelect}
+              {/* 남한 지도 img */}
+              <img
+                src="/images/south-korea.svg"
+                alt="대한민국 지도"
+                className="absolute inset-0 w-full h-full object-contain p-2"
+                style={{
+                  filter: "drop-shadow(0 2px 8px rgba(59,130,246,0.12))",
+                  objectPosition: "center top",
+                }}
+                draggable={false}
               />
-              {/* 잠실 팀 선택 팝업 */}
-              {jamsilHovered && <JamsilPicker onSelect={onSelect} />}
+
+              {/* 마커 오버레이 레이어 */}
+              <div className="absolute inset-0">
+                {/* 단독팀 마커 */}
+                {soloTeams.map((team) => (
+                  <TeamMarker
+                    key={team.id}
+                    team={team}
+                    isActive={globalActiveId === team.id}
+                    isDimmed={
+                      (globalActiveId !== null || jamsilHovered) &&
+                      globalActiveId !== team.id
+                    }
+                    onEnter={() => handleMapHover(team.id)}
+                    onLeave={() => handleMapHover(null)}
+                    onClick={() => onSelect(team)}
+                  />
+                ))}
+
+                {/* 잠실 마커 */}
+                <JamsilMarker
+                  jamsilActive={jamsilActive}
+                  isDimmed={jamsilDimmed}
+                  onEnter={handleJamsilEnter}
+                  onLeave={handleJamsilLeave}
+                />
+
+                {/* 잠실 팀 선택 팝업 */}
+                {jamsilHovered && <JamsilPicker onSelect={onSelect} />}
+              </div>
             </div>
 
             {/* 하단 팀명 표시 */}
@@ -632,8 +568,8 @@ export default function TeamLanding({ onSelect }: TeamLandingProps) {
 
       <style>{`
         @keyframes stFadeIn {
-          from { opacity: 0; transform: translateY(4px) translate(-50%, calc(-100% - 30px)); }
-          to   { opacity: 1; transform: translateY(0)   translate(-50%, calc(-100% - 30px)); }
+          from { opacity: 0; transform: translate(-50%, calc(-100% - 32px)); }
+          to   { opacity: 1; transform: translate(-50%, calc(-100% - 36px)); }
         }
       `}</style>
     </div>
