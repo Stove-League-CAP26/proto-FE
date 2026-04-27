@@ -26,6 +26,7 @@ export const NEWS_CATEGORIES = [
 export type NewsCategory = (typeof NEWS_CATEGORIES)[number];
 
 // 카테고리별 클라이언트 필터링
+
 export function filterNewsByCategory(
   news: NewsItem[],
   category: NewsCategory,
