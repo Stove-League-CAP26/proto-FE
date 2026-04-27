@@ -153,7 +153,11 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
   const homeColor = TEAM_COLORS[homeTeamName]?.bg ?? "#334155";
   const awayColor = TEAM_COLORS[awayTeamName]?.bg ?? "#334155";
 
-  const isResult = game.statusCode === "RESULT";
+  const isResult =
+    !game.cancel &&
+    game.statusCode !== "BEFORE" &&
+    game.statusCode !== "LIVE" &&
+    game.statusCode !== "STARTED";
   const isLive = game.statusCode === "LIVE" || game.statusCode === "STARTED";
   const isCancel = game.cancel;
   const homeWin = game.winner === "HOME";

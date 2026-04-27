@@ -17,7 +17,14 @@ export interface GameInfo {
   awayTeamEmblemUrl: string;
 
   winner: "HOME" | "AWAY" | "DRAW";
-  statusCode: "RESULT" | "BEFORE" | "LIVE" | "STARTED";
+  statusCode:
+    | "RESULT"
+    | "BEFORE"
+    | "LIVE"
+    | "STARTED"
+    | "DONE"
+    | "CANCEL"
+    | string;
   statusInfo: string;
   cancel: boolean;
 
