@@ -28,7 +28,7 @@ function lngLatToPct(lng: number, lat: number) {
 
 // ── 팀 구장 좌표 ─────────────────────────────────────────────────────────────
 const STADIUM_COORDS: Record<string, { lat: number; lng: number }> = {
-  ssg: { lat: 37.437, lng: 126.693 }, // 인천 문학
+  ssg: { lat: 37.45, lng: 126.58 }, // 인천 문학
   kt: { lat: 37.299, lng: 127.01 }, // 수원
   hanwha: { lat: 36.317, lng: 127.43 }, // 대전
   kia: { lat: 35.168, lng: 126.889 }, // 광주
@@ -38,7 +38,7 @@ const STADIUM_COORDS: Record<string, { lat: number; lng: number }> = {
 };
 
 // 서울 클러스터 중심 — 잠실·고척 중간
-const SEOUL_CENTER = lngLatToPct(127.0, 37.53);
+const SEOUL_CENTER = lngLatToPct(127.02, 37.545);
 const PCT: Record<string, { xPct: number; yPct: number }> = Object.fromEntries(
   Object.entries(STADIUM_COORDS).map(([id, { lat, lng }]) => [
     id,
@@ -215,33 +215,47 @@ function TeamMarker({
       onMouseLeave={onLeave}
       onClick={onClick}
     >
+      {/* 외부 광채 링 */}
       {isActive && (
         <div
-          className="absolute rounded-full"
+          className="absolute rounded-full animate-ping"
           style={{
-            width: 52,
-            height: 52,
-            left: -10,
-            top: -10,
+            width: 72,
+            height: 72,
+            left: -8,
+            top: -8,
             background: team.colors.primary,
-            opacity: 0.15,
+            opacity: 0.12,
           }}
         />
       )}
       <div
-        className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden"
+        className="absolute rounded-full"
         style={{
-          border: `${isActive ? 3 : 2}px solid ${team.colors.primary}`,
+          width: 66,
+          height: 66,
+          left: -5,
+          top: -5,
+          background: team.colors.primary,
+          opacity: isActive ? 0.15 : 0,
+          transition: "opacity 0.2s",
+        }}
+      />
+      {/* 마커 본체 w-14 = 56px */}
+      <div
+        className="w-14 h-14 rounded-full bg-white flex items-center justify-center overflow-hidden"
+        style={{
+          border: `${isActive ? 3.5 : 2.5}px solid ${team.colors.primary}`,
           boxShadow: isActive
-            ? `0 4px 14px ${team.colors.primary}66`
-            : "0 2px 6px rgba(0,0,0,0.18)",
+            ? `0 6px 20px ${team.colors.primary}70, 0 2px 8px rgba(0,0,0,0.15)`
+            : "0 3px 10px rgba(0,0,0,0.20)",
           transition: "all 0.15s",
         }}
       >
         <img
           src={logoUrl(team.id)}
           alt={team.shortName}
-          className="w-6 h-6 object-contain"
+          className="w-10 h-10 object-contain"
           onError={(e) => {
             e.currentTarget.style.display = "none";
           }}
@@ -249,16 +263,16 @@ function TeamMarker({
       </div>
       {isActive && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2.5 py-1 rounded-lg text-white text-[10px] font-black whitespace-nowrap shadow-lg"
+          className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-1.5 rounded-lg text-white text-xs font-black whitespace-nowrap shadow-lg"
           style={{ background: team.colors.primary }}
         >
           {team.shortName}
           <div
             className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0"
             style={{
-              borderLeft: "4px solid transparent",
-              borderRight: "4px solid transparent",
-              borderTop: `4px solid ${team.colors.primary}`,
+              borderLeft: "5px solid transparent",
+              borderRight: "5px solid transparent",
+              borderTop: `5px solid ${team.colors.primary}`,
             }}
           />
         </div>
@@ -271,13 +285,9 @@ function TeamMarker({
 function SeoulClusterMarker({
   isActive,
   isDimmed,
-  onEnter,
-  onLeave,
 }: {
   isActive: boolean;
   isDimmed: boolean;
-  onEnter: () => void;
-  onLeave: () => void;
 }) {
   const teams = SEOUL_TEAMS.map((id) => KBO_TEAMS.find((t) => t.id === id)!);
   return (
@@ -290,31 +300,30 @@ function SeoulClusterMarker({
         opacity: isDimmed ? 0.2 : 1,
         transition: "opacity 0.2s",
         zIndex: isActive ? 20 : 10,
+        pointerEvents: "auto",
       }}
-      onMouseEnter={onEnter}
-      onMouseLeave={onLeave}
     >
       {/* 배경 광채 */}
       {isActive && (
         <div
           className="absolute rounded-full animate-ping"
           style={{
-            width: 60,
-            height: 60,
-            left: -12,
-            top: -12,
+            width: 90,
+            height: 90,
+            left: -14,
+            top: -14,
             background: "#7C3AED",
-            opacity: 0.15,
+            opacity: 0.12,
           }}
         />
       )}
       <div
         className="absolute rounded-full"
         style={{
-          width: 60,
-          height: 60,
-          left: -12,
-          top: -12,
+          width: 90,
+          height: 90,
+          left: -14,
+          top: -14,
           background: isActive ? "#7C3AED" : "transparent",
           opacity: isActive ? 0.12 : 0,
           transition: "opacity 0.2s",
@@ -322,76 +331,77 @@ function SeoulClusterMarker({
       />
 
       {/* 3개 로고 원형 배치 */}
-      <div className="relative w-9 h-9">
+      {/* 서울 클러스터 — 삼각 배치 w-12 = 48px */}
+      <div className="relative" style={{ width: 64, height: 68 }}>
         {/* LG — 좌상 */}
         <div
           className="absolute rounded-full bg-white overflow-hidden flex items-center justify-center"
           style={{
-            width: 22,
-            height: 22,
-            left: -4,
-            top: -4,
-            border: `2px solid ${teams[0]?.colors.primary}`,
+            width: 40,
+            height: 40,
+            left: 0,
+            top: 0,
+            border: `${isActive ? 3 : 2.5}px solid ${teams[0]?.colors.primary}`,
             boxShadow: isActive
-              ? `0 2px 8px ${teams[0]?.colors.primary}55`
-              : "0 1px 4px rgba(0,0,0,0.2)",
+              ? `0 4px 14px ${teams[0]?.colors.primary}60`
+              : "0 2px 8px rgba(0,0,0,0.22)",
             zIndex: 3,
           }}
         >
           <img
             src={logoUrl("lg")}
             alt="LG"
-            className="w-4 h-4 object-contain"
+            className="w-7 h-7 object-contain"
           />
         </div>
         {/* 두산 — 우상 */}
         <div
           className="absolute rounded-full bg-white overflow-hidden flex items-center justify-center"
           style={{
-            width: 22,
-            height: 22,
-            right: -4,
-            top: -4,
-            border: `2px solid ${teams[1]?.colors.primary}`,
+            width: 40,
+            height: 40,
+            right: 0,
+            top: 0,
+            border: `${isActive ? 3 : 2.5}px solid ${teams[1]?.colors.primary}`,
             boxShadow: isActive
-              ? `0 2px 8px ${teams[1]?.colors.primary}55`
-              : "0 1px 4px rgba(0,0,0,0.2)",
+              ? `0 4px 14px ${teams[1]?.colors.primary}60`
+              : "0 2px 8px rgba(0,0,0,0.22)",
             zIndex: 2,
           }}
         >
           <img
             src={logoUrl("doosan")}
             alt="두산"
-            className="w-4 h-4 object-contain"
+            className="w-7 h-7 object-contain"
           />
         </div>
         {/* 키움 — 하단 중앙 */}
         <div
           className="absolute rounded-full bg-white overflow-hidden flex items-center justify-center"
           style={{
-            width: 22,
-            height: 22,
+            width: 40,
+            height: 40,
             left: "50%",
             transform: "translateX(-50%)",
-            bottom: -8,
-            border: `2px solid ${teams[2]?.colors.primary}`,
+            bottom: 0,
+            border: `${isActive ? 3 : 2.5}px solid ${teams[2]?.colors.primary}`,
             boxShadow: isActive
-              ? `0 2px 8px ${teams[2]?.colors.primary}55`
-              : "0 1px 4px rgba(0,0,0,0.2)",
+              ? `0 4px 14px ${teams[2]?.colors.primary}60`
+              : "0 2px 8px rgba(0,0,0,0.22)",
             zIndex: 1,
           }}
         >
           <img
             src={logoUrl("kiwoom")}
             alt="키움"
-            className="w-4 h-4 object-contain"
+            className="w-7 h-7 object-contain"
           />
         </div>
       </div>
 
       {/* 라벨 */}
       {isActive && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-2.5 py-1 rounded-lg text-white text-[10px] font-black whitespace-nowrap shadow-lg bg-violet-600">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-1.5 rounded-lg text-white text-xs font-black whitespace-nowrap shadow-lg bg-violet-600">
           서울 3팀
           <div
             className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0"
@@ -419,6 +429,7 @@ function SeoulPicker({ onSelect }: { onSelect: (t: Team) => void }) {
         transform: "translate(-50%, calc(-100% - 44px))",
         animation: "stFadeIn 0.15s ease-out",
         width: 200,
+        pointerEvents: "auto",
       }}
     >
       <div
@@ -553,16 +564,22 @@ export default function TeamLanding({ onSelect }: TeamLandingProps) {
                   />
                 ))}
 
-                {/* 서울 클러스터 */}
-                <SeoulClusterMarker
-                  isActive={seoulActive}
-                  isDimmed={globalActiveId !== null && !seoulActive}
-                  onEnter={() => setSeoulHovered(true)}
-                  onLeave={() => setSeoulHovered(false)}
-                />
-
-                {/* 서울 팀 선택 팝업 */}
-                {seoulHovered && <SeoulPicker onSelect={onSelect} />}
+                {/* 서울 클러스터 + 팝업 — wrapper로 묶어 hover 유지 */}
+                <div
+                  onMouseEnter={() => setSeoulHovered(true)}
+                  onMouseLeave={() => setSeoulHovered(false)}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <SeoulClusterMarker
+                    isActive={seoulActive}
+                    isDimmed={globalActiveId !== null && !seoulActive}
+                  />
+                  {seoulHovered && <SeoulPicker onSelect={onSelect} />}
+                </div>
               </div>
             </div>
 

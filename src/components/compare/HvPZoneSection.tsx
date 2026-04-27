@@ -1,50 +1,29 @@
 // src/components/compare/HvPZoneSection.tsx
-// 오버레이 분류:
-//   위험제구 — 타자 HOT + 투수 자주 던짐  → 즉시 수정 (짙은 입체 빨강, 가장 강조)
-//   제구금지 — 타율 최고(step 5) 구역      → 절대 금지, 가장 강한 입체 강조
-//   공략     — 타자 COLD or 삼진율 高     → 공략 권장 (입체 파랑)
-//   중립     — 나머지                    → 납작 회색
-
+// 변경사항: DualZoneGrid — C=28(L-arm 절반), 볼존/스트라이크존 라벨 추가
 import { useState } from "react";
 import ZoneHeatmap from "@/components/common/ZoneHeatmap";
 import type { ZoneGrid } from "@/components/common/ZoneHeatmap";
 
-// 기존 hotcold 팔레트 색상 그대로 사용
 const PALETTE_HOTCOLD: Record<number, { bg: string; text: string }> = {
-  1: { bg: "#1D4ED8", text: "#ffffff" }, // 진파랑
-  2: { bg: "#93C5FD", text: "#1e3a8a" }, // 연파랑
-  3: { bg: "#F3F4F6", text: "#6B7280" }, // 중립
-  4: { bg: "#FCA5A5", text: "#7f1d1d" }, // 연빨강
-  5: { bg: "#DC2626", text: "#ffffff" }, // 진빨강
+  1: { bg: "#1D4ED8", text: "#ffffff" },
+  2: { bg: "#93C5FD", text: "#1e3a8a" },
+  3: { bg: "#F3F4F6", text: "#6B7280" },
+  4: { bg: "#FCA5A5", text: "#7f1d1d" },
+  5: { bg: "#DC2626", text: "#ffffff" },
 };
 
 interface HvPZoneSectionProps {
   hitterName: string;
   pitcherName: string;
   hitterHotCold: ZoneGrid | null;
-  hitterStrikeout?: ZoneGrid | null; // 타자 삼진 분포
-  pitcherStrikeout?: ZoneGrid | null; // 투수 탈삼진 분포 ← NEW
+  hitterStrikeout?: ZoneGrid | null;
+  pitcherStrikeout?: ZoneGrid | null;
   pitcherPitchZone: ZoneGrid | null;
 }
 
 type ZoneType = "제구금지" | "위험제구" | "공략" | "중립";
 
-// 3D 입체 효과 — 오버레이 방식 (텍스트 가림 방지, transform 없음 → 셀 겹침 방지)
-// 베벨 테두리만으로 3D 착시, 물리적 이동 없음
-const ELEVATION: Record<
-  ZoneType,
-  {
-    overlayBorderTop: string;
-    overlayBorderLeft: string;
-    overlayBorderBottom: string;
-    overlayBorderRight: string;
-    outerGlow: string;
-    lift: string; // 항상 "none" — transform 기반 이동 사용 안 함
-    label: string;
-    labelBg: string;
-    labelText: string;
-  }
-> = {
+const ELEVATION: Record<ZoneType, any> = {
   제구금지: {
     overlayBorderTop: "3px solid rgba(255,130,130,0.65)",
     overlayBorderLeft: "3px solid rgba(255,130,130,0.55)",
@@ -92,84 +71,63 @@ const ELEVATION: Record<
   },
 };
 
-// ── 바깥 코너 셀 방향별 베벨 (ㄱ자 형태) ─────────────────────
-// 각 코너가 향하는 바깥 방향 2면을 강조, 안쪽 방향 2면은 약하게
-// TL(0): 상·좌 강조  TR(1): 상·우 강조  BL(2): 하·좌 강조  BR(3): 하·우 강조
 const OUTER_BEVEL: Record<
   number,
   { hi1: string; hi2: string; lo1: string; lo2: string }
 > = {
-  0: { hi1: "top", hi2: "left", lo1: "bottom", lo2: "right" }, // TL
-  1: { hi1: "top", hi2: "right", lo1: "bottom", lo2: "left" }, // TR
-  2: { hi1: "bottom", hi2: "left", lo1: "top", lo2: "right" }, // BL
-  3: { hi1: "bottom", hi2: "right", lo1: "top", lo2: "left" }, // BR
+  0: { hi1: "top", hi2: "left", lo1: "bottom", lo2: "right" },
+  1: { hi1: "top", hi2: "right", lo1: "bottom", lo2: "left" },
+  2: { hi1: "bottom", hi2: "left", lo1: "top", lo2: "right" },
+  3: { hi1: "bottom", hi2: "right", lo1: "top", lo2: "left" },
 };
-
 function outerOverlayStyle(
   cornerIdx: number,
   type: ZoneType | "k-attack" | "k-neutral",
 ): React.CSSProperties {
   const bevel = OUTER_BEVEL[cornerIdx];
   if (!bevel) return {};
-
-  // 위험/공략 타입별 하이라이트/섀도 색상
-  let hiColor: string;
-  let loColor: string;
+  let hiColor: string, loColor: string;
   if (type === "제구금지") {
     hiColor = "rgba(255,140,140,0.65)";
     loColor = "rgba(80,0,0,0.58)";
   } else if (type === "위험제구") {
     hiColor = "rgba(255,160,160,0.55)";
     loColor = "rgba(80,0,0,0.48)";
-  } else if (type === "공략") {
+  } else if (type === "공략" || type === "k-attack") {
     hiColor = "rgba(160,200,255,0.65)";
     loColor = "rgba(0,40,130,0.48)";
-  } else if (type === "k-attack") {
-    hiColor = "rgba(160,200,255,0.65)";
-    loColor = "rgba(0,40,130,0.48)";
-  } else {
-    return {};
-  }
-
-  const W_HI = "4px solid ";
-  const W_LO = "2px solid ";
+  } else return {};
+  const W_HI = "4px solid ",
+    W_LO = "2px solid ";
   return {
-    [`border${bevel.hi1.charAt(0).toUpperCase()}${bevel.hi1.slice(1)}`]:
+    [`border${bevel.hi1[0].toUpperCase() + bevel.hi1.slice(1)}`]:
       W_HI + hiColor,
-    [`border${bevel.hi2.charAt(0).toUpperCase()}${bevel.hi2.slice(1)}`]:
+    [`border${bevel.hi2[0].toUpperCase() + bevel.hi2.slice(1)}`]:
       W_HI + hiColor,
-    [`border${bevel.lo1.charAt(0).toUpperCase()}${bevel.lo1.slice(1)}`]:
+    [`border${bevel.lo1[0].toUpperCase() + bevel.lo1.slice(1)}`]:
       W_LO + loColor,
-    [`border${bevel.lo2.charAt(0).toUpperCase()}${bevel.lo2.slice(1)}`]:
+    [`border${bevel.lo2[0].toUpperCase() + bevel.lo2.slice(1)}`]:
       W_LO + loColor,
   };
 }
 
-// ── 분류 함수 ─────────────────────────────────────────────────
 function classify(
   hAvgStep: number,
   hSoStep: number,
   pPitchStep: number,
 ): ZoneType {
-  const hitterTop = hAvgStep === 5; // 가장 타율 높은 구역 — 제구금지 전용
-  const hitterHot = hAvgStep === 4; // 타율 high — 투구빈도 함께 보면 위험제구
-  const hitterCold = hAvgStep <= 2;
-  const highKRate = hSoStep >= 4;
-  const pitcherFreq = pPitchStep >= 3;
-
-  if (hitterTop) return "제구금지"; // 타율 최고 → 절대 금지
-  if (hitterHot && pitcherFreq) return "위험제구"; // 타율 high + 자주 던짐 → 현재 위험
-  if (hitterCold || highKRate) return "공략";
+  if (hAvgStep === 5) return "제구금지";
+  if (hAvgStep === 4 && pPitchStep >= 3) return "위험제구";
+  if (hAvgStep <= 2 || hSoStep >= 4) return "공략";
   return "중립";
 }
 
-// ── 레이아웃 상수 (ZoneHeatmap 동일) ──────────────────────────
+// ── OverlayGrid 레이아웃 상수 (기존 유지) ────────────────────────────────────
 const TOTAL = 280;
 const OUTER_SIZE = 139;
 const GAP = 2;
 const INNER_OFFSET = 54;
 const CELL = 56;
-
 const OUTER_POS = [
   { top: 0, left: 0 },
   { top: 0, left: OUTER_SIZE + GAP },
@@ -177,7 +135,6 @@ const OUTER_POS = [
   { top: OUTER_SIZE + GAP, left: OUTER_SIZE + GAP },
 ];
 
-// ── 오버레이 그리드 ───────────────────────────────────────────
 function OverlayGrid({
   hitterZone,
   hitterSoZone,
@@ -192,26 +149,18 @@ function OverlayGrid({
   pitcherName: string;
 }) {
   const [hovKey, setHovKey] = useState<string | null>(null);
-
-  const makeCell = (
-    hCell: { val: string; step: number } | undefined,
-    soCell: { val: string; step: number } | undefined,
-    pCell: { val: string; step: number } | undefined,
-  ) => ({
-    type: classify(hCell?.step ?? 3, soCell?.step ?? 3, pCell?.step ?? 3),
-    hVal: hCell?.val ?? "-",
-    pVal: pCell?.val ?? "-",
-    hAvgStep: hCell?.step ?? 3, // 색상 팔레트용
+  const makeCell = (h: any, so: any, p: any) => ({
+    type: classify(h?.step ?? 3, so?.step ?? 3, p?.step ?? 3),
+    hVal: h?.val ?? "-",
+    pVal: p?.val ?? "-",
+    hAvgStep: h?.step ?? 3,
   });
-
   const outerCells = hitterZone.outer.map((h, i) =>
     makeCell(h, hitterSoZone?.outer[i], pitcherZone.outer[i]),
   );
   const innerCells = hitterZone.inner.map((h, i) =>
     makeCell(h, hitterSoZone?.inner[i], pitcherZone.inner[i]),
   );
-
-  // 위험 현황 집계
   const dangerCount = [...outerCells, ...innerCells].filter(
     (c) => c.type === "위험제구",
   ).length;
@@ -223,7 +172,7 @@ function OverlayGrid({
   ).length;
 
   const renderCell = (
-    cell: ReturnType<typeof makeCell>,
+    cell: any,
     isInner: boolean,
     posStyle: React.CSSProperties,
     key: string,
@@ -233,83 +182,62 @@ function OverlayGrid({
     const isAttack = cell.type === "공략";
     const showOverlay = isDanger || isAttack;
     const isHov = hovKey === key;
-
     const step = cell.hAvgStep ?? 3;
     const palette = PALETTE_HOTCOLD[Math.min(5, Math.max(1, step))];
-
-    // 셀 자체: background + 외부 glow + lift transform
-    // overflow: visible 로 scale 시 클리핑 없음
-    const cellStyle: React.CSSProperties = {
-      ...posStyle,
-      background: palette.bg,
-      boxShadow: showOverlay || isHov ? ev.outerGlow : "none",
-      display: "flex",
-      flexDirection: "column" as const,
-      alignItems: "center",
-      justifyContent: "center",
-      transition: "box-shadow 0.15s",
-      cursor: "default",
-      overflow: "visible",
-      position: "absolute" as const,
-      zIndex: isDanger ? 12 : isAttack ? 11 : isInner ? 10 : 2,
-    };
-
-    // 오버레이 div: position:absolute + inset:0 + 베벨 테두리
-    // pointer-events:none, z-index:1 → 항상 텍스트 아래
-    // 바깥 셀: 코너 방향별 ㄱ자, 안쪽 셀: 균등 4면
-    const getBevelStyle = (): React.CSSProperties => {
-      if (!showOverlay) return {};
-      if (posStyle && (posStyle as any).__cornerIdx !== undefined) {
-        return outerOverlayStyle(
-          (posStyle as any).__cornerIdx,
-          cell.type as ZoneType,
-        );
-      }
-      return {
-        borderTop: ev.overlayBorderTop,
-        borderLeft: ev.overlayBorderLeft,
-        borderBottom: ev.overlayBorderBottom,
-        borderRight: ev.overlayBorderRight,
-      };
-    };
-    const overlayStyle: React.CSSProperties = {
-      position: "absolute" as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      borderRadius: "inherit",
-      pointerEvents: "none" as const,
-      zIndex: 1,
-      ...getBevelStyle(),
-    };
-
-    // 콘텐츠 wrapper: z-index:2 → 오버레이 위에 항상 표시
-    const contentStyle: React.CSSProperties = {
-      position: "relative" as const,
-      zIndex: 2,
-      display: "flex",
-      flexDirection: "column" as const,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 2,
-      width: "100%",
-      height: "100%",
-    };
-
     return (
       <div
         key={key}
-        style={cellStyle}
+        style={{
+          ...posStyle,
+          background: palette.bg,
+          boxShadow: showOverlay || isHov ? ev.outerGlow : "none",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          transition: "box-shadow 0.15s",
+          cursor: "default",
+          overflow: "visible",
+          zIndex: isDanger ? 12 : isAttack ? 11 : isInner ? 10 : 2,
+        }}
         onMouseEnter={() => setHovKey(key)}
         onMouseLeave={() => setHovKey(null)}
       >
-        {/* ── 3D 베벨 오버레이 (텍스트 아래 z:1) ── */}
-        {showOverlay && <div style={overlayStyle} />}
-
-        {/* ── 콘텐츠 (오버레이 위 z:2) ── */}
-        <div style={contentStyle}>
-          {/* 위험/공략 라벨 */}
+        {showOverlay && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              borderRadius: "inherit",
+              pointerEvents: "none",
+              zIndex: 1,
+              ...((posStyle as any).__cornerIdx !== undefined
+                ? outerOverlayStyle((posStyle as any).__cornerIdx, cell.type)
+                : {
+                    borderTop: ev.overlayBorderTop,
+                    borderLeft: ev.overlayBorderLeft,
+                    borderBottom: ev.overlayBorderBottom,
+                    borderRight: ev.overlayBorderRight,
+                  }),
+            }}
+          />
+        )}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 2,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 2,
+            width: "100%",
+            height: "100%",
+          }}
+        >
           {showOverlay && (
             <span
               style={{
@@ -320,15 +248,11 @@ function OverlayGrid({
                 padding: "1px 4px",
                 borderRadius: 3,
                 lineHeight: 1.4,
-                letterSpacing: "-0.01em",
-                flexShrink: 0,
               }}
             >
               {ev.label}
             </span>
           )}
-
-          {/* 타자 타율 수치 */}
           <span
             style={{
               fontSize: isInner ? 12 : 11,
@@ -339,8 +263,6 @@ function OverlayGrid({
           >
             {cell.hVal}
           </span>
-
-          {/* 투수 투구빈도 (위험 구역만) */}
           {isDanger && (
             <span
               style={{
@@ -367,7 +289,6 @@ function OverlayGrid({
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* 위험 현황 요약 */}
       <div className="flex items-center gap-3 text-[11px]">
         <span style={{ color: "#7F1D1D", fontWeight: 800 }}>
           위험 제구 {dangerCount}구역
@@ -381,8 +302,6 @@ function OverlayGrid({
           공략 {targetCount}구역
         </span>
       </div>
-
-      {/* 그리드 */}
       <div style={{ position: "relative", width: TOTAL, height: TOTAL }}>
         {outerCells.map((cell, i) =>
           renderCell(
@@ -396,7 +315,7 @@ function OverlayGrid({
               height: OUTER_SIZE,
               borderRadius: 6,
               padding: 8,
-              __cornerIdx: i, // 코너 방향 베벨용 마커
+              __cornerIdx: i,
             } as any,
             `o${i}`,
           ),
@@ -416,8 +335,6 @@ function OverlayGrid({
             `n${i}`,
           ),
         )}
-
-        {/* 호버 툴팁 */}
         {hovType && (
           <div
             style={{
@@ -426,7 +343,6 @@ function OverlayGrid({
               left: "50%",
               transform: "translateX(-50%)",
               background: ELEVATION[hovType].labelBg,
-              boxShadow: ELEVATION[hovType].boxShadow,
               color: ELEVATION[hovType].labelText,
               fontSize: 10,
               fontWeight: 900,
@@ -435,7 +351,6 @@ function OverlayGrid({
               whiteSpace: "nowrap",
               pointerEvents: "none",
               zIndex: 30,
-              border: ELEVATION[hovType].border,
             }}
           >
             {hovType === "위험제구" &&
@@ -452,7 +367,7 @@ function OverlayGrid({
   );
 }
 
-// ── 소형 존 카드 ──────────────────────────────────────────────
+// ── MiniZone ─────────────────────────────────────────────────────────────────
 const MINI_SCALE = 0.62;
 const MINI_PX = Math.round(280 * MINI_SCALE);
 
@@ -512,23 +427,20 @@ function MiniZone({
   );
 }
 
-// ── 반전 팔레트 (삼진 분포도용 — 높은 K율 = 파랑 = 공략) ───────
-// hotcold 와 완전히 동일한 색상 체계, step 방향만 반전
+// ── DualZoneGrid ─────────────────────────────────────────────────────────────
+// C=28: L-arm 두께 절반 수준 (기존 46)
+// 볼존/스트라이크존 라벨 추가
 const PALETTE_INVERTED: Record<number, { bg: string; text: string }> = {
-  1: { bg: "#DC2626", text: "#ffffff" }, // K율 낮음
+  1: { bg: "#DC2626", text: "#ffffff" },
   2: { bg: "#FCA5A5", text: "#7f1d1d" },
-  3: { bg: "#F3F4F6", text: "#6B7280" }, // 중립
+  3: { bg: "#F3F4F6", text: "#6B7280" },
   4: { bg: "#93C5FD", text: "#1e3a8a" },
-  5: { bg: "#1D4ED8", text: "#ffffff" }, // K율 높음 = 공략
+  5: { bg: "#1D4ED8", text: "#ffffff" },
 };
 
-// ── 듀얼 존 그리드 (13칸, hotcold 디자인 완전 동일) ───────────────
-// colorMode:
-//   "hotcold"  — 타율+투구빈도 (빨강=위험, 파랑=공략)
-//   "inverted" — 탈삼진+삼진   (파랑=공략, hotcold 반전)
 interface DualZoneGridProps {
-  zoneA: ZoneGrid; // 주 데이터 (상단 수치)
-  zoneB: ZoneGrid | null; // 보조 데이터 (하단 수치, 없으면 생략)
+  zoneA: ZoneGrid;
+  zoneB: ZoneGrid | null;
   labelA: string;
   labelB: string;
   colorMode: "hotcold" | "inverted";
@@ -544,9 +456,9 @@ function DualZoneGrid({
   const [hovKey, setHovKey] = useState<string | null>(null);
 
   const getPalette = (step: number) =>
-    colorMode === "inverted"
-      ? PALETTE_INVERTED[Math.min(5, Math.max(1, step))]
-      : PALETTE_HOTCOLD[Math.min(5, Math.max(1, step))];
+    (colorMode === "inverted" ? PALETTE_INVERTED : PALETTE_HOTCOLD)[
+      Math.min(5, Math.max(1, step))
+    ];
 
   const classifyDual = (stepA: number, stepB: number): ZoneType => {
     if (colorMode === "hotcold") {
@@ -559,30 +471,23 @@ function DualZoneGrid({
     return "중립";
   };
 
-  // ── ㄱ/ㄴ 형태 clip-path 상수 ─────────────────────────────────
-  // 각 L-셀은 50%×50% 쿼드런트를 차지하되, 안쪽 코너를 C% 지점에서 잘라냄
-  // → 실제 ㄱ/ㄴ/ㄱ반전/ㄴ반전 형태의 L-shape
-  const C = 46; // L-컷 위치 (% of 50%-quadrant cell)
+  // ── C=28 (기존 46의 절반 수준) ───────────────────────────────────────────
+  const C = 28;
+  const INNER_START = Math.round(C * 0.5); // 14
+  const INNER_SIZE = 100 - 2 * INNER_START; // 72
+
   const L_CLIPS: Record<0 | 1 | 2 | 3, string> = {
-    // TL — ㄱ 반전 (상단 + 좌측 팔)
     0: `polygon(0% 0%,100% 0%,100% ${C}%,${C}% ${C}%,${C}% 100%,0% 100%)`,
-    // TR — ㄱ (상단 + 우측 팔)
     1: `polygon(0% 0%,100% 0%,100% 100%,${100 - C}% 100%,${100 - C}% ${C}%,0% ${C}%)`,
-    // BL — ㄴ (하단 + 좌측 팔)
     2: `polygon(0% 0%,${C}% 0%,${C}% ${100 - C}%,100% ${100 - C}%,100% 100%,0% 100%)`,
-    // BR — ㄴ 반전 (하단 + 우측 팔)
     3: `polygon(${100 - C}% 0%,100% 0%,100% 100%,0% 100%,0% ${100 - C}%,${100 - C}% ${100 - C}%)`,
   };
-
-  // 각 코너 셀의 절대 위치 (50%×50% 쿼드런트)
   const L_POS: Record<0 | 1 | 2 | 3, React.CSSProperties> = {
     0: { top: 0, left: 0 },
     1: { top: 0, right: 0 },
     2: { bottom: 0, left: 0 },
     3: { bottom: 0, right: 0 },
   };
-
-  // L-shape 내 텍스트 정렬 — L의 두꺼운 모서리 방향으로 정렬
   const L_ALIGN: Record<0 | 1 | 2 | 3, React.CSSProperties> = {
     0: { justifyContent: "flex-start", alignItems: "flex-start" },
     1: { justifyContent: "flex-start", alignItems: "flex-end" },
@@ -590,23 +495,16 @@ function DualZoneGrid({
     3: { justifyContent: "flex-end", alignItems: "flex-end" },
   };
 
-  // ── 안쪽 9칸 셀 렌더러 ─────────────────────────────────────
-  const renderInner = (
-    cellA: { val: string; step: number } | undefined,
-    cellB: { val: string; step: number } | undefined,
-    idx: number,
-  ) => {
-    const stepA = cellA?.step ?? 3;
-    const valA = cellA?.val ?? "-";
-    const stepB = cellB?.step ?? 3;
-    const valB = cellB?.val ?? "-";
+  const renderInner = (cA: any, cB: any, idx: number) => {
+    const stepA = cA?.step ?? 3,
+      valA = cA?.val ?? "-";
+    const stepB = cB?.step ?? 3,
+      valB = cB?.val ?? "-";
     const type = classifyDual(stepA, stepB);
     const ev = ELEVATION[type];
-    const showOverlay = type !== "중립";
+    const show = type !== "중립";
     const pal = getPalette(stepA);
     const key = `n${idx}`;
-    const isHov = hovKey === key;
-
     return (
       <div
         key={key}
@@ -621,14 +519,14 @@ function DualZoneGrid({
           alignItems: "center",
           justifyContent: "center",
           gap: 2,
-          boxShadow: showOverlay || isHov ? ev.outerGlow : "none",
+          boxShadow: show || hovKey === key ? ev.outerGlow : "none",
           transition: "box-shadow 0.15s",
           overflow: "hidden",
           cursor: "default",
           minHeight: 0,
         }}
       >
-        {showOverlay && (
+        {show && (
           <div
             style={{
               position: "absolute",
@@ -654,7 +552,7 @@ function DualZoneGrid({
             width: "100%",
           }}
         >
-          {showOverlay && (
+          {show && (
             <span
               style={{
                 fontSize: 7,
@@ -704,10 +602,6 @@ function DualZoneGrid({
 
   const zoneBorderColor = colorMode === "inverted" ? "#3B82F6" : "#E53935";
 
-  // inner zone 위치 — CUT=46%이므로 46%×50% = 23% of total
-  const INNER_START = 23;
-  const INNER_SIZE = 54; // = 100 - 2×23
-
   return (
     <div className="flex flex-col items-center gap-3 w-full">
       {/* 헤더 */}
@@ -726,150 +620,179 @@ function DualZoneGrid({
         )}
       </div>
 
-      {/*
-        position:relative 컨테이너
-        ┌──────────────────────────────┐
-        │ ┌───┐         ┌───┐         │
-        │ │TL │  inner  │ TR│         │
-        │ │(ㄱ│  3×3   │(ㄱ│         │
-        │ │반)│  zone  │)  │         │
-        │ └───┘         └───┘         │
-        │ ┌───┐         ┌───┐         │
-        │ │BL │         │ BR│         │
-        │ │(ㄴ│         │(ㄴ│         │
-        │ │)  │         │반)│         │
-        │ └───┘         └───┘         │
-        └──────────────────────────────┘
-        clip-path으로 각 셀을 실제 L-shape으로 절단
-      */}
-      <div style={{ position: "relative", width: "100%", aspectRatio: "1" }}>
-        {/* ── 바깥 4칸 (ㄱ/ㄴ/반전 L-shape) ── */}
-        {zoneA.outer.map((cellA, i) => {
-          const idx = i as 0 | 1 | 2 | 3;
-          const stepA = cellA.step;
-          const valA = cellA.val;
-          const stepB = zoneB?.outer[i]?.step ?? 3;
-          const valB = zoneB?.outer[i]?.val ?? "-";
-          const type = classifyDual(stepA, stepB);
-          const ev = ELEVATION[type];
-          const showOverlay = type !== "중립";
-          const pal = getPalette(stepA);
-          const isHov = hovKey === `o${idx}`;
-
-          return (
-            <div
-              key={`o${idx}`}
-              onMouseEnter={() => setHovKey(`o${idx}`)}
-              onMouseLeave={() => setHovKey(null)}
-              style={{
-                position: "absolute",
-                ...L_POS[idx],
-                width: "50%",
-                height: "50%",
-                clipPath: L_CLIPS[idx],
-                background: pal.bg,
-                // drop-shadow는 clip-path 형태를 따름 → L-shape shadow
-                filter:
-                  showOverlay || isHov
-                    ? `drop-shadow(0 3px 8px ${ev.labelBg}66)`
-                    : "none",
-                transition: "filter 0.15s",
-                display: "flex",
-                flexDirection: "column",
-                padding: 10,
-                gap: 2,
-                cursor: "default",
-                ...L_ALIGN[idx],
-              }}
-            >
-              {/* 베벨 오버레이 — clip-path에 의해 L-shape 경계에서 자연스럽게 절단 */}
-              {showOverlay && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    pointerEvents: "none",
-                    zIndex: 1,
-                    ...outerOverlayStyle(idx, type),
-                  }}
-                />
-              )}
-              {/* 콘텐츠 z:2 */}
-              <div
-                style={{
-                  position: "relative",
-                  zIndex: 2,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
-                {showOverlay && (
-                  <span
-                    style={{
-                      fontSize: 7,
-                      fontWeight: 900,
-                      background: ev.labelBg,
-                      color: ev.labelText,
-                      padding: "1px 4px",
-                      borderRadius: 3,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {ev.label}
-                  </span>
-                )}
-                <span
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 800,
-                    color: pal.text,
-                    lineHeight: 1,
-                  }}
-                >
-                  {valA}
-                </span>
-                {zoneB && valB !== "-" && (
-                  <span
-                    style={{
-                      fontSize: 9,
-                      fontWeight: 600,
-                      color: pal.text,
-                      opacity: 0.72,
-                      lineHeight: 1,
-                    }}
-                  >
-                    {valB}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* ── 스트라이크존 inner 3×3 ── */}
+      {/* 볼존 래퍼 */}
+      <div style={{ position: "relative", width: "100%", paddingTop: 16 }}>
+        {/* 볼존 라벨 */}
         <div
           style={{
             position: "absolute",
-            top: `${INNER_START}%`,
-            left: `${INNER_START}%`,
-            width: `${INNER_SIZE}%`,
-            height: `${INNER_SIZE}%`,
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gridTemplateRows: "1fr 1fr 1fr",
-            gap: 2,
-            border: `2.5px solid ${zoneBorderColor}`,
-            borderRadius: 6,
-            padding: 2,
-            background: `${zoneBorderColor}10`,
-            zIndex: 5,
+            top: 0,
+            left: 0,
+            fontSize: 10,
+            fontWeight: 700,
+            color: "#666",
+            letterSpacing: "0.04em",
           }}
         >
-          {zoneA.inner.map((cellA, i) =>
-            renderInner(cellA, zoneB?.inner[i], i),
-          )}
+          볼존
+        </div>
+        {/* 볼존 테두리 */}
+        <div
+          style={{
+            position: "absolute",
+            top: 13,
+            left: -3,
+            right: -3,
+            bottom: -3,
+            border: "1.5px solid #999",
+            borderRadius: 10,
+            pointerEvents: "none",
+            zIndex: 0,
+          }}
+        />
+
+        {/* 메인 그리드 */}
+        <div style={{ position: "relative", width: "100%", aspectRatio: "1" }}>
+          {/* 스트라이크존 라벨 */}
+          <div
+            style={{
+              position: "absolute",
+              top: `calc(${INNER_START}% - 13px)`,
+              left: `${INNER_START}%`,
+              fontSize: 9,
+              fontWeight: 700,
+              color: zoneBorderColor,
+              pointerEvents: "none",
+              zIndex: 20,
+              whiteSpace: "nowrap",
+              letterSpacing: "0.03em",
+            }}
+          >
+            스트라이크존
+          </div>
+
+          {/* 외곽 4칸 L-shape */}
+          {zoneA.outer.map((cA, i) => {
+            const idx = i as 0 | 1 | 2 | 3;
+            const stepA = cA.step,
+              valA = cA.val;
+            const stepB = zoneB?.outer[i]?.step ?? 3,
+              valB = zoneB?.outer[i]?.val ?? "-";
+            const type = classifyDual(stepA, stepB);
+            const ev = ELEVATION[type];
+            const show = type !== "중립";
+            const pal = getPalette(stepA);
+            const isHov = hovKey === `o${idx}`;
+            return (
+              <div
+                key={`o${idx}`}
+                onMouseEnter={() => setHovKey(`o${idx}`)}
+                onMouseLeave={() => setHovKey(null)}
+                style={{
+                  position: "absolute",
+                  ...L_POS[idx],
+                  width: "50%",
+                  height: "50%",
+                  clipPath: L_CLIPS[idx],
+                  background: pal.bg,
+                  filter:
+                    show || isHov
+                      ? `drop-shadow(0 3px 8px ${ev.labelBg}66)`
+                      : "none",
+                  transition: "filter 0.15s",
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: 8,
+                  gap: 2,
+                  cursor: "default",
+                  ...L_ALIGN[idx],
+                }}
+              >
+                {show && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      pointerEvents: "none",
+                      zIndex: 1,
+                      ...outerOverlayStyle(idx, type),
+                    }}
+                  />
+                )}
+                <div
+                  style={{
+                    position: "relative",
+                    zIndex: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 2,
+                  }}
+                >
+                  {show && (
+                    <span
+                      style={{
+                        fontSize: 7,
+                        fontWeight: 900,
+                        background: ev.labelBg,
+                        color: ev.labelText,
+                        padding: "1px 4px",
+                        borderRadius: 3,
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      {ev.label}
+                    </span>
+                  )}
+                  <span
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 800,
+                      color: pal.text,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {valA}
+                  </span>
+                  {zoneB && valB !== "-" && (
+                    <span
+                      style={{
+                        fontSize: 9,
+                        fontWeight: 600,
+                        color: pal.text,
+                        opacity: 0.72,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {valB}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* 내부 3×3 스트라이크존 */}
+          <div
+            style={{
+              position: "absolute",
+              top: `${INNER_START}%`,
+              left: `${INNER_START}%`,
+              width: `${INNER_SIZE}%`,
+              height: `${INNER_SIZE}%`,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gridTemplateRows: "1fr 1fr 1fr",
+              gap: 2,
+              border: `2.5px solid ${zoneBorderColor}`,
+              borderRadius: 6,
+              padding: 2,
+              background: `${zoneBorderColor}10`,
+              zIndex: 5,
+            }}
+          >
+            {zoneA.inner.map((cA, i) => renderInner(cA, zoneB?.inner[i], i))}
+          </div>
         </div>
       </div>
 
@@ -878,7 +801,7 @@ function DualZoneGrid({
   );
 }
 
-// ── 범례 ─────────────────────────────────────────────────────
+// ── 범례 ─────────────────────────────────────────────────────────────────────
 const LEGEND: { type: ZoneType; desc: string; sampleStep: number }[] = [
   { type: "제구금지", desc: "타율 최고 구역 — 절대 피할 것", sampleStep: 5 },
   {
@@ -890,7 +813,7 @@ const LEGEND: { type: ZoneType; desc: string; sampleStep: number }[] = [
   { type: "중립", desc: "큰 위험 없는 중립 구역", sampleStep: 3 },
 ];
 
-// ── 메인 ─────────────────────────────────────────────────────
+// ── 메인 ─────────────────────────────────────────────────────────────────────
 export default function HvPZoneSection({
   hitterName,
   pitcherName,
@@ -920,11 +843,9 @@ export default function HvPZoneSection({
             <span>하단 = {pitcherName || "투수"} 투구빈도</span>
           </div>
         </div>
-
         <div className="px-6 py-6 flex flex-col items-center gap-5">
           {canOverlay ? (
             <>
-              {/* 축 라벨 */}
               <div
                 className="flex justify-between text-[9px] text-gray-400"
                 style={{ width: TOTAL }}
@@ -933,8 +854,6 @@ export default function HvPZoneSection({
                 <span className="text-gray-300">투수 시점</span>
                 <span>바깥쪽</span>
               </div>
-
-              {/* 오버레이 (위에서 툴팁 공간 확보) */}
               <div style={{ paddingTop: 44 }}>
                 <OverlayGrid
                   hitterZone={hitterHotCold!}
@@ -944,8 +863,6 @@ export default function HvPZoneSection({
                   pitcherName={pitcherName}
                 />
               </div>
-
-              {/* 범례 */}
               <div className="flex flex-wrap justify-center gap-3 mt-2">
                 {LEGEND.map(({ type, desc, sampleStep }) => {
                   const ev = ELEVATION[type];
@@ -1012,7 +929,7 @@ export default function HvPZoneSection({
         </div>
       </div>
 
-      {/* ── 타율 + 투구 분포도 / 탈삼진 + 삼진 분포도 ── */}
+      {/* ── 타율+투구 / 탈삼진+삼진 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 패널 1: 타율 + 투구 분포도 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -1045,7 +962,6 @@ export default function HvPZoneSection({
               </div>
             )}
           </div>
-          {/* avg-pitch 범례 */}
           <div className="px-5 pb-4 flex flex-wrap gap-2">
             {[
               { type: "제구금지" as ZoneType, step: 5, color: "#DC2626" },
@@ -1124,7 +1040,6 @@ export default function HvPZoneSection({
               </div>
             )}
           </div>
-          {/* k-zone 범례 */}
           <div className="px-5 pb-4 flex flex-wrap gap-2">
             {[
               { label: "공략 (K율 높음)", step: 5, evType: "공략" as ZoneType },
