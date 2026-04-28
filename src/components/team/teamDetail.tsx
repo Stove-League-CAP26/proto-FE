@@ -1,5 +1,4 @@
 // src/components/team/teamDetail.tsx
-// 팀 상세 뷰 — 실제 2025 팀 스탯 API 연동
 import { useState, useEffect } from "react";
 import RosterTab from "@/components/team/RosterTab";
 import HistoryTab from "@/components/team/HistoryTab";
@@ -23,6 +22,178 @@ interface TeamDetailProps {
   onSelectPlayer: (pid: number) => void;
 }
 
+// ── 전체 스탯 테이블 ──────────────────────────────────────────
+function TeamFullStatTable({
+  stats,
+  primary,
+}: {
+  stats: TeamStats;
+  primary: string;
+}) {
+  const [tab, setTab] = useState<"batting" | "pitching">("batting");
+
+  const battingRows = [
+    { label: "경기", val: stats.g, unit: "G" },
+    { label: "타석", val: stats.pa, unit: "PA" },
+    { label: "타수", val: stats.ab, unit: "AB" },
+    { label: "득점", val: stats.r, unit: "R" },
+    { label: "안타", val: stats.h, unit: "H" },
+    { label: "2루타", val: stats.b2, unit: "2B" },
+    { label: "3루타", val: stats.b3, unit: "3B" },
+    { label: "홈런", val: stats.hr, unit: "HR" },
+    { label: "루타", val: stats.tb, unit: "TB" },
+    { label: "타점", val: stats.rbi, unit: "RBI" },
+    { label: "희생번트", val: stats.sac, unit: "SAC" },
+    { label: "희생플라이", val: stats.sf, unit: "SF" },
+    { label: "볼넷", val: stats.bb, unit: "BB" },
+    { label: "고의사구", val: stats.ibb, unit: "IBB" },
+    { label: "사구", val: stats.hbp, unit: "HBP" },
+    { label: "삼진", val: stats.so, unit: "SO" },
+    { label: "병살", val: stats.gdp, unit: "GDP" },
+    { label: "멀티히트", val: stats.mh, unit: "MH" },
+    { label: "도루", val: stats.sb, unit: "SB" },
+    { label: "타율", val: stats.avg?.toFixed(3), unit: "AVG", highlight: true },
+    {
+      label: "출루율",
+      val: stats.obp?.toFixed(3),
+      unit: "OBP",
+      highlight: true,
+    },
+    {
+      label: "장타율",
+      val: stats.slg?.toFixed(3),
+      unit: "SLG",
+      highlight: true,
+    },
+    { label: "OPS", val: stats.ops?.toFixed(3), unit: "OPS", highlight: true },
+    {
+      label: "득점권타율",
+      val: stats.risp?.toFixed(3),
+      unit: "RISP",
+      highlight: true,
+    },
+    { label: "대타타율", val: stats.phBa?.toFixed(3), unit: "PH" },
+  ];
+
+  const pitchingRows = [
+    { label: "ERA", val: stats.era?.toFixed(2), unit: "ERA", highlight: true },
+    { label: "경기", val: stats.g, unit: "G" },
+    { label: "승", val: stats.w, unit: "W" },
+    { label: "패", val: stats.l, unit: "L" },
+    { label: "세이브", val: stats.sv, unit: "SV" },
+    { label: "홀드", val: stats.hld, unit: "HLD" },
+    { label: "승률", val: stats.wpct?.toFixed(3), unit: "W%", highlight: true },
+    { label: "이닝", val: stats.ip, unit: "IP" },
+    { label: "피안타", val: stats.pitchH, unit: "H" },
+    { label: "피홈런", val: stats.pitchHr, unit: "HR" },
+    { label: "볼넷", val: stats.pitchBb, unit: "BB" },
+    { label: "사구", val: stats.pitchHbp, unit: "HBP" },
+    { label: "탈삼진", val: stats.pitchSo, unit: "K" },
+    { label: "실점", val: stats.pitchR, unit: "R" },
+    { label: "자책점", val: stats.er, unit: "ER" },
+    {
+      label: "WHIP",
+      val: stats.whip?.toFixed(2),
+      unit: "WHIP",
+      highlight: true,
+    },
+    { label: "완투", val: stats.cg, unit: "CG" },
+    { label: "완봉", val: stats.sho, unit: "SHO" },
+    { label: "QS", val: stats.qs, unit: "QS", highlight: true },
+    { label: "블론세이브", val: stats.bsv, unit: "BSV" },
+    { label: "피타자", val: stats.tbf, unit: "TBF" },
+    { label: "투구수", val: stats.np, unit: "NP" },
+    {
+      label: "피타율",
+      val: stats.pitchAvg?.toFixed(3),
+      unit: "AVG",
+      highlight: true,
+    },
+    { label: "폭투", val: stats.wp, unit: "WP" },
+    { label: "보크", val: stats.bk, unit: "BK" },
+    { label: "실책", val: stats.e, unit: "E" },
+  ];
+
+  const rows = tab === "batting" ? battingRows : pitchingRows;
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-gray-100">
+      {/* 탭 */}
+      <div className="flex">
+        {(["batting", "pitching"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className="flex-1 py-3 text-xs font-bold transition-all border-b-2"
+            style={{
+              color: tab === t ? primary : "#94a3b8",
+              borderBottomColor: tab === t ? primary : "transparent",
+              background: tab === t ? `${primary}06` : "#f8fafc",
+            }}
+          >
+            {t === "batting" ? "⚔️ 팀 타격" : "🛡️ 팀 투수"}
+          </button>
+        ))}
+      </div>
+
+      {/* 테이블 */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            {/* 1행: 영어 약어 */}
+            <tr style={{ background: `${primary}08` }}>
+              {rows.map((row) => (
+                <th
+                  key={row.unit}
+                  className="px-3 py-2 text-center whitespace-nowrap border-b border-gray-100"
+                  style={{
+                    color: row.highlight ? primary : "#64748b",
+                    fontSize: "10px",
+                    fontWeight: row.highlight ? 900 : 700,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {row.unit}
+                </th>
+              ))}
+            </tr>
+            {/* 2행: 한글명 */}
+            <tr style={{ background: "#f8fafc" }}>
+              {rows.map((row) => (
+                <th
+                  key={row.unit}
+                  className="px-3 py-1.5 text-center whitespace-nowrap border-b border-gray-100 text-[10px] text-gray-400 font-medium"
+                >
+                  {row.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {/* 3행: 스탯값 */}
+            <tr className="hover:bg-gray-50 transition-colors">
+              {rows.map((row) => (
+                <td
+                  key={row.unit}
+                  className="px-3 py-3 text-center whitespace-nowrap"
+                  style={{
+                    color: row.highlight ? primary : "#1e293b",
+                    fontWeight: row.highlight ? 800 : 600,
+                    fontSize: row.highlight ? "14px" : "13px",
+                  }}
+                >
+                  {row.val ?? "-"}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────
 export default function TeamDetail({
   team,
   onBack,
@@ -46,7 +217,6 @@ export default function TeamDetail({
     setTeamStats(null);
     setTeamRadar(null);
 
-    // 팀 스탯, 팀 레이더, 리그 평균 레이더 병렬 호출
     Promise.all([
       fetchTeamStats(team.id, 2025).catch(() => null),
       fetchTeamRadar(team.id, 2025).catch(() => null),
@@ -59,48 +229,6 @@ export default function TeamDetail({
       })
       .finally(() => setStatsLoading(false));
   }, [team.id]);
-
-  // 우측 스탯 카드 6개
-  const statCards = teamStats
-    ? [
-        {
-          label: "득점",
-          sub: "팀 총 득점",
-          val: `${teamStats.r}점`,
-          color: "#F59E0B",
-        },
-        {
-          label: "홈런",
-          sub: "팀 총 홈런",
-          val: `${teamStats.hr}개`,
-          color: "#EF4444",
-        },
-        {
-          label: "탈삼진",
-          sub: "투수 탈삼진",
-          val: `${teamStats.pitchSo}개`,
-          color: "#8B5CF6",
-        },
-        {
-          label: "출루율",
-          sub: "팀 출루율",
-          val: teamStats.obp.toFixed(3),
-          color: "#3B82F6",
-        },
-        {
-          label: "실책",
-          sub: "팀 실책",
-          val: `${teamStats.e}개`,
-          color: "#06B6D4",
-        },
-        {
-          label: "QS",
-          sub: "퀄리티스타트",
-          val: `${teamStats.qs}회`,
-          color: "#10B981",
-        },
-      ]
-    : null;
 
   return (
     <div className="min-h-screen" style={{ background: "#f8fafc" }}>
@@ -278,9 +406,9 @@ export default function TeamDetail({
               </div>
             )}
 
-            {/* 팀 스탯 레이더 */}
+            {/* 팀 스탯 분석 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-5">
                 <div
                   className="w-1 h-5 rounded-full"
                   style={{ background: primary }}
@@ -296,90 +424,111 @@ export default function TeamDetail({
               {statsLoading ? (
                 <div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                  {/* 레이더 차트 — 실데이터 + 리그 평균 겹치기 */}
-                  <div
-                    className="rounded-2xl p-3"
-                    style={{ background: "#0f172a" }}
-                  >
-                    <TeamRadarChart
-                      team={team}
-                      radarData={teamRadar}
-                      avgData={leagueAvgRadar}
-                    />
-                  </div>
+                <>
+                  {/* ── 상단: 레이더 + 6개 주요 스탯 ── */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start mb-6">
+                    {/* 레이더 차트
+                        ★ 크기 조정: max-w-[값] 숫자를 바꾸면 차트 크기가 바뀜
+                           현재 max-w-[220px] → 더 크게: max-w-[280px], 더 작게: max-w-[160px] */}
+                    <div
+                      className="rounded-2xl p-3 flex justify-center"
+                      style={{ background: "#0f172a" }}
+                    >
+                      <div className="w-full max-w-[400px]">
+                        <TeamRadarChart
+                          team={team}
+                          radarData={teamRadar}
+                          avgData={leagueAvgRadar}
+                        />
+                      </div>
+                    </div>
 
-                  {/* 우측 스탯 카드 */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {statCards
-                      ? statCards.map((s) => (
-                          <div
-                            key={s.label}
-                            className="rounded-xl p-3 border border-gray-100"
-                            style={{ background: `${s.color}08` }}
-                          >
-                            <p className="text-[9px] text-gray-400 font-semibold">
-                              {s.sub}
-                            </p>
-                            <p
-                              className="text-sm font-black mt-1"
-                              style={{ color: s.color }}
-                            >
-                              {s.val}
-                            </p>
-                            <p className="text-[10px] text-gray-500 font-bold mt-0.5">
-                              {s.label}
-                            </p>
-                          </div>
-                        ))
-                      : [
+                    {/* 6개 주요 스탯 */}
+                    <div>
+                      <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-2.5">
+                        주요 스탯
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 gap-y-8">
+                        {[
                           {
                             label: "ERA",
                             sub: "평균자책점",
-                            val: team.stats2024.era.toFixed(2),
-                            color: primary,
+                            val:
+                              teamStats?.era != null
+                                ? teamStats.era.toFixed(2)
+                                : team.stats2024.era.toFixed(2),
+                            desc: "낮을수록 좋음",
                           },
                           {
                             label: "WHIP",
-                            sub: "이닝당출루",
-                            val: team.stats2024.whip.toFixed(2),
-                            color: "#06B6D4",
+                            sub: "이닝당 출루허용",
+                            val:
+                              teamStats?.whip != null
+                                ? teamStats.whip.toFixed(2)
+                                : team.stats2024.whip.toFixed(2),
+                            desc: "낮을수록 좋음",
+                          },
+                          {
+                            label: "OPS",
+                            sub: "출루율 + 장타율",
+                            val:
+                              teamStats?.ops != null
+                                ? teamStats.ops.toFixed(3)
+                                : team.stats2024.ops.toFixed(3),
+                            desc: "높을수록 좋음",
+                          },
+                          {
+                            label: "타율",
+                            sub: "팀 타율",
+                            val:
+                              teamStats?.avg != null
+                                ? teamStats.avg.toFixed(3)
+                                : team.stats2024.avg.toFixed(3),
+                            desc: "높을수록 좋음",
+                          },
+                          {
+                            label: "도루",
+                            sub: "팀 도루",
+                            val:
+                              teamStats?.sb != null
+                                ? `${teamStats.sb}개`
+                                : `${team.stats2024.sb}개`,
+                            desc: "시즌 누적",
                           },
                           {
                             label: "QS",
                             sub: "퀄리티스타트",
-                            val: `${team.stats2024.qs}회`,
-                            color: "#8B5CF6",
-                          },
-                          {
-                            label: "AVG",
-                            sub: "팀타율",
-                            val: team.stats2024.avg.toFixed(3),
-                            color: "#3B82F6",
-                          },
-                          {
-                            label: "SB",
-                            sub: "도루",
-                            val: `${team.stats2024.sb}개`,
-                            color: "#10B981",
-                          },
-                          {
-                            label: "OPS",
-                            sub: "출루+장타",
-                            val: team.stats2024.ops.toFixed(3),
-                            color: "#F59E0B",
+                            val:
+                              teamStats?.qs != null
+                                ? `${teamStats.qs}회`
+                                : `${team.stats2024.qs}회`,
+                            desc: "시즌 누적",
                           },
                         ].map((s) => (
                           <div
                             key={s.label}
-                            className="rounded-xl p-3 border border-gray-100"
-                            style={{ background: `${primary}08` }}
+                            className="rounded-xl p-3 border"
+                            style={{
+                              background: `${primary}08`,
+                              borderColor: `${primary}20`,
+                            }}
                           >
-                            <p className="text-[9px] text-gray-400 font-semibold">
-                              {s.sub}
-                            </p>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] text-gray-400 font-semibold">
+                                {s.sub}
+                              </p>
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                                style={{
+                                  background: `${primary}15`,
+                                  color: primary,
+                                }}
+                              >
+                                {s.desc}
+                              </span>
+                            </div>
                             <p
-                              className="text-sm font-black mt-1"
+                              className="text-xl font-black mt-0.5"
                               style={{ color: primary }}
                             >
                               {s.val}
@@ -389,8 +538,15 @@ export default function TeamDetail({
                             </p>
                           </div>
                         ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
+
+                  {/* ── 하단: 전체 스탯 테이블 ── */}
+                  {teamStats && (
+                    <TeamFullStatTable stats={teamStats} primary={primary} />
+                  )}
+                </>
               )}
             </div>
           </>

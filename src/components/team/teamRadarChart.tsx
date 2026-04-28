@@ -286,7 +286,7 @@ export default function TeamRadarChart({ team, radarData, avgData }: Props) {
       })}
 
       {/* 범례 */}
-      <g transform={`translate(${SIZE - 70}, ${SIZE - 22})`}>
+      <g transform={`translate(${SIZE - 85}, ${SIZE - 22})`}>
         <line x1="0" y1="4" x2="12" y2="4" stroke={color} strokeWidth="2" />
         <text x="15" y="7" fontSize="7" fill={color} fontWeight="700">
           우리 팀

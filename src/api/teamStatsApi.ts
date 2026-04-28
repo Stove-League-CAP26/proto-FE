@@ -1,21 +1,62 @@
 // src/api/teamStatsApi.ts
 const BASE_URL = "/api";
 
-// ── 팀 전체 스탯 (기존) ───────────────────────────────────────
+// ── 팀 전체 스탯 (백엔드 TeamStatDto 구조와 일치) ────────────
 export interface TeamStats {
-  season: number;
   teamName: string;
-  ops: number;
+  season: number;
+  // 타격
   avg: number;
-  sb: number;
+  g: number;
+  pa: number;
+  ab: number;
   r: number;
+  h: number;
+  b2: number;
+  b3: number;
   hr: number;
+  tb: number;
+  rbi: number;
+  sac: number;
+  sf: number;
+  bb: number;
+  ibb: number;
+  hbp: number;
+  so: number;
+  gdp: number;
+  slg: number;
   obp: number;
+  ops: number;
+  mh: number;
+  risp: number;
+  phBa: number;
+  sb: number;
+  // 투수
   era: number;
-  whip: number;
-  e: number;
+  w: number;
+  l: number;
+  sv: number;
+  hld: number;
+  wpct: number;
+  ip: number;
+  pitchH: number;
+  pitchHr: number;
+  pitchBb: number;
+  pitchHbp: number;
   pitchSo: number;
+  pitchR: number;
+  er: number;
+  whip: number;
+  cg: number;
+  sho: number;
   qs: number;
+  bsv: number;
+  tbf: number;
+  np: number;
+  pitchAvg: number;
+  wp: number;
+  bk: number;
+  e: number;
 }
 
 // ── 레이더 데이터 (백엔드 TeamRadarDto 구조) ──────────────────
