@@ -1,5 +1,7 @@
 // src/components/common/Navbar.tsx
-import { useLocation } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { KBO_TEAMS, type Team } from "@/mock/teamData";
 
 const NAV_ITEMS = [
   { path: "/", label: "홈" },
@@ -22,6 +24,8 @@ interface NavbarProps {
   onLoginStateChange: (v: boolean) => void;
 }
 
+const logoUrl = (id: string) => `/images/teams/${id}.png`;
+
 export default function Navbar({
   isLoggedIn,
   dropdownOpen,
@@ -34,6 +38,38 @@ export default function Navbar({
   onDropdownToggle,
 }: NavbarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [teamDropOpen, setTeamDropOpen] = useState(false);
+  const teamBtnRef = useRef<HTMLDivElement>(null);
+
+  // 외부 클릭 시 팀 드롭다운 닫기
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (
+        teamBtnRef.current &&
+        !teamBtnRef.current.contains(e.target as Node)
+      ) {
+        setTeamDropOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleTeamNavClick = () => {
+    if (location.pathname === "/team") {
+      // 이미 팀 페이지 → state.reset으로 랜딩 복귀
+      navigate("/team", { state: { reset: true } });
+    } else {
+      navigate("/team");
+    }
+    setTeamDropOpen(false);
+  };
+
+  const handleTeamSelect = (team: Team) => {
+    navigate("/team", { state: { team } });
+    setTeamDropOpen(false);
+  };
 
   return (
     <nav className="bg-white border-b border-gray-100 sticky top-0 z-50 shadow-sm">
@@ -49,21 +85,132 @@ export default function Navbar({
           </span>
         </button>
 
-        {/* 메뉴 - 인증 페이지에서는 숨김 */}
+        {/* 메뉴 */}
         {!isAuthPage &&
-          NAV_ITEMS.map((item) => (
-            <button
-              key={item.path}
-              onClick={() => onNavigate(item.path)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${
-                location.pathname === item.path
-                  ? "bg-blue-50 text-blue-600"
-                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+          NAV_ITEMS.map((item) => {
+            const isActive = location.pathname === item.path;
+
+            // 팀 페이지 탭 — 드롭다운 포함
+            if (item.path === "/team") {
+              return (
+                <div key={item.path} className="relative" ref={teamBtnRef}>
+                  <div className="flex items-center">
+                    {/* 탭 버튼 */}
+                    <button
+                      onClick={handleTeamNavClick}
+                      className={`px-3 py-1.5 text-sm font-semibold rounded-l-lg transition-all ${
+                        isActive
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+
+                    {/* 드롭다운 토글 화살표 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTeamDropOpen((v) => !v);
+                      }}
+                      className={`px-1.5 py-1.5 text-xs rounded-r-lg transition-all border-l ${
+                        isActive
+                          ? "bg-blue-50 text-blue-400 border-blue-100"
+                          : "text-gray-400 hover:text-gray-600 hover:bg-gray-50 border-gray-100"
+                      }`}
+                    >
+                      {teamDropOpen ? "▲" : "▼"}
+                    </button>
+                  </div>
+
+                  {/* 팀 드롭다운 */}
+                  {teamDropOpen && (
+                    <div
+                      className="absolute left-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* 헤더 */}
+                      <div className="px-3 py-2.5 border-b border-gray-50 flex items-center justify-between">
+                        <p className="text-xs font-black text-gray-500">
+                          ⚾ 팀 선택
+                        </p>
+                        <button
+                          onClick={handleTeamNavClick}
+                          className="text-[10px] text-blue-500 font-bold hover:underline"
+                        >
+                          전체 보기
+                        </button>
+                      </div>
+
+                      {/* 팀 목록 */}
+                      <div className="py-1 max-h-72 overflow-y-auto">
+                        {KBO_TEAMS.map((team) => (
+                          <button
+                            key={team.id}
+                            onClick={() => handleTeamSelect(team)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                          >
+                            {/* 팀 로고 */}
+                            <div
+                              className="w-7 h-7 rounded-full overflow-hidden border flex-shrink-0 flex items-center justify-center bg-white"
+                              style={{
+                                borderColor: `${team.colors.primary}40`,
+                              }}
+                            >
+                              <img
+                                src={logoUrl(team.id)}
+                                alt={team.shortName}
+                                className="w-5 h-5 object-contain"
+                                onError={(e) => {
+                                  const el = e.currentTarget;
+                                  el.style.display = "none";
+                                  const p = el.parentElement;
+                                  if (p) {
+                                    p.style.background = team.colors.primary;
+                                    p.innerHTML = `<span style="font-size:8px;font-weight:900;color:${team.colors.text}">${team.shortName.slice(0, 2)}</span>`;
+                                  }
+                                }}
+                              />
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-800 truncate">
+                                {team.name}
+                              </p>
+                              <p className="text-[10px] text-gray-400">
+                                {team.city}
+                              </p>
+                            </div>
+
+                            {/* 팀 컬러 인디케이터 */}
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: team.colors.primary }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // 일반 탭
+            return (
+              <button
+                key={item.path}
+                onClick={() => onNavigate(item.path)}
+                className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                  isActive
+                    ? "bg-blue-50 text-blue-600"
+                    : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
 
         {/* 우측 프로필 */}
         <div className="ml-auto relative" onClick={(e) => e.stopPropagation()}>

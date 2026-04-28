@@ -1,21 +1,24 @@
 // src/components/team/TeamRadarChart.tsx
 import type { Team } from "@/mock/teamData";
-import type { TeamRadar } from "@/api/teamStatsApi";
+import type { TeamRadarData } from "@/api/teamStatsApi";
 
 interface Props {
   team: Team;
-  radarData?: TeamRadar | null;
+  radarData?: TeamRadarData | null; // 특정 팀 레이더
+  avgData?: TeamRadarData | null; // 리그 평균 레이더
 }
 
-// 수비 3개(좌) / 공격 3개(우) — 12시 방향부터 시계방향
+// 12시 방향부터 시계방향 — 백엔드 키와 매핑
 const AXES = [
-  { key: "ERA", label: "ERA", angle: -90 }, // 12시 — 수비
-  { key: "WHIP", label: "WHIP", angle: -30 }, // 2시  — 수비
-  { key: "OPS", label: "OPS", angle: 30 }, // 4시  — 공격
-  { key: "타율", label: "타율", angle: 90 }, // 6시  — 공격
-  { key: "도루", label: "도루", angle: 150 }, // 8시  — 공격
-  { key: "수비", label: "수비", angle: 210 }, // 10시 — 수비
+  { key: "era", label: "ERA", angle: -90 }, // 12시 — 수비
+  { key: "whip", label: "WHIP", angle: -30 }, // 2시  — 수비
+  { key: "ops", label: "OPS", angle: 30 }, // 4시  — 공격
+  { key: "avg", label: "타율", angle: 90 }, // 6시  — 공격
+  { key: "stolenBase", label: "도루", angle: 150 }, // 8시  — 공격
+  { key: "defense", label: "수비", angle: 210 }, // 10시 — 수비
 ] as const;
+
+type AxisKey = (typeof AXES)[number]["key"];
 
 const SIZE = 240;
 const CX = SIZE / 2;
@@ -23,29 +26,14 @@ const CY = SIZE / 2;
 const R = 72;
 const LEVELS = 4;
 
-// 수비 지표 여부 (색상 구분용)
-const IS_DEFENSE = new Set(["ERA", "WHIP", "수비"]);
+const IS_DEFENSE = new Set<AxisKey>(["era", "whip", "defense"]);
 
 function polar(angleDeg: number, r: number) {
   const rad = (angleDeg * Math.PI) / 180;
   return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
 }
 
-// mock fallback (하한 30점 보장)
-function mockRadar(team: Team): TeamRadar {
-  const s = team.stats2024;
-  const clamp = (v: number) => Math.max(30, Math.min(100, v));
-  return {
-    ERA: clamp(100 - ((s.era - 3.0) / 2.5) * 70),
-    WHIP: clamp(100 - ((s.whip - 1.0) / 0.7) * 70),
-    수비: clamp(70),
-    도루: clamp(50 + (s.sb / 150) * 40),
-    OPS: clamp((s.ops / 0.85) * 90),
-    타율: clamp((s.avg / 0.3) * 80),
-  };
-}
-
-// 팀 컬러 → 어두운 배경 최적화 HSL (채도 65%, 명도 60%)
+// 팀 컬러 → 어두운 배경 최적화 HSL
 function safeColor(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -73,19 +61,52 @@ function safeColor(hex: string): string {
   return `hsl(${Math.round(h * 360)},65%,62%)`;
 }
 
-export default function TeamRadarChart({ team, radarData }: Props) {
-  const data = radarData ?? mockRadar(team);
-  const color = safeColor(team.colors.primary);
-  // 수비 보조색 — 같은 색상의 더 밝은 톤
-  const colorB = color.replace("62%)", "78%)");
+// mock fallback — 백엔드 데이터 없을 때 (최솟값 10 보장)
+function mockRadar(team: Team): TeamRadarData {
+  const s = team.stats2024;
+  const clamp = (v: number) => Math.max(10, Math.min(100, v));
+  return {
+    teamName: team.name,
+    season: 2025,
+    era: clamp(100 - ((s.era - 3.0) / 3.0) * 90),
+    whip: clamp(100 - ((s.whip - 1.0) / 0.8) * 90),
+    defense: clamp(70),
+    stolenBase: clamp(30 + (s.sb / 130) * 70),
+    ops: clamp(10 + ((s.ops - 0.65) / 0.2) * 90),
+    avg: clamp(10 + ((s.avg - 0.24) / 0.06) * 90),
+  };
+}
 
-  const points = AXES.map((ax) => {
-    const r = (data[ax.key] / 100) * R;
+// TeamRadarData → 폴리곤 포인트 배열
+function toPoints(data: TeamRadarData) {
+  return AXES.map((ax) => {
+    const val = data[ax.key] as number;
+    const r = (val / 100) * R;
     return polar(ax.angle, r);
   });
-  const polygon = points
-    .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
-    .join(" ");
+}
+
+export default function TeamRadarChart({ team, radarData, avgData }: Props) {
+  const data = radarData ?? mockRadar(team);
+  const color = safeColor(team.colors.primary);
+  const colorB = color.replace("62%)", "78%)");
+
+  const teamPoints = toPoints(data);
+  const avgPoints = avgData ? toPoints(avgData) : null;
+
+  const teamPolygon =
+    teamPoints
+      .map(
+        (p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`,
+      )
+      .join(" ") + " Z";
+  const avgPolygon = avgPoints
+    ? avgPoints
+        .map(
+          (p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`,
+        )
+        .join(" ") + " Z"
+    : null;
 
   const gridLevels = Array.from({ length: LEVELS }, (_, i) =>
     AXES.map((ax) => polar(ax.angle, (R * (i + 1)) / LEVELS)),
@@ -138,17 +159,51 @@ export default function TeamRadarChart({ team, radarData }: Props) {
         );
       })}
 
-      {/* 데이터 면 */}
-      <polygon
-        points={polygon}
+      {/* ── 리그 평균 폴리곤 (먼저 그려서 뒤에 깔림) ── */}
+      {avgPolygon && (
+        <>
+          <defs>
+            <radialGradient
+              id={`avg-grad-${team.id}`}
+              cx="50%"
+              cy="50%"
+              r="50%"
+            >
+              <stop offset="0%" stopColor="rgba(148,163,184,0.30)" />
+              <stop offset="100%" stopColor="rgba(148,163,184,0.06)" />
+            </radialGradient>
+          </defs>
+          <path
+            d={avgPolygon}
+            fill={`url(#avg-grad-${team.id})`}
+            stroke="rgba(148,163,184,0.7)"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+          {/* 평균 꼭짓점 */}
+          {avgPoints!.map((p, i) => (
+            <circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r="2.5"
+              fill="rgba(148,163,184,0.8)"
+            />
+          ))}
+        </>
+      )}
+
+      {/* ── 팀 데이터 폴리곤 ── */}
+      <path
+        d={teamPolygon}
         fill={`url(#dg-${team.id})`}
         stroke={color}
         strokeWidth="1.8"
         strokeLinejoin="round"
       />
 
-      {/* 꼭짓점 */}
-      {points.map((p, i) => {
+      {/* 팀 꼭짓점 */}
+      {teamPoints.map((p, i) => {
         const isD = IS_DEFENSE.has(AXES[i].key);
         return (
           <g key={i}>
@@ -164,41 +219,96 @@ export default function TeamRadarChart({ team, radarData }: Props) {
         );
       })}
 
-      {/* 레이블 + 점수 */}
+      {/* 라벨 + 점수 */}
       {AXES.map((ax) => {
-        const lp = polar(ax.angle, R + 22);
-        const val = Math.round(data[ax.key]);
+        const lp = polar(ax.angle, R + 28);
+        const val = Math.round(data[ax.key] as number);
         const isD = IS_DEFENSE.has(ax.key);
-        const lblColor = isD ? "rgba(255,255,255,0.80)" : colorB;
+        const labelColor = isD ? "rgba(255,255,255,0.85)" : colorB;
+        const scoreColor = isD ? color : colorB;
+        const badgeBg = isD
+          ? "rgba(255,255,255,0.10)"
+          : "rgba(255,255,255,0.07)";
+
         return (
           <g key={ax.key}>
+            {/* 배경 뱃지 */}
+            <rect
+              x={(parseFloat(lp.x.toFixed(2)) - 22).toFixed(2)}
+              y={(parseFloat(lp.y.toFixed(2)) - 14).toFixed(2)}
+              width="44"
+              height="28"
+              rx="5"
+              fill={badgeBg}
+            />
+
+            {/* 지표명 */}
             <text
               x={lp.x.toFixed(2)}
               y={(lp.y - 5).toFixed(2)}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize="8.5"
+              fontSize="8"
               fontWeight="800"
-              fill={lblColor}
+              fill={labelColor}
               style={{ userSelect: "none" }}
             >
               {ax.label}
             </text>
+
+            {/* 점수 + /100 */}
             <text
-              x={lp.x.toFixed(2)}
-              y={(lp.y + 6).toFixed(2)}
-              textAnchor="middle"
+              x={(parseFloat(lp.x.toFixed(2)) - 3).toFixed(2)}
+              y={(lp.y + 7).toFixed(2)}
+              textAnchor="end"
               dominantBaseline="middle"
-              fontSize="7.5"
-              fontWeight="700"
-              fill={isD ? color : colorB}
+              fontSize="9"
+              fontWeight="900"
+              fill={scoreColor}
               style={{ userSelect: "none" }}
             >
               {val}
             </text>
+            <text
+              x={(parseFloat(lp.x.toFixed(2)) - 2).toFixed(2)}
+              y={(lp.y + 7).toFixed(2)}
+              textAnchor="start"
+              dominantBaseline="middle"
+              fontSize="6.5"
+              fontWeight="600"
+              fill="rgba(255,255,255,0.35)"
+              style={{ userSelect: "none" }}
+            >
+              /100점
+            </text>
           </g>
         );
       })}
+
+      {/* 범례 */}
+      <g transform={`translate(${SIZE - 85}, ${SIZE - 22})`}>
+        <line x1="0" y1="4" x2="12" y2="4" stroke={color} strokeWidth="2" />
+        <text x="15" y="7" fontSize="7" fill={color} fontWeight="700">
+          우리 팀
+        </text>
+        <line
+          x1="40"
+          y1="4"
+          x2="52"
+          y2="4"
+          stroke="rgba(148,163,184,0.8)"
+          strokeWidth="1.8"
+        />
+        <text
+          x="55"
+          y="7"
+          fontSize="7"
+          fill="rgba(148,163,184,0.8)"
+          fontWeight="700"
+        >
+          리그 평균
+        </text>
+      </g>
     </svg>
   );
 }
