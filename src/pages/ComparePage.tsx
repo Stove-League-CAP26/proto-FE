@@ -361,8 +361,6 @@ export default function ComparePage() {
                 mode={mode}
                 zoneA={slotA.zone}
                 zoneB={slotB.zone}
-                strikeoutZoneA={slotA.strikeoutZone}
-                strikeoutZoneB={slotB.strikeoutZone}
                 playerNameA={slotA.basic?.playerName ?? ""}
                 playerNameB={slotB.basic?.playerName ?? ""}
                 loadingA={slotA.loading}

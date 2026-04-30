@@ -7,6 +7,7 @@ import HotColdTab from "@/components/profile/Hitter/HotCold/HotColdTab";
 import PitchZoneTab from "@/components/profile/Pitcher/PitchZone/PitchZoneTab";
 import HitterStatcastTab from "@/components/profile/Hitter/Statcast/HitterStatcastTab";
 import PitcherStatcastTab from "@/components/profile/Pitcher/Statcast/PitcherStatcastTab";
+import NaverSeasonStatsSection from "@/components/profile/NaverSeasonStatsSection";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   searchPlayersByName,
@@ -30,7 +31,6 @@ import { isPitcher, fmtAvg, fmtEra, fmtWhip } from "@/utils/playerUtils";
 import type { HitterStat, PitcherStat } from "@/types/playerStats";
 
 export default function PlayerProfilePage() {
-  // 팀 페이지에서 navigate('/player', { state: { pid } })로 전달된 pid 수신
   const location = useLocation();
   const initialPid: number | null = (location.state as any)?.pid ?? null;
 
@@ -58,7 +58,6 @@ export default function PlayerProfilePage() {
   const [baZone, setBaZone] = useState<ZoneGrid | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
 
-  // 팀 페이지에서 pid 전달 시 자동 로드
   useEffect(() => {
     if (!initialPid) return;
     fetchPlayerBasic(initialPid)
@@ -71,7 +70,6 @@ export default function PlayerProfilePage() {
       .catch(() => setError("선수 정보를 불러오지 못했습니다."));
   }, [initialPid]);
 
-  // 선수 변경 시 API 호출
   useEffect(() => {
     if (!playerBasic) return;
     const pid = playerBasic.pid as number;
@@ -199,6 +197,7 @@ export default function PlayerProfilePage() {
   };
   const pitcher = isPitcher(playerBasic.playerMPosition);
   const heroAccent = pitcher ? "#F97316" : "#3B82F6";
+  const playerType = pitcher ? "pitcher" : "hitter";
 
   const hwRaw = playerBasic.heightWeight ?? "";
   const hwParts = hwRaw.split("/");
@@ -297,7 +296,6 @@ export default function PlayerProfilePage() {
             : { LF: "-", CF: "-", RF: "-" },
         }
       : null;
-
   const resolvedHitDistrib = hitDirection
     ? { LF: hitDirection.lf, CF: hitDirection.cf, RF: hitDirection.rf }
     : undefined;
@@ -336,6 +334,7 @@ export default function PlayerProfilePage() {
       />
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-10">
+        {/* ── 기존 스탯캐스트 / 존 섹션 ────────────────────────────────── */}
         {pitcher ? (
           <>
             <section>
@@ -411,6 +410,26 @@ export default function PlayerProfilePage() {
             </section>
           </>
         )}
+
+        {/* ── 신규: 시즌별 스탯 (네이버 API) ──────────────────────────── */}
+        <section>
+          <div className="flex items-center gap-2 mb-4">
+            <span
+              className={`w-1 h-5 rounded-full inline-block ${pitcher ? "bg-orange-400" : "bg-blue-400"}`}
+            />
+            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+              시즌 기록
+            </h2>
+            <span className="ml-2 text-[10px] text-gray-300 font-normal">
+              2024–2026
+            </span>
+          </div>
+          <NaverSeasonStatsSection
+            pid={playerBasic.pid}
+            playerType={playerType}
+            accentColor={heroAccent}
+          />
+        </section>
       </div>
     </div>
   );
