@@ -1,7 +1,7 @@
 // src/pages/MainPage.tsx
 // 메인 페이지 — 경기일정 / 리그순위 / 뉴스 / 유튜브 / 중계사이트
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
@@ -98,10 +98,10 @@ const TEAM_NAME_TO_IMAGE: Record<string, string> = {
   키움: "/images/teams/kiwoom.png",
 };
 
-// ── 선수 이미지 URL — 2026 우선, 실패 시 2025 fallback ─────────────────────
-function getPlayerImageUrl(pcode: string, year: 2025 | 2026 = 2026): string {
+// ── 선수 이미지 URL — 네이버 CDN (팀 페이지 PlayerAvatar와 동일) ────────────
+function getPlayerImageUrl(pcode: string, year: number = 2026): string {
   if (!pcode) return "";
-  return `https://koreabaseball.com/DATA/Player/${year}/${pcode}.gif`;
+  return `https://6ptotvmi5753.edge.naverncp.com/KBO_IMAGE/person/kbo/${year}/${pcode}.png`;
 }
 
 // ── 선수 아바타 ───────────────────────────────────────────────────────────────
@@ -117,6 +117,15 @@ function PlayerAvatar({
   onClick?: () => void;
 }) {
   const dim = size === "md" ? "w-14 h-14" : "w-10 h-10";
+  const YEARS = [2026, 2025, 2024, 2023];
+  const [yearIdx, setYearIdx] = React.useState(0);
+  const [failed, setFailed] = React.useState(false);
+
+  // pcode 변경 시 초기화
+  React.useEffect(() => {
+    setYearIdx(0);
+    setFailed(false);
+  }, [pcode]);
 
   // pcode 없으면 이니셜만 표시
   if (!pcode) {
@@ -137,6 +146,11 @@ function PlayerAvatar({
     );
   }
 
+  const handleImgError = () => {
+    if (yearIdx < YEARS.length - 1) setYearIdx((i) => i + 1);
+    else setFailed(true);
+  };
+
   return (
     <button
       onClick={onClick}
@@ -147,26 +161,28 @@ function PlayerAvatar({
       }`}
       title={name}
     >
-      <img
-        src={getPlayerImageUrl(pcode, 2026)}
-        alt={name}
-        className="w-full h-full object-cover object-top"
-        onError={(e) => {
-          // 2026 실패 → 2025 시도
-          const img = e.currentTarget;
-          if (!img.dataset.fallback) {
-            img.dataset.fallback = "1";
-            img.src = getPlayerImageUrl(pcode, 2025);
-            return;
-          }
-          // 2025도 실패 → 이니셜
-          const parent = img.parentElement;
-          if (parent) {
-            parent.style.background = "#e5e7eb";
-            parent.innerHTML = `<span style="font-size:11px;color:#9ca3af;display:flex;align-items:center;justify-content:center;height:100%;width:100%">${name.slice(0, 1)}</span>`;
-          }
-        }}
-      />
+      {failed ? (
+        <span
+          style={{
+            fontSize: 11,
+            color: "#9ca3af",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            width: "100%",
+          }}
+        >
+          {name.slice(0, 1)}
+        </span>
+      ) : (
+        <img
+          src={getPlayerImageUrl(pcode, YEARS[yearIdx])}
+          alt={name}
+          className="w-full h-full object-cover object-top"
+          onError={handleImgError}
+        />
+      )}
     </button>
   );
 }
