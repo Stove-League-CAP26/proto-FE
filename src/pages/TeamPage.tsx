@@ -3,10 +3,10 @@ import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import TeamLanding from "@/components/team/TeamLanding";
 import TeamDetail from "@/components/team/TeamDetail";
-import type { Team } from "@/mock/teamData";
+import { KBO_TEAMS, type Team } from "@/mock/teamData";
 
 interface TeamPageProps {
-  onTeamChange?: (team: Team | null) => void; // Navbar 드롭다운용
+  onTeamChange?: (team: Team | null) => void;
 }
 
 export default function TeamPage({ onTeamChange }: TeamPageProps) {
@@ -14,23 +14,35 @@ export default function TeamPage({ onTeamChange }: TeamPageProps) {
   const location = useLocation();
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
-  // Navbar에서 /team 클릭 시 → location.state.reset = true로 랜딩 복귀
   useEffect(() => {
-    if ((location.state as any)?.reset) {
+    const state = location.state as any;
+    if (!state) return;
+
+    // 랜딩 복귀
+    if (state.reset) {
       setSelectedTeam(null);
       onTeamChange?.(null);
-      // state 초기화
       window.history.replaceState({}, "");
+      return;
     }
-  }, [location.state]);
 
-  // Navbar 드롭다운에서 팀 직접 선택 시
-  useEffect(() => {
-    const selected = (location.state as any)?.team as Team | undefined;
-    if (selected) {
-      setSelectedTeam(selected);
-      onTeamChange?.(selected);
+    // Navbar 드롭다운에서 Team 객체 직접 전달
+    if (state.team) {
+      setSelectedTeam(state.team as Team);
+      onTeamChange?.(state.team as Team);
       window.history.replaceState({}, "");
+      return;
+    }
+
+    // 메인 페이지 순위표 클릭 — teamId 문자열로 전달
+    if (state.teamId) {
+      const found = KBO_TEAMS.find((t) => t.id === state.teamId) ?? null;
+      if (found) {
+        setSelectedTeam(found);
+        onTeamChange?.(found);
+      }
+      window.history.replaceState({}, "");
+      return;
     }
   }, [location.state]);
 

@@ -12,7 +12,7 @@ export default function HistoryTab({ history, teamColor }: HistoryTabProps) {
 
   return (
     <div className="relative pl-5 space-y-5">
-      <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-100" />
+      <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-200" />
       {sorted.map((ev, i) => {
         const m = HISTORY_META[ev.type];
         return (

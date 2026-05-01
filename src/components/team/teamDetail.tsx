@@ -4,6 +4,7 @@ import RosterTab from "@/components/team/RosterTab";
 import HistoryTab from "@/components/team/HistoryTab";
 import SongsTab from "@/components/team/SongsTab";
 import TeamRadarChart from "@/components/team/TeamRadarChart";
+import TeamDepthTab from "@/components/team/TeamDepthTab";
 import type { Team } from "@/mock/teamData";
 import {
   fetchTeamStats,
@@ -13,7 +14,7 @@ import {
   type TeamRadarData,
 } from "@/api/teamStatsApi";
 
-const TABS = ["홈", "로스터", "히스토리", "응원가"] as const;
+const TABS = ["홈", "로스터", "포지션", "응원가"] as const;
 type TabType = (typeof TABS)[number];
 
 interface TeamDetailProps {
@@ -140,7 +141,6 @@ function TeamFullStatTable({
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
-            {/* 1행: 영어 약어 */}
             <tr style={{ background: `${primary}08` }}>
               {rows.map((row) => (
                 <th
@@ -157,7 +157,6 @@ function TeamFullStatTable({
                 </th>
               ))}
             </tr>
-            {/* 2행: 한글명 */}
             <tr style={{ background: "#f8fafc" }}>
               {rows.map((row) => (
                 <th
@@ -170,7 +169,6 @@ function TeamFullStatTable({
             </tr>
           </thead>
           <tbody>
-            {/* 3행: 스탯값 */}
             <tr className="hover:bg-gray-50 transition-colors">
               {rows.map((row) => (
                 <td
@@ -346,65 +344,92 @@ export default function TeamDetail({
                   <p className="text-gray-400 text-xs">이미지 준비중</p>
                 </div>
               )}
-              <div className="p-5 grid grid-cols-3 gap-4">
-                {[
-                  { label: "구장명", value: team.stadium.name },
-                  { label: "위치", value: team.city },
-                  {
-                    label: "수용인원",
-                    value: `${team.stadium.capacity.toLocaleString()}명`,
-                  },
-                  { label: "개장", value: `${team.stadium.openYear}년` },
-                  { label: "그라운드", value: team.stadium.surface },
-                  { label: "형태", value: team.stadium.roofType },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <p className="text-gray-400 text-[10px] font-semibold">
-                      {label}
-                    </p>
-                    <p className="text-gray-800 text-sm font-bold mt-0.5">
-                      {value}
-                    </p>
+              <div className="p-5 gap-4">
+                {/* 구장 정보, 팀 역사 */}
+                <div className="p-5 grid grid-cols-2 gap-4">
+                  <div className="bg-withe rounded-2xl shadow-sm border border-gray-100 p-5">
+                    <div className="flex items-center gap-2 mb-5">
+                      <div
+                        className="w-1 h-5 rounded-full"
+                        style={{ background: primary }}
+                      />
+                      <h3 className="text-gray-800 text-sm font-extrabold">
+                        구장 정보
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { label: "구장명", value: team.stadium.name },
+                        { label: "위치", value: team.city },
+                        {
+                          label: "수용인원",
+                          value: `${team.stadium.capacity.toLocaleString()}명`,
+                        },
+                        { label: "개장", value: `${team.stadium.openYear}년` },
+                        { label: "그라운드", value: team.stadium.surface },
+                        { label: "형태", value: team.stadium.roofType },
+                      ].map(({ label, value }) => (
+                        <div key={label}>
+                          <p className="text-gray-400 text-[10px] font-semibold">
+                            {label}
+                          </p>
+                          <p className="text-gray-800 text-sm font-bold mt-0.5">
+                            {value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                  <div className="bg-withe rounded-2xl shadow-sm border border-gray-100 p-5">
+                    <div className="flex items-center gap-2 mb-5">
+                      <div
+                        className="w-1 h-5 rounded-full"
+                        style={{ background: primary }}
+                      />
+                      <h3 className="text-gray-800 text-sm font-extrabold">
+                        팀 역사
+                      </h3>
+                    </div>
+                    <HistoryTab history={team.history} teamColor={primary} />
+                  </div>
+                </div>
+                {/* 우승 연도 */}
+                {team.championshipYears.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div
+                        className="w-1 h-5 rounded-full"
+                        style={{ background: "#F59E0B" }}
+                      />
+                      <h3 className="text-gray-800 text-sm font-extrabold">
+                        🏆 한국시리즈 우승
+                        <span
+                          className="ml-1.5 font-black"
+                          style={{ color: "#F59E0B" }}
+                        >
+                          {team.championships}회
+                        </span>
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {team.championshipYears.map((y) => (
+                        <span
+                          key={y}
+                          className="px-2.5 py-1 rounded-full text-xs font-black"
+                          style={{
+                            background: "#FEF3C7",
+                            color: "#92400E",
+                            border: "1px solid #FDE68A",
+                          }}
+                        >
+                          {y}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* 우승 연도 */}
-            {team.championshipYears.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div
-                    className="w-1 h-5 rounded-full"
-                    style={{ background: "#F59E0B" }}
-                  />
-                  <h3 className="text-gray-800 text-sm font-extrabold">
-                    🏆 한국시리즈 우승
-                    <span
-                      className="ml-1.5 font-black"
-                      style={{ color: "#F59E0B" }}
-                    >
-                      {team.championships}회
-                    </span>
-                  </h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {team.championshipYears.map((y) => (
-                    <span
-                      key={y}
-                      className="px-2.5 py-1 rounded-full text-xs font-black"
-                      style={{
-                        background: "#FEF3C7",
-                        color: "#92400E",
-                        border: "1px solid #FDE68A",
-                      }}
-                    >
-                      {y}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* 팀 스탯 분석 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -427,9 +452,6 @@ export default function TeamDetail({
                 <>
                   {/* ── 상단: 레이더 + 6개 주요 스탯 ── */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start mb-6">
-                    {/* 레이더 차트
-                        ★ 크기 조정: max-w-[값] 숫자를 바꾸면 차트 크기가 바뀜
-                           현재 max-w-[220px] → 더 크게: max-w-[280px], 더 작게: max-w-[160px] */}
                     <div
                       className="rounded-2xl p-3 flex justify-center"
                       style={{ background: "#0f172a" }}
@@ -568,17 +590,14 @@ export default function TeamDetail({
           </div>
         )}
 
-        {activeTab === "히스토리" && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="flex items-center gap-2 mb-5">
-              <div
-                className="w-1 h-5 rounded-full"
-                style={{ background: primary }}
-              />
-              <h3 className="text-gray-800 text-sm font-extrabold">팀 역사</h3>
-            </div>
-            <HistoryTab history={team.history} teamColor={primary} />
-          </div>
+        {/* 뎁스 탭 — fetch·캐시·시즌토글 모두 TeamDepthTab 내부에서 처리 */}
+        {activeTab === "포지션" && (
+          <TeamDepthTab
+            teamId={team.id}
+            primary={primary}
+            accent={tc.accent}
+            onSelectPlayer={onSelectPlayer}
+          />
         )}
 
         {activeTab === "응원가" && (

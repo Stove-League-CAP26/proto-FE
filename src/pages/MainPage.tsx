@@ -1,7 +1,7 @@
 // src/pages/MainPage.tsx
 // 메인 페이지 — 경기일정 / 리그순위 / 뉴스 / 유튜브 / 중계사이트
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
@@ -21,7 +21,6 @@ import {
 } from "@/api/gameApi";
 import {
   YOUTUBE_CHANNELS,
-  TEAM_FAN_CHANNELS,
   BROADCAST_SITES,
   COMMUNITY_LINKS,
 } from "@/mock/homeData";
@@ -99,9 +98,10 @@ const TEAM_NAME_TO_IMAGE: Record<string, string> = {
   키움: "/images/teams/kiwoom.png",
 };
 
-// ── 선수 이미지 URL ───────────────────────────────────────────────────────────
-function getPlayerImageUrl(pcode: string): string {
-  return `https://koreabaseball.com/DATA/Player/2026/${pcode}.gif`;
+// ── 선수 이미지 URL — 네이버 CDN (팀 페이지 PlayerAvatar와 동일) ────────────
+function getPlayerImageUrl(pcode: string, year: number = 2026): string {
+  if (!pcode) return "";
+  return `https://6ptotvmi5753.edge.naverncp.com/KBO_IMAGE/person/kbo/${year}/${pcode}.png`;
 }
 
 // ── 선수 아바타 ───────────────────────────────────────────────────────────────
@@ -117,6 +117,40 @@ function PlayerAvatar({
   onClick?: () => void;
 }) {
   const dim = size === "md" ? "w-14 h-14" : "w-10 h-10";
+  const YEARS = [2026, 2025, 2024, 2023];
+  const [yearIdx, setYearIdx] = React.useState(0);
+  const [failed, setFailed] = React.useState(false);
+
+  // pcode 변경 시 초기화
+  React.useEffect(() => {
+    setYearIdx(0);
+    setFailed(false);
+  }, [pcode]);
+
+  // pcode 없으면 이니셜만 표시
+  if (!pcode) {
+    return (
+      <button
+        onClick={onClick}
+        title={name}
+        className={`${dim} rounded-full bg-gray-200 border-2 border-white shadow flex-shrink-0 flex items-center justify-center ${
+          onClick
+            ? "cursor-pointer hover:scale-110 transition-transform"
+            : "cursor-default"
+        }`}
+      >
+        <span style={{ fontSize: 11, color: "#9ca3af" }}>
+          {name.slice(0, 1)}
+        </span>
+      </button>
+    );
+  }
+
+  const handleImgError = () => {
+    if (yearIdx < YEARS.length - 1) setYearIdx((i) => i + 1);
+    else setFailed(true);
+  };
+
   return (
     <button
       onClick={onClick}
@@ -127,19 +161,28 @@ function PlayerAvatar({
       }`}
       title={name}
     >
-      <img
-        src={getPlayerImageUrl(pcode)}
-        alt={name}
-        className="w-full h-full object-cover object-top"
-        onError={(e) => {
-          const img = e.currentTarget;
-          const parent = img.parentElement;
-          if (parent) {
-            parent.style.background = "#e5e7eb";
-            parent.innerHTML = `<span style="font-size:11px;color:#9ca3af;display:flex;align-items:center;justify-content:center;height:100%;width:100%">${name.slice(0, 1)}</span>`;
-          }
-        }}
-      />
+      {failed ? (
+        <span
+          style={{
+            fontSize: 11,
+            color: "#9ca3af",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            width: "100%",
+          }}
+        >
+          {name.slice(0, 1)}
+        </span>
+      ) : (
+        <img
+          src={getPlayerImageUrl(pcode, YEARS[yearIdx])}
+          alt={name}
+          className="w-full h-full object-cover object-top"
+          onError={handleImgError}
+        />
+      )}
     </button>
   );
 }
@@ -155,9 +198,7 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
 
   const isResult =
     !game.cancel &&
-    game.statusCode !== "BEFORE" &&
-    game.statusCode !== "LIVE" &&
-    game.statusCode !== "STARTED";
+    (game.statusCode === "RESULT" || game.statusCode === "DONE");
   const isLive = game.statusCode === "LIVE" || game.statusCode === "STARTED";
   const isCancel = game.cancel;
   const homeWin = game.winner === "HOME";
@@ -300,11 +341,13 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
           {homeWin ? homeTeamName : awayTeamName} 승리
         </div>
       )}
-      {isResult && game.winner === "DRAW" && (
-        <div className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-bold text-gray-500 bg-gray-100">
-          무승부
-        </div>
-      )}
+      {isResult &&
+        game.winner === "DRAW" &&
+        (game.homeTeamScore > 0 || game.awayTeamScore > 0) && (
+          <div className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-bold text-gray-500 bg-gray-100">
+            무승부
+          </div>
+        )}
 
       {isResult && game.winPitcherName && (
         <div className="mx-3 mb-2 text-center">
@@ -425,23 +468,29 @@ function LineScoreModal({
               <span className="text-xs font-bold text-gray-600">
                 {awayTeamName}
               </span>
-              <span className="text-xs text-gray-400">
-                {score?.awayHit ?? "-"}안타
-              </span>
+              {game.statusCode !== "BEFORE" && (
+                <span className="text-xs text-gray-400">
+                  {score?.awayHit ?? "-"}안타
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <span
                 className="text-5xl font-black"
                 style={{ color: awayColor }}
               >
-                {score?.awayScore ?? game.awayTeamScore}
+                {loading || game.statusCode === "BEFORE"
+                  ? "-"
+                  : (score?.awayScore ?? game.awayTeamScore)}
               </span>
               <span className="text-2xl text-gray-200 font-bold">:</span>
               <span
                 className="text-5xl font-black"
                 style={{ color: homeColor }}
               >
-                {score?.homeScore ?? game.homeTeamScore}
+                {loading || game.statusCode === "BEFORE"
+                  ? "-"
+                  : (score?.homeScore ?? game.homeTeamScore)}
               </span>
             </div>
             <div className="flex flex-col items-center gap-1.5 flex-1">
@@ -456,14 +505,22 @@ function LineScoreModal({
               <span className="text-xs font-bold text-gray-600">
                 {homeTeamName}
               </span>
-              <span className="text-xs text-gray-400">
-                {score?.homeHit ?? "-"}안타
-              </span>
+              {game.statusCode !== "BEFORE" && (
+                <span className="text-xs text-gray-400">
+                  {score?.homeHit ?? "-"}안타
+                </span>
+              )}
             </div>
           </div>
 
           {/* 라인스코어 테이블 */}
-          {loading ? (
+          {game.statusCode === "BEFORE" ? (
+            <div className="mx-5 mb-4 py-3 bg-blue-50 rounded-xl text-center">
+              <p className="text-xs font-bold text-blue-400">
+                경기 전 — 아직 시작되지 않았습니다
+              </p>
+            </div>
+          ) : loading ? (
             <div className="h-16 mx-5 mb-4 bg-gray-100 rounded-xl animate-pulse" />
           ) : innings.length > 0 ? (
             <div className="px-5 mb-4 overflow-x-auto">
@@ -941,17 +998,28 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
     }
   };
 
+  const [pendingGame, setPendingGame] = useState<GameInfo | null>(null); // 로딩 중 대기 게임
+
   const handleGameClick = async (game: GameInfo) => {
-    setSelectedGame(game);
+    // 취소 경기
+    if (game.cancel) {
+      setGameScore(null);
+      setSelectedGame(game);
+      return;
+    }
+    // 로딩 시작 — 모달은 아직 열지 않음 (카드에 스피너)
+    setPendingGame(game);
     setGameScore(null);
     setScoreLoading(true);
     try {
       const score = await fetchGameScore(game.gameId);
       setGameScore(score);
     } catch {
-      // 스코어 없어도 모달 표시
+      // fetch 실패해도 모달 표시
     } finally {
       setScoreLoading(false);
+      setSelectedGame(game); // 로드 완료 후 모달 오픈
+      setPendingGame(null);
     }
   };
 
@@ -1077,11 +1145,19 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {games.map((g) => (
-              <GameCard
-                key={g.gameId}
-                game={g}
-                onClick={() => handleGameClick(g)}
-              />
+              <div key={g.gameId} className="relative">
+                <GameCard
+                  game={g}
+                  onClick={() => {
+                    if (!pendingGame) handleGameClick(g);
+                  }}
+                />
+                {pendingGame?.gameId === g.gameId && (
+                  <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center z-10">
+                    <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -1094,7 +1170,25 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
           <div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />
         ) : (
           <>
-            <StandingsTable standings={displayedStandings} />
+            <StandingsTable
+              standings={displayedStandings}
+              onTeamClick={(teamName) => {
+                const ID_MAP: Record<string, string> = {
+                  LG: "lg",
+                  KT: "kt",
+                  SSG: "ssg",
+                  NC: "nc",
+                  두산: "doosan",
+                  KIA: "kia",
+                  롯데: "lotte",
+                  삼성: "samsung",
+                  한화: "hanwha",
+                  키움: "kiwoom",
+                };
+                const id = ID_MAP[teamName];
+                if (id) navigate("/team", { state: { teamId: id } });
+              }}
+            />
             <button
               onClick={() => setShowAllStandings((v) => !v)}
               className="w-full mt-2 py-2.5 text-xs font-bold text-gray-400 hover:text-gray-600 bg-white rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors"
@@ -1229,43 +1323,7 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
         </div>
       </section>
 
-      {/* ══ 섹션 5: 팀별 편파 채널 */}
-      <section>
-        <SectionHeader
-          title="팀별 편파 채널"
-          subtitle="팬들의 편파 해설"
-          color="#8B5CF6"
-        />
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-          {Object.entries(TEAM_FAN_CHANNELS).map(([team, ch]) => {
-            const tc = TEAM_COLORS[team];
-            return (
-              <a
-                key={team}
-                href={ch.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 bg-white rounded-xl border border-gray-100 shadow-sm px-3 py-2.5 hover:shadow-md transition-all"
-              >
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-black flex-shrink-0"
-                  style={{ backgroundColor: tc?.bg ?? "#64748b" }}
-                >
-                  {team.slice(0, 2)}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-gray-700 truncate">
-                    {ch.name}
-                  </p>
-                  <p className="text-[10px] text-gray-400">{ch.emoji}</p>
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ══ 섹션 6: 중계 사이트 */}
+      {/* ══ 섹션 5: 중계 사이트 */}
       <section>
         <SectionHeader
           title="중계 사이트"
