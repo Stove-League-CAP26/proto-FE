@@ -9,19 +9,20 @@ import {
   type TeamDepthResponse,
   type DepthPlayerEntry,
 } from "@/api/teamDepthApi";
+import position_fieldImg from "@/assets/position_field.png";
 
 // ── 포지션 → 필드 좌표 (SVG viewBox 0 0 220 200 기준) ──────────
 const FIELD_POSITIONS: Record<string, { x: number; y: number }> = {
-  LF: { x: 44, y: 68 },
-  CF: { x: 110, y: 36 },
-  RF: { x: 176, y: 68 },
-  SS: { x: 78, y: 102 },
-  "2B": { x: 138, y: 96 },
-  "1B": { x: 158, y: 118 },
-  "3B": { x: 62, y: 118 },
-  C: { x: 110, y: 158 },
-  DH: { x: 110, y: 182 },
-  P: { x: 110, y: 110 }, // 마운드
+  LF: { x: 44, y: 115 },
+  CF: { x: 110, y: 100 },
+  RF: { x: 176, y: 115 },
+  SS: { x: 78, y: 130 },
+  "2B": { x: 138, y: 130 },
+  "1B": { x: 168, y: 155 },
+  "3B": { x: 52, y: 155 },
+  C: { x: 110, y: 185 },
+  DH: { x: 150, y: 190 },
+  P: { x: 110, y: 155 }, // 마운드
 };
 
 const POS_KO: Record<string, string> = {
@@ -134,63 +135,12 @@ function FieldChart({
 
       <div className="relative w-full" style={{ paddingBottom: "82%" }}>
         <div className="absolute inset-0">
-          <svg
-            viewBox="0 0 220 210"
-            className="w-full h-full"
-            style={{ display: "block" }}
-          >
-            {/* 외야 잔디 */}
-            <path d="M110,206 L6,92 Q110,4 214,92 Z" fill="#3a7d3a" />
-            {/* 내야 흙 */}
-            <path d="M110,160 L56,110 L110,62 L164,110 Z" fill="#c8a26a" />
-            {/* 내야 잔디 원 */}
-            <circle cx="110" cy="110" r="32" fill="#3a7d3a" />
-            {/* 파울라인 */}
-            <line
-              x1="110"
-              y1="206"
-              x2="6"
-              y2="92"
-              stroke="white"
-              strokeWidth="1"
-              opacity="0.3"
-            />
-            <line
-              x1="110"
-              y1="206"
-              x2="214"
-              y2="92"
-              stroke="white"
-              strokeWidth="1"
-              opacity="0.3"
-            />
-            {/* 베이스 */}
-            {(
-              [
-                [110, 62],
-                [164, 110],
-                [110, 160],
-                [56, 110],
-              ] as [number, number][]
-            ).map(([x, y], i) => (
-              <rect
-                key={i}
-                x={x - 5}
-                y={y - 5}
-                width="10"
-                height="10"
-                fill="white"
-                transform={`rotate(45,${x},${y})`}
-              />
-            ))}
-            {/* 홈플레이트 */}
-            <polygon
-              points="107,169 113,169 116,175 110,180 104,175"
-              fill="white"
-            />
-            {/* 마운드 */}
-            <ellipse cx="110" cy="110" rx="6" ry="5" fill="#c8a26a" />
-          </svg>
+          {/* 배경 필드 이미지 */}
+          <img
+            src={position_fieldImg}
+            alt="baseball field"
+            className="absolute inset-0 w-full h-full "
+          />
 
           {/* 선수 오버레이 — 투수 포함 전체 포지션 */}
           {ALL_FIELD_POSITIONS.map((pos) => {
@@ -239,7 +189,7 @@ function FieldChart({
                 </div>
                 <span
                   className="font-semibold drop-shadow"
-                  style={{ fontSize: 7, color: "rgba(255,255,255,0.7)" }}
+                  style={{ fontSize: 8, color: "rgb(0, 0, 0)" }}
                 >
                   {POS_KO[pos] ?? pos}
                 </span>
