@@ -14,13 +14,6 @@ interface RosterSectionProps {
   defaultExpanded?: boolean;
 }
 
-const POSITION_ICONS: Record<PositionGroup, string> = {
-  투수: "⚾",
-  포수: "🥎",
-  내야수: "🏟️",
-  외야수: "🌿",
-};
-
 export default function RosterSection({
   title,
   players,
@@ -44,7 +37,6 @@ export default function RosterSection({
           className="w-1.5 h-6 rounded-full flex-shrink-0"
           style={{ background: teamColor }}
         />
-        <span className="text-lg leading-none">{POSITION_ICONS[title]}</span>
         <h4 className="text-sm font-extrabold text-gray-800">{title}</h4>
         <span
           className="text-[11px] font-bold px-2 py-0.5 rounded-full ml-0.5"

@@ -132,7 +132,7 @@ function TeamFullStatTable({
               background: tab === t ? `${primary}06` : "#f8fafc",
             }}
           >
-            {t === "batting" ? "⚔️ 팀 타격" : "🛡️ 팀 투수"}
+            {t === "batting" ? "공격 팀 타격" : "수비 팀 투수"}
           </button>
         ))}
       </div>
@@ -287,8 +287,6 @@ export default function TeamDetail({
                 <span className="text-gray-400 text-xs">
                   창단 {team.founded}
                 </span>
-                <span className="text-gray-300 text-xs">·</span>
-                <span className="text-gray-400 text-xs">{team.mascotName}</span>
               </div>
             </div>
           </div>
@@ -582,9 +580,6 @@ export default function TeamDetail({
                 style={{ background: primary }}
               />
               <h3 className="text-gray-800 text-sm font-extrabold">선수단</h3>
-              <span className="ml-auto text-gray-400 text-xs">
-                선수 클릭 → 선수 프로필
-              </span>
             </div>
             <RosterTab team={team} onSelectPlayer={onSelectPlayer} />
           </div>

@@ -143,12 +143,6 @@ export default function RosterTab({ team, onSelectPlayer }: RosterTabProps) {
             {yr} 시즌
           </button>
         ))}
-        {/* 데이터 출처 배지 */}
-        {!loading && (
-          <span className="ml-auto text-[10px] text-slate-600">
-            {usingMock ? "📋 mock 데이터" : "🔗 DB 연동"}
-          </span>
-        )}
       </div>
 
       {/* 로딩 스켈레톤 */}
