@@ -188,7 +188,7 @@ function FieldChart({
                   ))}
                 </div>
                 <span
-                  className="font-semibold drop-shadow"
+                  className="font-semibold drop-shadow bg-gray-100 rounded p-0.5"
                   style={{ fontSize: 8, color: "rgb(0, 0, 0)" }}
                 >
                   {POS_KO[pos] ?? pos}
@@ -230,9 +230,6 @@ function PlayerCard({
         >
           {p.playerName}
         </p>
-        <p className="text-[9px] text-gray-400 font-semibold leading-tight">
-          {p.position}
-        </p>
       </div>
     </button>
   );
@@ -256,12 +253,12 @@ function PosRow({
       {/* 포지션 라벨 */}
       <div className="w-14 flex-shrink-0 pt-1">
         <span
-          className="text-[10px] font-black px-1.5 py-0.5 rounded"
+          className="text-[12px] font-black px-1.5 py-0.5 rounded"
           style={{ background: `${primary}15`, color: primary }}
         >
           {pos}
         </span>
-        <p className="text-[9px] text-gray-400 mt-0.5 leading-tight">
+        <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">
           {POS_KO[pos] ?? pos}
         </p>
       </div>

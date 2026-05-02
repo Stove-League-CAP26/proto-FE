@@ -17,13 +17,13 @@ export const RADAR_AXES = [
   { key: "OPS", label: "OPS", sub: "OPS" },
 ] as const;
 
-export const HISTORY_META: Record<string, { icon: string; color: string }> = {
-  founded: { icon: "🏟️", color: "#10B981" },
-  rename: { icon: "📋", color: "#6366F1" },
-  championship: { icon: "🏆", color: "#F59E0B" },
-  retired: { icon: "🔒", color: "#EC4899" },
-  stadium: { icon: "🏗️", color: "#3B82F6" },
-  relocation: { icon: "📍", color: "#8B5CF6" },
+export const HISTORY_META: Record<string, { color: string }> = {
+  founded: { color: "#10B981" },
+  rename: { color: "#6366F1" },
+  championship: { color: "#F59E0B" },
+  retired: { color: "#EC4899" },
+  stadium: { color: "#3B82F6" },
+  relocation: { color: "#8B5CF6" },
 };
 
 export const POS_COLORS: Record<string, string> = {
