@@ -669,13 +669,21 @@ export const KBO_TEAMS: Team[] = [
 
 // ── 지도 좌우 패널 분리 ────────────────────────────────────────────
 
-export const LEFT_TEAMS: Team[] = KBO_TEAMS.filter((t) =>
-  ["hanwha", "lotte", "nc", "kia", "kt"].includes(t.id),
+const findTeam = (id: string) => KBO_TEAMS.find((t) => t.id === id)!;
+
+// 수도권 — 원하는 순서대로
+export const LEFT_TEAMS: Team[] = ["lg", "doosan", "kiwoom", "ssg", "kt"].map(
+  findTeam,
 );
 
-export const RIGHT_TEAMS: Team[] = KBO_TEAMS.filter((t) =>
-  ["samsung", "doosan", "lg", "ssg", "kiwoom"].includes(t.id),
-);
+// 비수도권 — 원하는 순서대로
+export const RIGHT_TEAMS: Team[] = [
+  "hanwha",
+  "samsung",
+  "kia",
+  "nc",
+  "lotte",
+].map(findTeam);
 
 // ── 스탯 정규화 (레이더 차트용, 0~100) ───────────────────────────────
 

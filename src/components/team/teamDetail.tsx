@@ -210,6 +210,11 @@ export default function TeamDetail({
   const tc = team.colors;
   const primary = tc.primary;
 
+  // 팀 디테일 진입 시 스크롤 최상단으로 초기화
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [team.id]);
+
   useEffect(() => {
     setStatsLoading(true);
     setTeamStats(null);
