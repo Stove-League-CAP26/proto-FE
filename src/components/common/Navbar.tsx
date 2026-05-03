@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { path: "/best", label: "BEST 플레이어" },
   { path: "/compare", label: "선수 비교" },
   { path: "/team", label: "팀 페이지" },
+  { path: "/ai-test", label: "AI 테스트" }, // AI 테스트
 ];
 
 interface NavbarProps {

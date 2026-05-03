@@ -8,6 +8,7 @@ import ComparePage from "./pages/ComparePage";
 import TeamPage from "./pages/TeamPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import AiTestPage from "./pages/AiTestPage"; // ai 테스트용
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +21,7 @@ export const router = createBrowserRouter([
       { path: "/team", element: <TeamPage /> },
       { path: "/login", element: <LoginPage /> },
       { path: "/signup", element: <SignupPage /> },
+      { path: "/ai-test", element: <AiTestPage /> }, // ai 테스트용
     ],
   },
 ]);
