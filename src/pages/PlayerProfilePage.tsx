@@ -7,7 +7,6 @@ import HotColdTab from "@/components/profile/Hitter/HotCold/HotColdTab";
 import PitchZoneTab from "@/components/profile/Pitcher/PitchZone/PitchZoneTab";
 import HitterStatcastTab from "@/components/profile/Hitter/Statcast/HitterStatcastTab";
 import PitcherStatcastTab from "@/components/profile/Pitcher/Statcast/PitcherStatcastTab";
-import NaverSeasonStatsSection from "@/components/profile/NaverSeasonStatsSection";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   searchPlayersByName,
@@ -410,26 +409,6 @@ export default function PlayerProfilePage() {
             </section>
           </>
         )}
-
-        {/* ── 신규: 시즌별 스탯 (네이버 API) ──────────────────────────── */}
-        <section>
-          <div className="flex items-center gap-2 mb-4">
-            <span
-              className={`w-1 h-5 rounded-full inline-block ${pitcher ? "bg-orange-400" : "bg-blue-400"}`}
-            />
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-widest">
-              시즌 기록
-            </h2>
-            <span className="ml-2 text-[10px] text-gray-300 font-normal">
-              2024–2026
-            </span>
-          </div>
-          <NaverSeasonStatsSection
-            pid={playerBasic.pid}
-            playerType={playerType}
-            accentColor={heroAccent}
-          />
-        </section>
       </div>
     </div>
   );
