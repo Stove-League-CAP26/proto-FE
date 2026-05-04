@@ -1,10 +1,6 @@
 // 선수 프로필 관련 유틸 함수 모음
 import type { HitterStat, PitcherStat } from "@/types/playerStats";
 
-// ─────────────────────────────────────────────────────────────
-// 투수 판별
-// "투수(좌투좌타)", "pitcher", "P", "선발", "불펜", "마무리" 등 모두 커버
-// ─────────────────────────────────────────────────────────────
 export function isPitcher(playerMPosition: string | undefined | null): boolean {
   if (!playerMPosition) return false;
   const pos = playerMPosition.toLowerCase().trim();
@@ -19,9 +15,6 @@ export function isPitcher(playerMPosition: string | undefined | null): boolean {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// 숫자 포맷 유틸
-// ─────────────────────────────────────────────────────────────
 export function fmtAvg(v: number | null | undefined) {
   return v != null ? v.toFixed(3) : "-";
 }
@@ -35,46 +28,62 @@ export function fmtWpct(v: number | null | undefined) {
   return v != null ? v.toFixed(3) : "-";
 }
 
-// ─────────────────────────────────────────────────────────────
-// 백엔드 radar API 응답(영어 키) → 한글 라벨 변환
-// ─────────────────────────────────────────────────────────────
-
+// ── 타자 레이더 레이블 ───────────────────────────────────────────────────────
+// A안: 파워 · 컨택 · 장타 · 스피드 · 생산 · 눈
 const HITTER_RADAR_LABEL: Record<string, string> = {
-  power: "파워",
   contact: "컨택",
-  extra: "장타력",
-  speed: "스피드",
-  contrib: "생산성",
   eye: "선구안",
+  speed: "스피드",
+  power: "파워",
+  contrib: "생산성",
+  ops: "OPS",
 };
 
+// ── 투수 레이더 레이블 ───────────────────────────────────────────────────────
+// A안: 구위 · 제구 · 삼진 · 내구 · 피홈런 · 피안타
 const PITCHER_RADAR_LABEL: Record<string, string> = {
-  strikeout: "삼진",
-  eraControl: "구위",
-  control: "제구",
+  era: "구위", // ERA 역정규화
+  whip: "WHIP",
   hrControl: "장타억제",
-  stamina: "내구성",
   hitControl: "피안타억제",
+  control: "제구",
+  strikeout: "삼진",
 };
 
-/** 타자 레이더 응답 → 한글 키 Record (style 제외) */
+// 표시 순서 고정 (육각형 배치: 12시부터 시계방향)
+const HITTER_ORDER = ["컨택", "선구안", "스피드", "파워", "생산성", "OPS"];
+const PITCHER_ORDER = [
+  "구위",
+  "WHIP",
+  "장타억제",
+  "피안타억제",
+  "제구",
+  "삼진",
+];
+
 export function mapHitterRadar(
   raw: Record<string, number | string>,
 ): Record<string, number> {
-  return Object.fromEntries(
+  const mapped = Object.fromEntries(
     Object.entries(raw)
-      .filter(([k]) => k !== "style")
+      //.filter(([k]) => k !== "style")
       .map(([k, v]) => [HITTER_RADAR_LABEL[k] ?? k, v as number]),
+  );
+  // 순서 정렬
+  return Object.fromEntries(
+    HITTER_ORDER.filter((k) => k in mapped).map((k) => [k, mapped[k]]),
   );
 }
 
-/** 투수 레이더 응답 → 한글 키 Record (style 제외) */
 export function mapPitcherRadar(
   raw: Record<string, number | string>,
 ): Record<string, number> {
-  return Object.fromEntries(
+  const mapped = Object.fromEntries(
     Object.entries(raw)
-      .filter(([k]) => k !== "style")
+      //.filter(([k]) => k !== "style")
       .map(([k, v]) => [PITCHER_RADAR_LABEL[k] ?? k, v as number]),
+  );
+  return Object.fromEntries(
+    PITCHER_ORDER.filter((k) => k in mapped).map((k) => [k, mapped[k]]),
   );
 }

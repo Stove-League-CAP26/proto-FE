@@ -8,6 +8,7 @@ import TeamPage from "@/pages/TeamPage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import MainPage from "@/pages/MainPage";
+import AiTestPage from "@/pages/AiTestPage"; //ai 연동 테스트 페이지
 
 type Page =
   | "main"
@@ -98,6 +99,7 @@ export default function App() {
       {currentPage === "team" && (
         <TeamPage onSelectPlayer={handleSelectPlayer} />
       )}
+      {currentPage === "ai-test" && <AiTestPage />}
 
       {/* 푸터 - 인증 페이지에서는 숨김 */}
       {!isAuthPage && (

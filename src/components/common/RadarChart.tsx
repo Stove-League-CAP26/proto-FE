@@ -1,131 +1,178 @@
-// 선수/팀 능력치를 육각형 레이더 차트로 시각화하는 공통 컴포넌트
-// theme="light" : 프로필 페이지용 (어두운 배경, 파란 그라디언트)
-// theme="dark"  : 팀 페이지용 (어두운 배경, 골드/레드 그라디언트)
+// 선수/팀 능력치 육각형 레이더 차트 — 팀 페이지 스타일 통일
+// accentColor: 선수 팀컬러 or heroAccent 전달 → HSL 보정 후 렌더링
 
 interface RadarChartProps {
   data: Record<string, number>;
-  theme?: "light" | "dark";
+  theme?: "light" | "dark"; // 하위호환 유지 (현재는 accentColor 우선)
+  accentColor?: string; // 선수/팀 컬러
 }
 
-export default function RadarChart({ data, theme = "light" }: RadarChartProps) {
+const SIZE = 320;
+const CX = SIZE / 2;
+const CY = SIZE / 2;
+const R = 108;
+const LEVELS = 5;
+
+function polar(angleDeg: number, r: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
+}
+
+// 팀 페이지 TeamRadarChart와 동일한 HSL 보정 함수
+function safeColor(hex: string): string {
+  if (!hex || !hex.startsWith("#") || hex.length < 7) return "hsl(220,65%,62%)";
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b);
+  let h = 0,
+    s = 0,
+    l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r:
+        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        break;
+      case g:
+        h = ((b - r) / d + 2) / 6;
+        break;
+      case b:
+        h = ((r - g) / d + 4) / 6;
+        break;
+    }
+  }
+  return `hsl(${Math.round(h * 360)},65%,62%)`;
+}
+
+export default function RadarChart({
+  data,
+  theme = "light",
+  accentColor,
+}: RadarChartProps) {
   const keys = Object.keys(data);
   const vals = Object.values(data);
   const N = keys.length;
-  const cx = 160,
-    cy = 160,
-    r = 110;
+  if (N === 0) return null;
 
-  const angleOf = (i: number) => (Math.PI * 2 * i) / N - Math.PI / 2;
-  const ptOf = (i: number, val: number) => {
-    const a = angleOf(i);
-    const d = (val / 100) * r;
-    return { x: cx + d * Math.cos(a), y: cy + d * Math.sin(a) };
-  };
+  const angleStep = 360 / N;
 
-  const dp = vals.map((v, i) => ptOf(i, v));
-  const poly =
-    dp.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ") + " Z";
+  // 색상 결정: accentColor 우선, 없으면 theme 기반
+  const baseColor = accentColor
+    ? safeColor(accentColor)
+    : theme === "dark"
+      ? "hsl(38,90%,60%)"
+      : "hsl(220,65%,62%)";
 
-  const gradId = theme === "dark" ? "radarGradDark" : "radarGradLight";
-  const gradFrom = theme === "dark" ? "#f59e0b" : "#3b82f6";
-  const gradTo = theme === "dark" ? "#ef4444" : "#06b6d4";
-  const strokeColor = theme === "dark" ? "#f59e0b" : "#60a5fa";
-  const dotColor = theme === "dark" ? "#f59e0b" : "#60a5fa";
-  const labelColor = theme === "dark" ? "#fbbf24" : "#93c5fd";
-  const valColor = theme === "dark" ? "#ffffff80" : "#ffffff60";
+  const colorA = baseColor; // 선 + 점
+  const colorFill = baseColor.replace("hsl(", "hsla(").replace(")", ",0.25)");
+
+  // 그리드 다각형 좌표
+  const gridPolygons = Array.from({ length: LEVELS }, (_, li) => {
+    const ratio = (li + 1) / LEVELS;
+    return keys
+      .map((_, i) => {
+        const p = polar(i * angleStep, R * ratio);
+        return `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+      })
+      .join(" ");
+  });
+
+  // 데이터 폴리곤
+  const dataPoints = vals.map((v, i) => polar(i * angleStep, (v / 100) * R));
+  const dataPoly = dataPoints
+    .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+    .join(" ");
+
+  // 라벨 위치
+  const labelR = R + 30;
+
+  const gradId = `rg-${Math.random().toString(36).slice(2, 7)}`;
 
   return (
-    <svg viewBox="0 0 320 320" className="w-full h-full">
+    <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full h-full">
       <defs>
-        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor={gradFrom} stopOpacity="0.7" />
-          <stop offset="100%" stopColor={gradTo} stopOpacity="0.7" />
-        </linearGradient>
+        <radialGradient id={gradId} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor={colorA} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={colorA} stopOpacity="0.08" />
+        </radialGradient>
       </defs>
 
       {/* 배경 */}
-      <rect width="320" height="320" fill="#1a1a2e" rx="16" />
+      <rect width={SIZE} height={SIZE} fill="#1a1a2e" rx="16" />
 
-      {/* 그리드 */}
-      {[20, 40, 60, 80, 100].map((lv) => (
+      {/* 그리드 다각형 */}
+      {gridPolygons.map((pts, li) => (
         <polygon
-          key={lv}
-          points={keys
-            .map((_, i) => {
-              const p = ptOf(i, lv);
-              return `${p.x},${p.y}`;
-            })
-            .join(" ")}
-          fill="none"
-          stroke="#ffffff20"
-          strokeWidth="1"
+          key={li}
+          points={pts}
+          fill={li === LEVELS - 1 ? "rgba(255,255,255,0.02)" : "none"}
+          stroke="rgba(255,255,255,0.12)"
+          strokeWidth="0.8"
         />
       ))}
 
-      {/* 축 */}
+      {/* 축 선 */}
       {keys.map((_, i) => {
-        const p = ptOf(i, 100);
+        const end = polar(i * angleStep, R);
         return (
           <line
             key={i}
-            x1={cx}
-            y1={cy}
-            x2={p.x}
-            y2={p.y}
-            stroke="#ffffff15"
-            strokeWidth="1"
+            x1={CX}
+            y1={CY}
+            x2={end.x.toFixed(2)}
+            y2={end.y.toFixed(2)}
+            stroke="rgba(255,255,255,0.10)"
+            strokeWidth="0.8"
           />
         );
       })}
 
-      {/* 폴리곤 */}
-      <path
-        d={poly}
+      {/* 데이터 면 */}
+      <polygon
+        points={dataPoly}
         fill={`url(#${gradId})`}
-        stroke={strokeColor}
-        strokeWidth="2.5"
-        opacity="0.9"
+        stroke={colorA}
+        strokeWidth="2"
+        strokeLinejoin="round"
       />
 
-      {/* 꼭짓점 점 */}
-      {dp.map((p, i) => (
-        <circle
-          key={i}
-          cx={p.x}
-          cy={p.y}
-          r="5"
-          fill={dotColor}
-          stroke="white"
-          strokeWidth="1.5"
-        />
+      {/* 꼭짓점 */}
+      {dataPoints.map((p, i) => (
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r="5.5" fill={colorA} opacity="0.2" />
+          <circle cx={p.x} cy={p.y} r="3" fill={colorA} />
+        </g>
       ))}
 
-      {/* 라벨 */}
+      {/* 라벨 + 수치 */}
       {keys.map((k, i) => {
-        const a = angleOf(i);
-        const lx = cx + (r + 28) * Math.cos(a);
-        const ly = cy + (r + 28) * Math.sin(a);
+        const lp = polar(i * angleStep, labelR);
         return (
           <g key={k}>
             <text
-              x={lx}
-              y={ly}
+              x={lp.x.toFixed(2)}
+              y={(lp.y - 7).toFixed(2)}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize="17"
-              fill={labelColor}
-              fontWeight="700"
+              fontSize="13"
+              fontWeight="800"
+              fill={colorA}
+              style={{ userSelect: "none" }}
             >
               {k}
             </text>
             <text
-              x={lx}
-              y={ly + 16}
+              x={lp.x.toFixed(2)}
+              y={(lp.y + 8).toFixed(2)}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize="15"
-              fill={valColor}
-              fontWeight="600"
+              fontSize="11"
+              fontWeight="700"
+              fill="rgba(255,255,255,0.55)"
+              style={{ userSelect: "none" }}
             >
               {vals[i]}
             </text>

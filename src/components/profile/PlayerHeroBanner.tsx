@@ -24,7 +24,7 @@ interface PlayerHeroBannerProps {
   radarData: HitterRadar | PitcherRadar | null;
   radarLoading: boolean;
 }
-
+/*
 // 스타일 태그별 이모지/색상
 const STYLE_META: Record<string, { emoji: string; color: string; bg: string }> =
   {
@@ -41,7 +41,7 @@ const STYLE_META: Record<string, { emoji: string; color: string; bg: string }> =
     이닝이터: { emoji: "🦣", color: "#3B82F6", bg: "#eff6ff" },
     마무리형: { emoji: "🔒", color: "#8B5CF6", bg: "#f5f3ff" },
   };
-
+*/
 /** radar 응답에서 style 제외한 수치만 추출 */
 function extractRadarValues(
   radar: HitterRadar | PitcherRadar,
@@ -63,6 +63,7 @@ export default function PlayerHeroBanner({
   radarData,
   radarLoading,
 }: PlayerHeroBannerProps) {
+  /*
   const styleMeta = radarData
     ? (STYLE_META[radarData.style] ?? {
         emoji: "⚾",
@@ -70,6 +71,7 @@ export default function PlayerHeroBanner({
         bg: "#f9fafb",
       })
     : null;
+  */
 
   const radarValues = radarData
     ? extractRadarValues(radarData, isPitcherPlayer)
@@ -171,21 +173,20 @@ export default function PlayerHeroBanner({
             </div>
           </div>
 
-          {/* ── 오른쪽: 레이더 차트 + 플레이어 스타일 ── */}
+          {/* ── 오른쪽: 레이더 차트 + 항목별 수치 ── */}
           <div className="lg:col-span-3">
             <div
               className="rounded-2xl overflow-hidden border border-white/10 p-5"
               style={{ background: "rgba(0,0,0,0.25)" }}
             >
               {radarLoading ? (
-                /* 로딩 스켈레톤 */
                 <div className="flex flex-col items-center justify-center h-48 gap-3">
                   <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                   <p className="text-white/30 text-xs">능력치 분석 중...</p>
                 </div>
               ) : radarValues ? (
                 <>
-                  {/* 플레이어 스타일 뱃지 */}
+                  {/* 플레이어 스타일 뱃지 — 주석 처리 (style 제거)
                   {styleMeta && radarData && (
                     <div className="flex items-center justify-between mb-4">
                       <p className="text-xs font-bold text-white/40 uppercase tracking-widest">
@@ -203,11 +204,17 @@ export default function PlayerHeroBanner({
                       </div>
                     </div>
                   )}
+                  */}
+
+                  {/* 2025 리그 기준 안내 */}
+                  <p className="text-[10px] text-white/30 text-right mb-3">
+                    2025 KBO 리그 기준
+                  </p>
 
                   {/* 레이더 차트 + 항목별 수치 */}
                   <div className="grid grid-cols-2 gap-4 items-center">
                     <div className="w-full aspect-square max-w-[225px] mx-auto">
-                      <RadarChart data={radarValues} />
+                      <RadarChart data={radarValues} accentColor={heroAccent} />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.entries(radarValues).map(([k, v]) => (
@@ -237,7 +244,6 @@ export default function PlayerHeroBanner({
                   </div>
                 </>
               ) : (
-                /* 데이터 없음 */
                 <div className="flex flex-col items-center justify-center h-48 gap-2">
                   <p className="text-3xl">📊</p>
                   <p className="text-white/30 text-sm">레이더 데이터 준비 중</p>
