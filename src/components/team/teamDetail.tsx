@@ -206,6 +206,9 @@ export default function TeamDetail({
   );
   const [statsLoading, setStatsLoading] = useState(true);
 
+  // ── 시즌 토글 state (2024 / 2025) ────────────────────────────
+  const [statSeason, setStatSeason] = useState<2024 | 2025>(2025);
+
   const stadiumSrc = team.stadium.imageUrl || `/images/stadium/${team.id}.png`;
   const tc = team.colors;
   const primary = tc.primary;
@@ -215,15 +218,16 @@ export default function TeamDetail({
     window.scrollTo(0, 0);
   }, [team.id]);
 
+  // team.id 또는 statSeason 변경 시 데이터 재조회
   useEffect(() => {
     setStatsLoading(true);
     setTeamStats(null);
     setTeamRadar(null);
 
     Promise.all([
-      fetchTeamStats(team.id, 2025).catch(() => null),
-      fetchTeamRadar(team.id, 2025).catch(() => null),
-      fetchLeagueAverageRadar(2025).catch(() => null),
+      fetchTeamStats(team.id, statSeason).catch(() => null),
+      fetchTeamRadar(team.id, statSeason).catch(() => null),
+      fetchLeagueAverageRadar(statSeason).catch(() => null),
     ])
       .then(([stats, radar, avgRadar]) => {
         setTeamStats(stats);
@@ -231,7 +235,7 @@ export default function TeamDetail({
         setLeagueAvgRadar(avgRadar);
       })
       .finally(() => setStatsLoading(false));
-  }, [team.id]);
+  }, [team.id, statSeason]);
 
   return (
     <div className="min-h-screen" style={{ background: "#f8fafc" }}>
@@ -442,8 +446,27 @@ export default function TeamDetail({
                   style={{ background: primary }}
                 />
                 <h3 className="text-gray-800 text-sm font-extrabold">
-                  2025 팀 스탯 분석
+                  {statSeason} 팀 스탯 분석
                 </h3>
+
+                {/* ── 시즌 토글 버튼 ── */}
+                <div className="flex gap-1 ml-2">
+                  {([2025, 2024] as const).map((yr) => (
+                    <button
+                      key={yr}
+                      onClick={() => setStatSeason(yr)}
+                      className="px-3 py-1 rounded-full text-xs font-black transition-all"
+                      style={
+                        statSeason === yr
+                          ? { background: primary, color: "#ffffff" }
+                          : { background: "#f1f5f9", color: "#64748b" }
+                      }
+                    >
+                      {yr}
+                    </button>
+                  ))}
+                </div>
+
                 <span className="ml-auto text-[10px] text-gray-400">
                   🛡️ ERA · WHIP · 수비 &nbsp;/&nbsp; ⚔️ 도루 · OPS · 타율
                 </span>

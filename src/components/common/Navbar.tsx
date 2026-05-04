@@ -214,7 +214,7 @@ export default function Navbar({
           })}
 
         {/* 우측 프로필 */}
-        <div className="ml-auto relative" onClick={(e) => e.stopPropagation()}>
+        {/* <div className="ml-auto relative" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={onDropdownToggle}
             className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors border border-gray-200"
@@ -274,7 +274,7 @@ export default function Navbar({
               )}
             </div>
           )}
-        </div>
+        </div> */}
       </div>
     </nav>
   );
