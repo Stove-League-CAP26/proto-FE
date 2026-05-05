@@ -269,7 +269,6 @@ function AiModelCard({
         }}
       >
         <div className="flex items-center gap-2.5">
-          {crown && <span className="text-base leading-none">👑</span>}
           <img
             src={imgSrc}
             alt={item.providerLabel}
@@ -285,14 +284,8 @@ function AiModelCard({
             <p className="text-[10px] text-gray-400">{item.provider}</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] text-gray-400 leading-none mb-0.5">
-            적중률
-          </p>
-          <p className="text-lg font-black leading-none" style={{ color }}>
-            {item.totalCount > 0 ? item.winRate.toFixed(3) : "-"}
-          </p>
-        </div>
+
+        {crown && <span className="text-base leading-none">🥇</span>}
       </div>
 
       {/* 최근 5승부예측 결과 (위) */}
