@@ -145,71 +145,78 @@ function FlipGameCard({
             </div>
           )}
 
-          {/* 경기 종료 — 예측 vs 실제 비교 */}
+          {/* 경기 종료 — 2행 레이아웃 */}
           {isResult && (
-            <div className="space-y-1.5">
-              {/* 팀명 헤더 */}
-              <div className="flex items-center justify-between px-0.5">
-                <div className="flex items-center gap-1">
-                  <TeamLogo team={game.awayTeam} size={14} />
-                  <span className="text-[10px] font-bold text-gray-600">
+            <div className="flex flex-col gap-1.5">
+              {/* 1행: 원정팀 | 예측스코어 | 실제스코어 | 홈팀 */}
+              <div className="flex items-center justify-between gap-1">
+                {/* 원정팀 */}
+                <div className="flex flex-col items-center gap-0.5 w-8 shrink-0">
+                  <TeamLogo team={game.awayTeam} size={18} />
+                  <span className="text-[9px] font-bold text-gray-500">
                     {game.awayTeam}
                   </span>
                 </div>
-                {/* 적중 아이콘 */}
-                <span className="text-base">
+
+                {/* 예측 스코어 */}
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-[8px] text-gray-400">예측</span>
+                  <div
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-md"
+                    style={{ background: color + "18" }}
+                  >
+                    <span className="text-xs font-black" style={{ color }}>
+                      {pred.awayScorePred ?? "-"}
+                    </span>
+                    <span className="text-[9px] text-gray-300">:</span>
+                    <span className="text-xs font-black" style={{ color }}>
+                      {pred.homeScorePred ?? "-"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 실제 스코어 */}
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-[8px] text-gray-400">실제</span>
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-gray-100">
+                    <span
+                      className={`text-xs font-black ${game.winner === game.awayTeam ? "text-gray-800" : "text-gray-400"}`}
+                    >
+                      {game.awayScore ?? "-"}
+                    </span>
+                    <span className="text-[9px] text-gray-300">:</span>
+                    <span
+                      className={`text-xs font-black ${game.winner === game.homeTeam ? "text-gray-800" : "text-gray-400"}`}
+                    >
+                      {game.homeScore ?? "-"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 홈팀 */}
+                <div className="flex flex-col items-center gap-0.5 w-8 shrink-0">
+                  <TeamLogo team={game.homeTeam} size={18} />
+                  <span className="text-[9px] font-bold text-gray-500">
+                    {game.homeTeam}
+                  </span>
+                </div>
+              </div>
+
+              {/* 2행: 적중 여부 */}
+              <div className="flex items-center justify-center gap-1">
+                <span className="text-sm">
                   {pred.isCorrect === true
                     ? "✅"
                     : pred.isCorrect === false
                       ? "❌"
                       : "⏳"}
                 </span>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-bold text-gray-600">
-                    {game.homeTeam}
-                  </span>
-                  <TeamLogo team={game.homeTeam} size={14} />
-                </div>
-              </div>
-
-              {/* 예측 스코어 */}
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-gray-400 w-10">예측</span>
-                <div
-                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg"
-                  style={{ background: color + "15" }}
-                >
-                  <span className="text-sm font-black" style={{ color }}>
-                    {pred.awayScorePred}
-                  </span>
-                  <span className="text-[10px] text-gray-300">:</span>
-                  <span className="text-sm font-black" style={{ color }}>
-                    {pred.homeScorePred}
-                  </span>
-                </div>
-                <span className="text-[9px] text-gray-400 w-10 text-right">
-                  예측
-                </span>
-              </div>
-
-              {/* 실제 스코어 */}
-              <div className="flex items-center justify-between">
-                <span className="text-[9px] text-gray-400 w-10">실제</span>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-gray-100">
-                  <span
-                    className={`text-sm font-black ${game.winner === game.awayTeam ? "text-gray-900" : "text-gray-400"}`}
-                  >
-                    {game.awayScore ?? "-"}
-                  </span>
-                  <span className="text-[10px] text-gray-300">:</span>
-                  <span
-                    className={`text-sm font-black ${game.winner === game.homeTeam ? "text-gray-900" : "text-gray-400"}`}
-                  >
-                    {game.homeScore ?? "-"}
-                  </span>
-                </div>
-                <span className="text-[9px] text-gray-400 w-10 text-right">
-                  실제
+                <span className="text-[10px] text-gray-500">
+                  {pred.isCorrect === true
+                    ? "승리팀 적중"
+                    : pred.isCorrect === false
+                      ? "승리팀 미적중"
+                      : "집계 중"}
                 </span>
               </div>
             </div>
@@ -269,6 +276,7 @@ function AiModelCard({
         }}
       >
         <div className="flex items-center gap-2.5">
+          {crown && <span className="text-base leading-none">👑</span>}
           <img
             src={imgSrc}
             alt={item.providerLabel}
@@ -284,8 +292,14 @@ function AiModelCard({
             <p className="text-[10px] text-gray-400">{item.provider}</p>
           </div>
         </div>
-
-        {crown && <span className="text-base leading-none">🥇</span>}
+        <div className="text-right">
+          <p className="text-[10px] text-gray-400 leading-none mb-0.5">
+            적중률
+          </p>
+          <p className="text-lg font-black leading-none" style={{ color }}>
+            {item.totalCount > 0 ? item.winRate.toFixed(3) : "-"}
+          </p>
+        </div>
       </div>
 
       {/* 최근 5승부예측 결과 (위) */}
