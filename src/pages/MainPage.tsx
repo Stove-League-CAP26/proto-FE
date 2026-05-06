@@ -1320,41 +1320,6 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
         )}
       </section>
 
-      {/* ══ 섹션 5: 야구 유튜브 */}
-      <section>
-        <SectionHeader
-          title="야구 유튜브"
-          subtitle="채널 바로가기"
-          color="#CC0000"
-        />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {YOUTUBE_CHANNELS.map((ch) => (
-            <a
-              key={ch.name}
-              href={ch.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col items-center gap-2 hover:shadow-md hover:-translate-y-0.5 transition-all text-center group"
-            >
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform"
-                style={{ backgroundColor: ch.color + "15" }}
-              >
-                {ch.emoji}
-              </div>
-              <p className="text-sm font-black text-gray-800">{ch.name}</p>
-              <p className="text-xs text-gray-400 leading-tight">{ch.desc}</p>
-              <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
-                style={{ backgroundColor: ch.color }}
-              >
-                YouTube
-              </span>
-            </a>
-          ))}
-        </div>
-      </section>
-
       {/* ══ 섹션 6: 중계 사이트 */}
       <section>
         <SectionHeader
@@ -1391,29 +1356,6 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
               <span className="text-gray-300 group-hover:text-gray-500 transition-colors flex-shrink-0">
                 →
               </span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* ══ 섹션 7: 커뮤니티 */}
-      <section>
-        <SectionHeader
-          title="야구 커뮤니티"
-          subtitle="팬들의 이야기"
-          color="#F97316"
-        />
-        <div className="flex flex-wrap gap-2">
-          {COMMUNITY_LINKS.map((link) => (
-            <a
-              key={link.name}
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-gray-700 hover:border-orange-300 hover:text-orange-600 hover:shadow-sm transition-all"
-            >
-              <span>{link.emoji}</span>
-              {link.name}
             </a>
           ))}
         </div>
