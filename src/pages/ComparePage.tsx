@@ -3,7 +3,6 @@ import { useState, useCallback } from "react";
 import ComparePlayerSlot from "@/components/compare/ComparePlayerSlot";
 import CompareStatPanel from "@/components/compare/CompareStatPanel";
 import CompareZonePanel from "@/components/compare/CompareZonePanel";
-import HvPMatchupPanel from "@/components/compare/HvPMatchupPanel";
 import HvPZoneSection from "@/components/compare/HvPZoneSection";
 import VsHitterTable from "@/components/compare/VsHitterTable";
 import RadarChart from "@/components/common/RadarChart";
@@ -27,7 +26,6 @@ import {
   mapPitcherRadar,
 } from "@/utils/playerUtils";
 import {
-  MOCK_HVP_INSIGHTS,
   MOCK_HVP_HITTER_HOTCOLD,
   MOCK_HVP_PITCHER_PITCHZONE,
 } from "@/mock/hvpData";
@@ -435,20 +433,16 @@ export default function ComparePage() {
                 />
               )}
 
-              <HvPMatchupPanel
-                seasonRecords={null}
-                careerSummary={null}
-                insights={MOCK_HVP_INSIGHTS}
-                pitcherName={slotB.basic?.playerName ?? ""}
-                hitterName={slotA.basic?.playerName ?? ""}
-                loading={false}
-              />
-
               <HvPZoneSection
                 hitterName={slotA.basic?.playerName ?? "타자"}
                 pitcherName={slotB.basic?.playerName ?? "투수"}
                 hitterHotCold={hvpHitHot}
                 hitterStrikeout={hvpHitSo}
+                pitcherStrikeout={
+                  hasBoth && mode === "HvP"
+                    ? (slotB.strikeoutZone ?? null)
+                    : null
+                }
                 pitcherPitchZone={hvpPitPitch}
               />
             </div>

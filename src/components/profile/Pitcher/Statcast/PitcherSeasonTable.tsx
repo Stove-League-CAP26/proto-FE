@@ -1,4 +1,4 @@
-// 투수 시즌 기록 테이블 — kPct, bbPct 컬럼 추가
+// 투수 시즌 기록 테이블 — WAR 컬럼 추가
 import type { PitcherStatRaw } from "@/utils/StatsCalculator";
 import { calcPitcherDerived, fmtEra, fmtWhip } from "@/utils/StatsCalculator";
 
@@ -25,11 +25,12 @@ const COLUMNS: { key: string; label: string; color?: string }[] = [
   { key: "er", label: "ER" },
   { key: "era", label: "ERA", color: "text-orange-500" },
   { key: "whip", label: "WHIP", color: "text-orange-400" },
-  { key: "kPct", label: "K%", color: "text-violet-500" }, // ← 추가
-  { key: "bbPct", label: "BB%", color: "text-violet-400" }, // ← 추가
+  { key: "kPct", label: "K%", color: "text-violet-500" },
+  { key: "bbPct", label: "BB%", color: "text-violet-400" },
   { key: "k9", label: "K/9", color: "text-violet-500" },
   { key: "bb9", label: "BB/9", color: "text-violet-400" },
   { key: "kbb", label: "K/BB", color: "text-violet-600" },
+  { key: "war", label: "WAR", color: "text-amber-500" }, // ← 신규
 ];
 
 const STICKY: Record<string, string> = {
@@ -82,12 +83,10 @@ function fmtCell(
     case "whip":
       return fmtWhip(row.whip);
     case "kPct": {
-      // ← 추가
       const v = (row as any).kPct;
       return v != null ? `${(Number(v) * 100).toFixed(1)}%` : "-";
     }
     case "bbPct": {
-      // ← 추가
       const v = (row as any).bbPct;
       return v != null ? `${(Number(v) * 100).toFixed(1)}%` : "-";
     }
@@ -97,6 +96,11 @@ function fmtCell(
       return d.bb9 != null ? d.bb9.toFixed(1) : "-";
     case "kbb":
       return d.kbb != null ? d.kbb.toFixed(2) : "-";
+    case "war": {
+      // ← 신규
+      const v = (row as any).war;
+      return v != null ? Number(v).toFixed(2) : "-";
+    }
     default:
       return "-";
   }
@@ -145,6 +149,7 @@ export default function PitcherSeasonTable({ stats }: PitcherSeasonTableProps) {
                   {COLUMNS.map((col) => {
                     const isSticky = !!STICKY[col.key];
                     const stickyBg = isLatest ? "bg-orange-50/60" : "bg-white";
+                    const isWar = col.key === "war";
                     return (
                       <td
                         key={col.key}

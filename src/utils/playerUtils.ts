@@ -29,20 +29,20 @@ export function fmtWpct(v: number | null | undefined) {
 }
 
 // ── 타자 레이더 레이블 ───────────────────────────────────────────────────────
-// A안: 파워 · 컨택 · 장타 · 스피드 · 생산 · 눈
+// A안: 파워 · 컨택 · 장타 · 스피드 · 타점 · 눈
 const HITTER_RADAR_LABEL: Record<string, string> = {
   contact: "컨택",
   eye: "선구안",
   speed: "스피드",
   power: "파워",
-  contrib: "생산성",
+  contrib: "타점",
   ops: "OPS",
 };
 
 // ── 투수 레이더 레이블 ───────────────────────────────────────────────────────
-// A안: 구위 · 제구 · 삼진 · 내구 · 피홈런 · 피안타
+// A안: 평균자책 · 제구 · 삼진 · 내구 · 피홈런 · 피안타
 const PITCHER_RADAR_LABEL: Record<string, string> = {
-  era: "구위", // ERA 역정규화
+  era: "평균자책", // ← 수정
   whip: "WHIP",
   hrControl: "장타억제",
   hitControl: "피안타억제",
@@ -51,9 +51,9 @@ const PITCHER_RADAR_LABEL: Record<string, string> = {
 };
 
 // 표시 순서 고정 (육각형 배치: 12시부터 시계방향)
-const HITTER_ORDER = ["컨택", "선구안", "스피드", "파워", "생산성", "OPS"];
+const HITTER_ORDER = ["컨택", "선구안", "스피드", "파워", "타점", "OPS"];
 const PITCHER_ORDER = [
-  "구위",
+  "평균자책",
   "WHIP",
   "장타억제",
   "피안타억제",
