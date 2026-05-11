@@ -1,6 +1,5 @@
 // src/components/compare/HvPZoneSection.tsx
-// 타자 삼진분포 + 투수 탈삼진분포 side-by-side
-// hover → inner(3×3) + outer(4셀) 합산 공략 가이드
+// hover -> ZoneHeatmap 동일 레이아웃, 공략/제구금지 두 곳만 강조
 import { useState, useMemo } from "react";
 import ZoneHeatmap from "@/components/common/ZoneHeatmap";
 import type { ZoneGrid } from "@/components/common/ZoneHeatmap";
@@ -13,7 +12,18 @@ interface HvPZoneSectionProps {
   pitcherStrikeout?: ZoneGrid | null;
 }
 
-const BIG_PX = 280;
+// ZoneHeatmap.tsx 와 동일한 레이아웃 상수
+const TOTAL = 280;
+const OUTER = 139;
+const INNER = 168;
+const INNER_OFFSET = OUTER - 85;
+const CELL_SIZE = INNER / 3;
+const STRIKE_PADDING = 6;
+const STRIKE_LEFT = INNER_OFFSET - STRIKE_PADDING;
+const STRIKE_TOP = INNER_OFFSET - STRIKE_PADDING;
+const STRIKE_SIZE = INNER + STRIKE_PADDING * 2;
+const BALL_PADDING = 4;
+
 const MINI_PX = 174;
 const MINI_SCALE = 0.62;
 
@@ -57,131 +67,49 @@ function normalize(arr: number[]): number[] {
   return arr.map((v) => (v - min) / (max - min));
 }
 
-type Grade = "공략" | "주의공략" | "중립" | "주의" | "제구금지";
-interface GradeInfo {
-  grade: Grade;
-  bg: string;
-  text: string;
-  border: string;
-}
-
-function getGrade(norm: number): GradeInfo {
-  if (norm >= 0.8)
+function getCellStyle(isTop: boolean, isBot: boolean): React.CSSProperties {
+  if (isTop)
     return {
-      grade: "공략",
-      bg: "#16a34a",
-      text: "#fff",
-      border: "rgba(255,255,255,0.45)",
+      backgroundColor: "#14532d",
+      border: "2.5px solid #22c55e",
+      boxShadow: "0 0 12px rgba(34,197,94,0.5)",
+      color: "#86efac",
+      fontWeight: 800,
+      fontSize: 12,
     };
-  if (norm >= 0.6)
+  if (isBot)
     return {
-      grade: "주의공략",
-      bg: "#65a30d",
-      text: "#fff",
-      border: "transparent",
-    };
-  if (norm >= 0.38)
-    return {
-      grade: "중립",
-      bg: "#ca8a04",
-      text: "#fff",
-      border: "transparent",
-    };
-  if (norm >= 0.18)
-    return {
-      grade: "주의",
-      bg: "#dc2626",
-      text: "#fff",
-      border: "transparent",
+      backgroundColor: "#450a0a",
+      border: "2px solid #ef4444",
+      boxShadow: "0 0 12px rgba(239,68,68,0.4)",
+      color: "#fca5a5",
+      fontWeight: 800,
+      fontSize: 11,
     };
   return {
-    grade: "제구금지",
-    bg: "#7f1d1d",
-    text: "#fca5a5",
-    border: "rgba(252,165,165,0.45)",
+    backgroundColor: "#e5e7eb",
+    border: "1.5px solid #d1d5db",
+    color: "transparent",
   };
 }
 
-function GradeCell({
-  info,
-  label,
-  isTop,
-  isBot,
-}: {
-  info: GradeInfo;
-  label: string;
-  isTop: boolean;
-  isBot: boolean;
-}) {
-  return (
-    <div
-      style={{
-        background: info.bg,
-        borderRadius: 8,
-        border: `2px solid ${info.border}`,
-        padding: "6px 4px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 2,
-        minHeight: 52,
-        boxShadow: isTop
-          ? "0 0 10px rgba(22,163,74,0.5)"
-          : isBot
-            ? "0 0 10px rgba(127,29,29,0.5)"
-            : undefined,
-        transition: "transform 0.12s",
-        cursor: "default",
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "scale(1.06)";
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
-      }}
-    >
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 800,
-          color: info.text,
-          lineHeight: 1,
-        }}
-      >
-        {info.grade}
-      </span>
-      <span
-        style={{
-          fontSize: 8,
-          color: "rgba(255,255,255,0.72)",
-          textAlign: "center",
-          lineHeight: 1.3,
-        }}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-function AttackGuideGrid({
+// ZoneHeatmap 과 동일한 레이아웃 — 색만 두 곳 강조
+function AttackZoneMap({
   hitVals,
   pitVals,
-  hitterName,
-  pitcherName,
 }: {
   hitVals: ZoneValues;
   pitVals: ZoneValues;
-  hitterName: string;
-  pitcherName: string;
 }) {
   const innerLen = Math.max(hitVals.inner.length, pitVals.inner.length);
   const outerLen = Math.max(hitVals.outer.length, pitVals.outer.length);
 
   if (innerLen === 0 && outerLen === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-xs text-gray-400">
+      <div
+        className="flex items-center justify-center text-xs text-gray-400"
+        style={{ width: TOTAL, height: TOTAL }}
+      >
         존 데이터가 없습니다
       </div>
     );
@@ -198,131 +126,188 @@ function AttackGuideGrid({
 
   const allSum = [...innerSum, ...outerSum];
   const normAll = normalize(allSum);
-  const innerNorm = normAll.slice(0, innerLen);
-  const outerNorm = normAll.slice(innerLen);
-
-  const innerInfos = innerNorm.map(getGrade);
-  const outerInfos = outerNorm.map(getGrade);
 
   const topIdx = normAll.indexOf(Math.max(...normAll));
   const botIdx = normAll.indexOf(Math.min(...normAll));
-  const allLabels = [
-    ...INNER_LABELS.slice(0, innerLen),
-    ...OUTER_LABELS.slice(0, outerLen),
-  ];
+
+  const topInnerIdx = topIdx < innerLen ? topIdx : -1;
+  const botInnerIdx = botIdx < innerLen ? botIdx : -1;
+  const topOuterIdx = topIdx >= innerLen ? topIdx - innerLen : -1;
+  const botOuterIdx = botIdx >= innerLen ? botIdx - innerLen : -1;
+
+  // 외곽 4칸 위치 (ZoneHeatmap 과 동일)
+  const outerPos = [
+    { top: 0, left: 0, ai: "flex-start", jc: "flex-start" },
+    { top: 0, left: TOTAL - OUTER, ai: "flex-start", jc: "flex-end" },
+    { top: TOTAL - OUTER, left: 0, ai: "flex-end", jc: "flex-start" },
+    { top: TOTAL - OUTER, left: TOTAL - OUTER, ai: "flex-end", jc: "flex-end" },
+  ] as const;
 
   return (
-    <div className="flex flex-col items-center gap-3 w-full">
-      {/* 요약 배너 */}
-      <div className="flex gap-3 w-full">
-        <div
-          className="flex-1 rounded-xl px-3 py-2 text-center"
-          style={{ background: "#14532d" }}
-        >
-          <p className="text-[9px] text-green-300 mb-0.5">최우선 공략</p>
-          <p className="text-xs font-black text-green-200">
-            {allLabels[topIdx] ?? "-"}
-          </p>
-        </div>
-        <div
-          className="flex-1 rounded-xl px-3 py-2 text-center"
-          style={{ background: "#450a0a" }}
-        >
-          <p className="text-[9px] text-red-300 mb-0.5">제구 금지</p>
-          <p className="text-xs font-black text-red-300">
-            {allLabels[botIdx] ?? "-"}
-          </p>
-        </div>
-      </div>
-
-      {/* inner 3x3 */}
-      <p className="text-[9px] text-gray-400 self-start font-semibold">
-        스트라이크 존
-      </p>
+    <div className="flex flex-col items-center w-full">
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3,1fr)",
-          gap: 5,
-          width: "100%",
-          maxWidth: 300,
+          width: TOTAL,
+          textAlign: "left",
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#555",
+          letterSpacing: "0.05em",
+          marginBottom: 4,
         }}
       >
-        {innerInfos.map((info, i) => (
-          <GradeCell
-            key={`in-${i}`}
-            info={info}
-            label={INNER_LABELS[i] ?? `내부 ${i + 1}`}
-            isTop={topIdx === i}
-            isBot={botIdx === i}
-          />
-        ))}
+        볼존
       </div>
 
-      {/* outer 4셀 */}
-      {outerInfos.length > 0 && (
-        <>
-          <p className="text-[9px] text-gray-400 self-start font-semibold">
-            외곽 존
-          </p>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4,1fr)",
-              gap: 5,
-              width: "100%",
-              maxWidth: 300,
-            }}
-          >
-            {outerInfos.map((info, i) => (
-              <GradeCell
-                key={`out-${i}`}
-                info={info}
-                label={OUTER_LABELS[i] ?? `외곽 ${i + 1}`}
-                isTop={topIdx === innerLen + i}
-                isBot={botIdx === innerLen + i}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      <div style={{ position: "relative", width: TOTAL, height: TOTAL }}>
+        {/* 볼존 테두리 */}
+        <div
+          style={{
+            position: "absolute",
+            top: -BALL_PADDING,
+            left: -BALL_PADDING,
+            width: TOTAL + BALL_PADDING * 2,
+            height: TOTAL + BALL_PADDING * 2,
+            border: "3px solid #555",
+            borderRadius: 8,
+            zIndex: 1,
+            pointerEvents: "none",
+          }}
+        />
 
-      {/* 범례 */}
-      <div className="flex gap-2 flex-wrap justify-center">
-        {(["공략", "주의공략", "중립", "주의", "제구금지"] as Grade[]).map(
-          (g, i) => {
-            const colors = [
-              "#16a34a",
-              "#65a30d",
-              "#ca8a04",
-              "#dc2626",
-              "#7f1d1d",
-            ];
+        {/* 외곽 코너 4칸 */}
+        {outerPos.slice(0, outerLen).map((pos, i) => {
+          const isTop = i === topOuterIdx;
+          const isBot = i === botOuterIdx;
+          return (
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                top: pos.top,
+                left: pos.left,
+                width: OUTER,
+                height: OUTER,
+                borderRadius: 4,
+                display: "flex",
+                alignItems: pos.ai,
+                justifyContent: pos.jc,
+                padding: 8,
+                zIndex: 2,
+                ...getCellStyle(isTop, isBot),
+              }}
+            >
+              {isTop && "공략"}
+              {isBot && "제구금지"}
+            </div>
+          );
+        })}
+
+        {/* 스트라이크존 빨간 테두리 */}
+        <div
+          style={{
+            position: "absolute",
+            top: STRIKE_TOP + 2,
+            left: STRIKE_LEFT + 2,
+            width: STRIKE_SIZE,
+            height: STRIKE_SIZE,
+            border: "3px solid #ff0000",
+            borderRadius: 6,
+            zIndex: 9,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* 스트라이크존 라벨 */}
+        <div
+          style={{
+            position: "absolute",
+            top: STRIKE_TOP - 15,
+            left: STRIKE_LEFT,
+            width: STRIKE_SIZE,
+            textAlign: "left",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#ff0000",
+            letterSpacing: "0.05em",
+            zIndex: 11,
+            pointerEvents: "none",
+          }}
+        >
+          스트라이크존
+        </div>
+
+        {/* 내부 3x3 */}
+        <div
+          style={{
+            position: "absolute",
+            top: INNER_OFFSET,
+            left: INNER_OFFSET,
+            width: INNER,
+            height: INNER,
+            display: "grid",
+            gridTemplateColumns: `repeat(3, ${CELL_SIZE}px)`,
+            gridTemplateRows: `repeat(3, ${CELL_SIZE}px)`,
+            gap: 2,
+            zIndex: 10,
+          }}
+        >
+          {Array.from({ length: innerLen }, (_, i) => {
+            const isTop = i === topInnerIdx;
+            const isBot = i === botInnerIdx;
             return (
-              <div key={g} className="flex items-center gap-1">
-                <div
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 2,
-                    background: colors[i],
-                    flexShrink: 0,
-                  }}
-                />
-                <span className="text-[9px] text-gray-500">{g}</span>
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 3,
+                  border: "1.5px solid rgba(255,255,255,0.6)",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+                  ...getCellStyle(isTop, isBot),
+                }}
+              >
+                {isTop && "공략"}
+                {isBot && "제구금지"}
               </div>
             );
-          },
-        )}
+          })}
+        </div>
       </div>
 
-      <p className="text-[9px] text-gray-400 text-center">
+      {/* 범례 */}
+      <div className="flex gap-4 mt-4 justify-center">
+        {[
+          { bg: "#14532d", border: "#22c55e", label: "공략" },
+          { bg: "#450a0a", border: "#ef4444", label: "제구금지" },
+          { bg: "#e5e7eb", border: "#d1d5db", label: "일반" },
+        ].map((item) => (
+          <div key={item.label} className="flex items-center gap-1.5">
+            <div
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 3,
+                backgroundColor: item.bg,
+                border: `1.5px solid ${item.border}`,
+                flexShrink: 0,
+              }}
+            />
+            <span className="text-[10px] text-gray-500 font-medium">
+              {item.label}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[9px] text-gray-400 mt-1.5 text-center">
         타자 삼진 + 투수 탈삼진 합산 기준 · 투수 시점
       </p>
     </div>
   );
 }
 
+// 좌측 BigZone
 function BigZone({ zone, name }: { zone: ZoneGrid | null; name: string }) {
   return (
     <div className="flex flex-col items-center gap-3">
@@ -331,18 +316,19 @@ function BigZone({ zone, name }: { zone: ZoneGrid | null; name: string }) {
           className="px-3 py-1 rounded-full text-xs font-black text-white"
           style={{ background: "#3B82F6" }}
         >
-          🏏 {name || "타자"}
+          {name || "타자"}
         </span>
         <span className="text-[10px] text-gray-400">핫/콜드존</span>
       </div>
       {zone ? (
-        <div style={{ width: BIG_PX, height: BIG_PX, flexShrink: 0 }}>
+        <div style={{ width: 280, height: 280, flexShrink: 0 }}>
           <ZoneHeatmap zone={zone} colorMode="hotcold" />
         </div>
       ) : (
         <div
-          className="rounded-2xl border-2 border-dashed border-gray-100 bg-gray-50 flex items-center justify-center flex-shrink-0"
-          style={{ width: BIG_PX, height: BIG_PX }}
+          className="rounded-2xl border-2 border-dashed border-gray-100 bg-gray-50
+             flex items-center justify-center flex-shrink-0"
+          style={{ width: 280, height: 280 }}
         >
           <p className="text-xs text-gray-300">선수 선택 후 표시</p>
         </div>
@@ -354,6 +340,7 @@ function BigZone({ zone, name }: { zone: ZoneGrid | null; name: string }) {
   );
 }
 
+// split 뷰용 MiniZone
 function MiniZone({
   zone,
   colorMode,
@@ -418,6 +405,7 @@ function MiniZone({
   );
 }
 
+// 메인 컴포넌트
 export default function HvPZoneSection({
   hitterName,
   pitcherName,
@@ -436,6 +424,30 @@ export default function HvPZoneSection({
     [pitcherStrikeout],
   );
   const hasData = hitVals.inner.length > 0 || pitVals.inner.length > 0;
+
+  // 배너 레이블 계산
+  const innerLen = Math.max(hitVals.inner.length, pitVals.inner.length);
+  const outerLen = Math.max(hitVals.outer.length, pitVals.outer.length);
+  const innerSum = Array.from(
+    { length: innerLen },
+    (_, i) => (hitVals.inner[i] ?? 0) + (pitVals.inner[i] ?? 0),
+  );
+  const outerSum = Array.from(
+    { length: outerLen },
+    (_, i) => (hitVals.outer[i] ?? 0) + (pitVals.outer[i] ?? 0),
+  );
+  const allSum = [...innerSum, ...outerSum];
+  const normAll = hasData ? normalize(allSum) : [];
+  const allLabels = [
+    ...INNER_LABELS.slice(0, innerLen),
+    ...OUTER_LABELS.slice(0, outerLen),
+  ];
+  const topIdx =
+    normAll.length > 0 ? normAll.indexOf(Math.max(...normAll)) : -1;
+  const botIdx =
+    normAll.length > 0 ? normAll.indexOf(Math.min(...normAll)) : -1;
+  const topLabel = topIdx >= 0 ? (allLabels[topIdx] ?? "-") : "-";
+  const botLabel = botIdx >= 0 ? (allLabels[botIdx] ?? "-") : "-";
 
   const T = "opacity 0.32s ease, transform 0.32s ease";
 
@@ -456,7 +468,7 @@ export default function HvPZoneSection({
           className="relative"
           onMouseEnter={() => setHovered(true)}
           onMouseLeave={() => setHovered(false)}
-          style={{ minHeight: 420 }}
+          style={{ minHeight: 400 }}
         >
           {/* split 뷰 */}
           <div
@@ -503,9 +515,9 @@ export default function HvPZoneSection({
               inset: 0,
             }}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-black text-gray-800">
-                🎯 투수 공략 가이드
+                투수 공략 가이드
               </p>
               <div className="flex gap-1.5 items-center">
                 <span
@@ -524,13 +536,37 @@ export default function HvPZoneSection({
               </div>
             </div>
 
+            {hasData && (
+              <div className="flex gap-2 mb-3">
+                <div
+                  className="flex-1 rounded-xl px-3 py-2 text-center"
+                  style={{
+                    background: "#14532d",
+                    border: "1px solid #22c55e44",
+                  }}
+                >
+                  <p className="text-[9px] text-green-400 mb-0.5">
+                    최우선 공략
+                  </p>
+                  <p className="text-xs font-black text-green-300">
+                    {topLabel}
+                  </p>
+                </div>
+                <div
+                  className="flex-1 rounded-xl px-3 py-2 text-center"
+                  style={{
+                    background: "#450a0a",
+                    border: "1px solid #ef444444",
+                  }}
+                >
+                  <p className="text-[9px] text-red-400 mb-0.5">제구 금지</p>
+                  <p className="text-xs font-black text-red-300">{botLabel}</p>
+                </div>
+              </div>
+            )}
+
             {hasData ? (
-              <AttackGuideGrid
-                hitVals={hitVals}
-                pitVals={pitVals}
-                hitterName={hitterName}
-                pitcherName={pitcherName}
-              />
+              <AttackZoneMap hitVals={hitVals} pitVals={pitVals} />
             ) : (
               <div className="flex items-center justify-center h-48">
                 <p className="text-xs text-gray-400">

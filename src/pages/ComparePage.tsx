@@ -1,4 +1,5 @@
 // src/pages/ComparePage.tsx — HvH / PvP / HvP 3모드 지원
+// 모드 전환 시 슬롯 검색창 초기화 (key prop으로 ComparePlayerSlot 리마운트)
 import { useState, useCallback } from "react";
 import ComparePlayerSlot from "@/components/compare/ComparePlayerSlot";
 import CompareStatPanel from "@/components/compare/CompareStatPanel";
@@ -33,8 +34,8 @@ interface PlayerSlot {
   stats: any[];
   latestStat: any | null;
   radar: HitterRadar | PitcherRadar | null;
-  zone: ZoneGrid | null; // 타자: 핫콜드존 / 투수: 사용 안함
-  strikeoutZone: ZoneGrid | null; // 타자: 삼진분포 / 투수: 탈삼진분포
+  zone: ZoneGrid | null;
+  strikeoutZone: ZoneGrid | null;
   loading: boolean;
 }
 
@@ -100,11 +101,9 @@ export default function ComparePage() {
         pitcher
           ? fetchPitcherRadar(pid).catch(() => null)
           : fetchHitterRadar(pid).catch(() => null),
-        // zone: 타자=핫콜드존, 투수=불필요(null)
         pitcher
           ? Promise.resolve(null)
           : fetchHotColdZone(pid).catch(() => null),
-        // strikeoutZone: 타자=삼진분포, 투수=탈삼진분포
         pitcher
           ? fetchKsZone(pid).catch(() => null)
           : fetchStrikeoutZone(pid).catch(() => null),
@@ -159,13 +158,12 @@ export default function ComparePage() {
   const hvpPitcherPid =
     hasBoth && mode === "HvP" ? (slotB.basic?.pid as number) : null;
 
-  // HvP용 존 데이터
   const hvpHitHot =
     hasBoth && mode === "HvP" ? (slotA.zone ?? MOCK_HVP_HITTER_HOTCOLD) : null;
   const hvpHitSo =
-    hasBoth && mode === "HvP" ? (slotA.strikeoutZone ?? null) : null; // 타자 삼진분포
+    hasBoth && mode === "HvP" ? (slotA.strikeoutZone ?? null) : null;
   const hvpPitSo =
-    hasBoth && mode === "HvP" ? (slotB.strikeoutZone ?? null) : null; // 투수 탈삼진분포
+    hasBoth && mode === "HvP" ? (slotB.strikeoutZone ?? null) : null;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -201,7 +199,8 @@ export default function ComparePage() {
       {/* 선수 선택 카드 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="grid grid-cols-3 items-stretch gap-4">
-          {/* 슬롯 A */}
+          {/* 슬롯 A
+            key={`A-${mode}`} → 모드 바뀌면 컴포넌트 리마운트 → 내부 검색창 초기화 */}
           <div>
             {mode === "HvP" && (
               <p className="text-xs font-black text-blue-500 text-center mb-2">
@@ -209,6 +208,7 @@ export default function ComparePage() {
               </p>
             )}
             <ComparePlayerSlot
+              key={`A-${mode}`}
               player={slotA.basic}
               sideLabel="A"
               onPlayerSelected={(p) => loadPlayer(p, "A")}
@@ -226,8 +226,7 @@ export default function ComparePage() {
           {/* 중앙 */}
           <div className="flex flex-col items-center justify-center gap-3">
             <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-sm
-                         font-black text-white shadow-xl"
+              className="w-14 h-14 rounded-full flex items-center justify-center text-sm font-black text-white shadow-xl"
               style={{
                 background: "linear-gradient(135deg,#3B82F6,#7C3AED,#EF4444)",
               }}
@@ -235,7 +234,7 @@ export default function ComparePage() {
               {mode === "HvP" ? "vs" : "VS"}
             </div>
 
-            {/* 간략 비교 바 (HvH / PvP) */}
+            {/* 간략 비교 바 */}
             {hasBoth &&
               slotA.latestStat &&
               slotB.latestStat &&
@@ -321,7 +320,8 @@ export default function ComparePage() {
             )}
           </div>
 
-          {/* 슬롯 B */}
+          {/* 슬롯 B
+            key={`B-${mode}`} → 모드 바뀌면 리마운트 */}
           <div>
             {mode === "HvP" && (
               <p className="text-xs font-black text-red-500 text-center mb-2">
@@ -329,6 +329,7 @@ export default function ComparePage() {
               </p>
             )}
             <ComparePlayerSlot
+              key={`B-${mode}`}
               player={slotB.basic}
               sideLabel="B"
               onPlayerSelected={(p) => loadPlayer(p, "B")}
@@ -345,10 +346,9 @@ export default function ComparePage() {
         </div>
       </div>
 
-      {/* ── 비교 콘텐츠 ── */}
+      {/* 비교 콘텐츠 */}
       {hasBoth && (
         <>
-          {/* HvH / PvP */}
           {(mode === "HvH" || mode === "PvP") && (
             <>
               <CompareZonePanel
@@ -416,7 +416,6 @@ export default function ComparePage() {
             </>
           )}
 
-          {/* HvP */}
           {mode === "HvP" && (
             <div className="space-y-6">
               {hvpBatterPid && hvpPitcherPid && (
@@ -427,7 +426,6 @@ export default function ComparePage() {
                   batterName={slotA.basic?.playerName ?? ""}
                 />
               )}
-
               <HvPZoneSection
                 hitterName={slotA.basic?.playerName ?? "타자"}
                 pitcherName={slotB.basic?.playerName ?? "투수"}
@@ -440,7 +438,6 @@ export default function ComparePage() {
         </>
       )}
 
-      {/* 한 명만 선택 */}
       {eitherSelected && !hasBoth && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
           <p className="text-sm text-gray-400">
@@ -449,7 +446,6 @@ export default function ComparePage() {
         </div>
       )}
 
-      {/* 아무도 선택 안 됨 */}
       {!eitherSelected && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 flex flex-col items-center gap-4">
           <div className="text-center">
