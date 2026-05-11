@@ -1068,18 +1068,8 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
     const load = async (silent = false): Promise<GameInfo[]> => {
       if (!silent) setGamesLoading(true);
       try {
-        let data = await fetchGamesByDate(selectedDate);
-        if (data.length === 0 && selectedDate === todayStr) {
-          const recent = await fetchRecentGames();
-          if (recent.length > 0) {
-            data = recent;
-            setDisplayDate(recent[0].gameDate);
-          } else {
-            const upcoming = await fetchUpcomingGames();
-            data = upcoming;
-            if (upcoming.length > 0) setDisplayDate(upcoming[0].gameDate);
-          }
-        } else setDisplayDate(selectedDate);
+        const data = await fetchGamesByDate(selectedDate);
+        setDisplayDate(selectedDate);
         setGames(data);
         return data;
       } catch (e) {
@@ -1090,6 +1080,7 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
         if (!silent) setGamesLoading(false);
       }
     };
+
     let interval: ReturnType<typeof setInterval> | null = null;
     load();
     if (selectedDate === todayStr)
