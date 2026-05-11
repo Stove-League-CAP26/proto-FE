@@ -234,9 +234,9 @@ export default function PlayerProfilePage() {
           color: "#FFFFFF",
         },
         {
-          label: "W-L",
+          label: "W-L-SV",
           val: latestPitcher
-            ? `${latestPitcher.w}-${latestPitcher.l}`
+            ? `${latestPitcher.w}-${latestPitcher.l}-${latestPitcher.sv ?? 0}`
             : statsLoading
               ? "..."
               : "-",

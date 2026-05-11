@@ -1,4 +1,5 @@
-// 타자 핫/콜드존 탭 — HotColdZone + HitterStrikeoutZone 조합
+// src/components/profile/Hitter/HotCold/HotColdTab.tsx
+// dataSource prop 제거 — "DB데이터" 라벨 하위 컴포넌트에 전달 안 함
 import HotColdZone from "@/components/profile/Hitter/HotCold/HotColdZone";
 import HitterStrikeoutZone from "@/components/profile/Hitter/HotCold/HitterStrikeoutZone";
 import type { ZoneGrid } from "@/components/common/ZoneHeatmap";
@@ -12,27 +13,17 @@ interface HotColdTabData {
 
 interface HotColdTabProps {
   data: HotColdTabData;
-  dataSource?: "db" | "loading";
-  battingSide?: string; // "좌타" | "우타" | "양타"
+  battingSide?: string;
 }
 
-export default function HotColdTab({
-  data,
-  dataSource,
-  battingSide,
-}: HotColdTabProps) {
+export default function HotColdTab({ data, battingSide }: HotColdTabProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <HotColdZone
         zone={{ outer: data.outer, inner: data.inner }}
-        dataSource={dataSource}
         battingSide={battingSide}
       />
-      <HitterStrikeoutZone
-        zone={data.strikeout}
-        dataSource={dataSource}
-        battingSide={battingSide}
-      />
+      <HitterStrikeoutZone zone={data.strikeout} battingSide={battingSide} />
     </div>
   );
 }

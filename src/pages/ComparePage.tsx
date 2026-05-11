@@ -15,7 +15,6 @@ import {
 import {
   fetchHotColdZone,
   fetchStrikeoutZone,
-  fetchPitchZone,
   fetchKsZone,
 } from "@/api/chartApi";
 import type { ZoneGrid } from "@/api/chartApi";
@@ -25,10 +24,7 @@ import {
   mapHitterRadar,
   mapPitcherRadar,
 } from "@/utils/playerUtils";
-import {
-  MOCK_HVP_HITTER_HOTCOLD,
-  MOCK_HVP_PITCHER_PITCHZONE,
-} from "@/mock/hvpData";
+import { MOCK_HVP_HITTER_HOTCOLD } from "@/mock/hvpData";
 
 type Mode = "HvH" | "PvP" | "HvP";
 
@@ -37,8 +33,8 @@ interface PlayerSlot {
   stats: any[];
   latestStat: any | null;
   radar: HitterRadar | PitcherRadar | null;
-  zone: ZoneGrid | null;
-  strikeoutZone: ZoneGrid | null;
+  zone: ZoneGrid | null; // 타자: 핫콜드존 / 투수: 사용 안함
+  strikeoutZone: ZoneGrid | null; // 타자: 삼진분포 / 투수: 탈삼진분포
   loading: boolean;
 }
 
@@ -104,9 +100,11 @@ export default function ComparePage() {
         pitcher
           ? fetchPitcherRadar(pid).catch(() => null)
           : fetchHitterRadar(pid).catch(() => null),
+        // zone: 타자=핫콜드존, 투수=불필요(null)
         pitcher
-          ? fetchPitchZone(pid).catch(() => null)
+          ? Promise.resolve(null)
           : fetchHotColdZone(pid).catch(() => null),
+        // strikeoutZone: 타자=삼진분포, 투수=탈삼진분포
         pitcher
           ? fetchKsZone(pid).catch(() => null)
           : fetchStrikeoutZone(pid).catch(() => null),
@@ -148,7 +146,6 @@ export default function ComparePage() {
       : mapHitterRadar(slotB.radar as any)
     : null;
 
-  // 두 선수 모두 선택 + 로딩 완료 시에만 비교 콘텐츠 표시
   const hasBoth = !!(
     slotA.basic &&
     slotB.basic &&
@@ -162,14 +159,13 @@ export default function ComparePage() {
   const hvpPitcherPid =
     hasBoth && mode === "HvP" ? (slotB.basic?.pid as number) : null;
 
+  // HvP용 존 데이터
   const hvpHitHot =
     hasBoth && mode === "HvP" ? (slotA.zone ?? MOCK_HVP_HITTER_HOTCOLD) : null;
   const hvpHitSo =
-    hasBoth && mode === "HvP" ? (slotA.strikeoutZone ?? null) : null;
-  const hvpPitPitch =
-    hasBoth && mode === "HvP"
-      ? (slotB.zone ?? MOCK_HVP_PITCHER_PITCHZONE)
-      : null;
+    hasBoth && mode === "HvP" ? (slotA.strikeoutZone ?? null) : null; // 타자 삼진분포
+  const hvpPitSo =
+    hasBoth && mode === "HvP" ? (slotB.strikeoutZone ?? null) : null; // 투수 탈삼진분포
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -231,7 +227,7 @@ export default function ComparePage() {
           <div className="flex flex-col items-center justify-center gap-3">
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center text-sm
-                           font-black text-white shadow-xl"
+                         font-black text-white shadow-xl"
               style={{
                 background: "linear-gradient(135deg,#3B82F6,#7C3AED,#EF4444)",
               }}
@@ -239,7 +235,7 @@ export default function ComparePage() {
               {mode === "HvP" ? "vs" : "VS"}
             </div>
 
-            {/* 간략 비교 바 (HvH / PvP, 두 선수 모두 선택 시) */}
+            {/* 간략 비교 바 (HvH / PvP) */}
             {hasBoth &&
               slotA.latestStat &&
               slotB.latestStat &&
@@ -293,8 +289,8 @@ export default function ComparePage() {
                         },
                       ]
                   ).map((s) => {
-                    const nA = parseFloat(String(s.vA ?? 0)),
-                      nB = parseFloat(String(s.vB ?? 0));
+                    const nA = parseFloat(String(s.vA ?? 0));
+                    const nB = parseFloat(String(s.vB ?? 0));
                     const raw = nA + nB > 0 ? (nA / (nA + nB)) * 100 : 50;
                     const pct = s.low ? 100 - raw : raw;
                     return (
@@ -349,7 +345,7 @@ export default function ComparePage() {
         </div>
       </div>
 
-      {/* ── 비교 콘텐츠 — 두 선수 모두 선택 시에만 표시 ── */}
+      {/* ── 비교 콘텐츠 ── */}
       {hasBoth && (
         <>
           {/* HvH / PvP */}
@@ -364,7 +360,6 @@ export default function ComparePage() {
                 loadingA={slotA.loading}
                 loadingB={slotB.loading}
               />
-
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <CompareStatPanel
@@ -438,19 +433,14 @@ export default function ComparePage() {
                 pitcherName={slotB.basic?.playerName ?? "투수"}
                 hitterHotCold={hvpHitHot}
                 hitterStrikeout={hvpHitSo}
-                pitcherStrikeout={
-                  hasBoth && mode === "HvP"
-                    ? (slotB.strikeoutZone ?? null)
-                    : null
-                }
-                pitcherPitchZone={hvpPitPitch}
+                pitcherStrikeout={hvpPitSo}
               />
             </div>
           )}
         </>
       )}
 
-      {/* 한 명만 선택됐을 때 안내 */}
+      {/* 한 명만 선택 */}
       {eitherSelected && !hasBoth && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
           <p className="text-sm text-gray-400">
@@ -459,7 +449,7 @@ export default function ComparePage() {
         </div>
       )}
 
-      {/* 아무도 선택 안 됐을 때 */}
+      {/* 아무도 선택 안 됨 */}
       {!eitherSelected && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 flex flex-col items-center gap-4">
           <div className="text-center">
@@ -476,8 +466,8 @@ export default function ComparePage() {
             {(mode === "HvP"
               ? [
                   { icon: "📊", text: "상대전적" },
-                  { icon: "🎯", text: "제구 전략" },
-                  { icon: "분석", text: "매치업 인사이트" },
+                  { icon: "🎯", text: "공략 가이드" },
+                  { icon: "🔥", text: "핫콜드존" },
                 ]
               : [
                   { icon: "📊", text: "스탯 비교" },
