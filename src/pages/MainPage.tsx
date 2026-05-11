@@ -1,4 +1,12 @@
 // src/pages/MainPage.tsx
+// [변경사항]
+// 1. import에 fetchPredictionsByDate, getProviderColor, TodayPrediction 추가
+// 2. import에 GamePredictionBar 추가
+// 3. PROVIDER_LABEL, PROVIDER_IMAGE, GamePredictionBar 컴포넌트 코드 제거 (파일 분리)
+// 4. MainPage state에 predictions, predictionsLoading 추가
+// 5. selectedDate 변경 시 fetchPredictionsByDate 호출하는 useEffect 추가
+// 6. 경기 목록 렌더링에서 GameCard 아래 <GamePredictionBar> 추가
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { TEAM_COLORS } from "@/constants/teamColors";
@@ -27,8 +35,13 @@ import {
   type NewsItem,
   type NewsCategory,
 } from "@/api/newsApi";
+import {
+  fetchPredictionsByDate,
+  type TodayPrediction,
+} from "@/api/predictionApi";
 
 import AiPredictionSection from "@/components/main/AiPredictionSection";
+import GamePredictionBar from "@/components/main/GamePredictionBar";
 
 interface MainPageProps {
   onSelectPlayer?: (pid: number) => void;
@@ -892,130 +905,6 @@ function SectionHeader({
   );
 }
 
-// ── 예측 카드 (단일 경기) ────────────────────────────────────────────────────
-function PredictionCard({
-  item,
-  color,
-  fmtDate,
-}: {
-  item: PredictionItem;
-  color: string;
-  fmtDate: (d: string) => string;
-}) {
-  const isResult = item.statusCode === "RESULT";
-  return (
-    <div
-      className="rounded-xl border p-4 space-y-3"
-      style={{ borderColor: color + "30", background: color + "04" }}
-    >
-      {/* 경기 헤더 */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-gray-500">
-          {fmtDate(item.gameDate)} · {item.stadium}
-        </p>
-        {item.isCorrect !== null ? (
-          <span
-            className={`text-[10px] font-black px-2 py-0.5 rounded-full ${item.isCorrect ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}
-          >
-            {item.isCorrect ? "✅ 적중" : "❌ 미적중"}
-          </span>
-        ) : (
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">
-            결과 대기중
-          </span>
-        )}
-      </div>
-      {/* 팀 */}
-      <div className="flex items-center justify-center gap-3">
-        <span className="text-sm font-black text-gray-700">
-          {item.awayTeam}
-        </span>
-        <span className="text-xs text-gray-300 font-bold">vs</span>
-        <span className="text-sm font-black text-gray-700">
-          {item.homeTeam}
-        </span>
-      </div>
-      {/* 예측 근거 */}
-      <div
-        className="rounded-lg p-3"
-        style={{ background: color + "08", borderLeft: `3px solid ${color}` }}
-      >
-        <p className="text-[10px] font-bold text-gray-400 mb-1">예측 근거</p>
-        <p className="text-xs text-gray-700 leading-relaxed">
-          {item.reason ?? "근거 없음"}
-        </p>
-      </div>
-      {/* 예상 스코어 + 승리 확률 */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-gray-50 p-3 text-center">
-          <p className="text-[10px] font-bold text-gray-400 mb-1.5">
-            예상 스코어
-          </p>
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-lg font-black text-gray-800">
-              {item.awayScorePred}
-            </span>
-            <span className="text-sm text-gray-300">:</span>
-            <span className="text-lg font-black text-gray-800">
-              {item.homeScorePred}
-            </span>
-          </div>
-          <div className="flex justify-between mt-1 px-1">
-            <span className="text-[10px] text-gray-400">{item.awayTeam}</span>
-            <span className="text-[10px] text-gray-400">{item.homeTeam}</span>
-          </div>
-        </div>
-        <div className="rounded-lg bg-gray-50 p-3 text-center">
-          <p className="text-[10px] font-bold text-gray-400 mb-1.5">
-            승리 확률
-          </p>
-          <div className="flex items-center justify-center gap-1">
-            <span className="text-sm font-black" style={{ color }}>
-              {item.awayWinProb}%
-            </span>
-            <span className="text-xs text-gray-300">:</span>
-            <span className="text-sm font-black" style={{ color }}>
-              {item.homeWinProb}%
-            </span>
-          </div>
-          <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${item.awayWinProb}%`, backgroundColor: color }}
-            />
-          </div>
-          <div className="flex justify-between mt-1 px-1">
-            <span className="text-[10px] text-gray-400">{item.awayTeam}</span>
-            <span className="text-[10px] text-gray-400">{item.homeTeam}</span>
-          </div>
-        </div>
-      </div>
-      {/* 실제 결과 */}
-      {isResult && item.actualWinner && (
-        <div className="rounded-lg border border-gray-100 bg-white p-3">
-          <p className="text-[10px] font-bold text-gray-400 mb-1.5">
-            실제 결과
-          </p>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-black text-gray-700">
-              {item.homeScore} : {item.awayScore}{" "}
-              <span className="text-gray-400 font-normal">
-                ({item.actualWinner} 승리)
-              </span>
-            </span>
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: color + "15", color }}
-            >
-              예측: {item.winner}
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── 메인 페이지 ───────────────────────────────────────────────────────────────
 export default function MainPage({ onSelectPlayer }: MainPageProps) {
   const navigate = useNavigate();
@@ -1036,6 +925,10 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
   const [gameScore, setGameScore] = useState<GameScore | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
   const [pendingGame, setPendingGame] = useState<GameInfo | null>(null);
+
+  // ── [추가] 날짜별 AI 예측 ──────────────────────────────────────────────────
+  const [predictions, setPredictions] = useState<TodayPrediction[]>([]);
+  const [predictionsLoading, setPredictionsLoading] = useState(false);
 
   const dateTabs = buildDateTabs();
 
@@ -1088,6 +981,16 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
     return () => {
       if (interval) clearInterval(interval);
     };
+  }, [selectedDate]);
+
+  // ── [추가] 날짜 변경 시 AI 예측 로드 ──────────────────────────────────────
+  useEffect(() => {
+    setPredictions([]);
+    setPredictionsLoading(true);
+    fetchPredictionsByDate(selectedDate)
+      .then(setPredictions)
+      .catch(() => setPredictions([]))
+      .finally(() => setPredictionsLoading(false));
   }, [selectedDate]);
 
   useEffect(() => {
@@ -1151,7 +1054,7 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className="h-44 bg-gray-100 rounded-2xl animate-pulse"
+                className="h-56 bg-gray-100 rounded-2xl animate-pulse"
               />
             ))}
           </div>
@@ -1164,26 +1067,42 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {games.map((g) => (
-              <div key={g.gameId} className="relative">
-                <GameCard
-                  game={g}
-                  onClick={() => {
-                    if (!pendingGame) handleGameClick(g);
-                  }}
-                />
-                {pendingGame?.gameId === g.gameId && (
-                  <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center z-10">
-                    <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+            {games.map((g) => {
+              const gamePred = predictions.find(
+                (p) => p.naverGameId === g.gameId,
+              );
+              return (
+                <div key={g.gameId} className="flex flex-col">
+                  {/* 경기 카드 */}
+                  <div className="relative">
+                    <GameCard
+                      game={g}
+                      onClick={() => {
+                        if (!pendingGame) handleGameClick(g);
+                      }}
+                    />
+                    {pendingGame?.gameId === g.gameId && (
+                      <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center z-10">
+                        <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  {/* AI 예측 바 — 취소 경기 제외, 별도 컴포넌트로 분리 */}
+                  {!g.cancel && (
+                    <GamePredictionBar
+                      prediction={gamePred}
+                      loading={predictionsLoading}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>
 
-      {/* ══ 섹션 2: AI 승부예측 */}
+      {/* ══ 섹션 2: AI 승부예측 (랭킹/적중률) */}
       <section>
         <SectionHeader
           title="AI 승부예측"
