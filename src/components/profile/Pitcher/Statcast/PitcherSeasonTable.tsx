@@ -1,4 +1,4 @@
-// 투수 시즌 기록 테이블 컴포넌트 — 전체 스탯 컬럼 + 좌우 스크롤
+// 투수 시즌 기록 테이블 — WAR 컬럼 추가
 import type { PitcherStatRaw } from "@/utils/StatsCalculator";
 import { calcPitcherDerived, fmtEra, fmtWhip } from "@/utils/StatsCalculator";
 
@@ -25,12 +25,14 @@ const COLUMNS: { key: string; label: string; color?: string }[] = [
   { key: "er", label: "ER" },
   { key: "era", label: "ERA", color: "text-orange-500" },
   { key: "whip", label: "WHIP", color: "text-orange-400" },
+  { key: "kPct", label: "K%", color: "text-violet-500" },
+  { key: "bbPct", label: "BB%", color: "text-violet-400" },
   { key: "k9", label: "K/9", color: "text-violet-500" },
   { key: "bb9", label: "BB/9", color: "text-violet-400" },
   { key: "kbb", label: "K/BB", color: "text-violet-600" },
+  { key: "war", label: "WAR", color: "text-amber-500" }, // ← 신규
 ];
 
-// 연도·팀 sticky 처리
 const STICKY: Record<string, string> = {
   season: "sticky left-0 z-10",
   team: "sticky left-[60px] z-10",
@@ -54,14 +56,12 @@ function fmtCell(
       return row.l != null ? String(row.l) : "-";
     case "sv":
       return row.sv != null ? String(row.sv) : "-";
-    case "hld": {
-      const v = (row as any).hld;
-      return v != null ? String(v) : "-";
-    }
-    case "wpct": {
-      const v = (row as any).wpct;
-      return v != null ? Number(v).toFixed(3) : "-";
-    }
+    case "hld":
+      return (row as any).hld != null ? String((row as any).hld) : "-";
+    case "wpct":
+      return (row as any).wpct != null
+        ? Number((row as any).wpct).toFixed(3)
+        : "-";
     case "ip":
       return row.ip != null ? String(row.ip) : "-";
     case "h":
@@ -70,30 +70,37 @@ function fmtCell(
       return row.hr != null ? String(row.hr) : "-";
     case "bb":
       return row.bb != null ? String(row.bb) : "-";
-    case "hbp": {
-      const v = (row as any).hbp;
-      return v != null ? String(v) : "-";
-    }
+    case "hbp":
+      return (row as any).hbp != null ? String((row as any).hbp) : "-";
     case "so":
       return row.so != null ? String(row.so) : "-";
-    case "r": {
-      const v = (row as any).r;
-      return v != null ? String(v) : "-";
-    }
-    case "er": {
-      const v = (row as any).er;
-      return v != null ? String(v) : "-";
-    }
+    case "r":
+      return (row as any).r != null ? String((row as any).r) : "-";
+    case "er":
+      return (row as any).er != null ? String((row as any).er) : "-";
     case "era":
       return fmtEra(row.era);
     case "whip":
       return fmtWhip(row.whip);
+    case "kPct": {
+      const v = (row as any).kPct;
+      return v != null ? `${(Number(v) * 100).toFixed(1)}%` : "-";
+    }
+    case "bbPct": {
+      const v = (row as any).bbPct;
+      return v != null ? `${(Number(v) * 100).toFixed(1)}%` : "-";
+    }
     case "k9":
       return d.k9 != null ? d.k9.toFixed(1) : "-";
     case "bb9":
       return d.bb9 != null ? d.bb9.toFixed(1) : "-";
     case "kbb":
       return d.kbb != null ? d.kbb.toFixed(2) : "-";
+    case "war": {
+      // ← 신규
+      const v = (row as any).war;
+      return v != null ? Number(v).toFixed(2) : "-";
+    }
     default:
       return "-";
   }
@@ -109,7 +116,6 @@ export default function PitcherSeasonTable({ stats }: PitcherSeasonTableProps) {
         <h3 className="font-bold text-gray-800">시즌 기록</h3>
         <span className="ml-auto text-xs text-gray-400">← 좌우 스크롤</span>
       </div>
-
       <div className="overflow-x-auto table-scroll">
         <table className="text-sm border-collapse min-w-full">
           <thead>
@@ -135,17 +141,15 @@ export default function PitcherSeasonTable({ stats }: PitcherSeasonTableProps) {
             {sorted.map((row, i) => {
               const d = calcPitcherDerived(row);
               const isLatest = i === 0;
-              const rowBg = isLatest ? "bg-orange-50/40" : "";
-
               return (
                 <tr
                   key={i}
-                  className={`border-t border-gray-50 ${rowBg} hover:brightness-95`}
+                  className={`border-t border-gray-50 ${isLatest ? "bg-orange-50/40" : ""} hover:brightness-95`}
                 >
                   {COLUMNS.map((col) => {
                     const isSticky = !!STICKY[col.key];
                     const stickyBg = isLatest ? "bg-orange-50/60" : "bg-white";
-
+                    const isWar = col.key === "war";
                     return (
                       <td
                         key={col.key}

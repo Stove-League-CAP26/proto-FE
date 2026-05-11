@@ -1,30 +1,76 @@
-/**
- * src/pages/TeamPage.tsx
- * KBO 팀 페이지 — props 기반 네비게이션 (react-router-dom 미사용)
- *
- * 선수 클릭 플로우:
- *   TeamPage → TeamDetail → RosterTab → RosterSection → PlayerCard
- *   → onSelectPlayer(pid) 호출 → App 레벨에서 PlayerProfilePage({ initialPid: pid }) 렌더링
- */
-import { useState, useCallback } from "react";
+// src/pages/TeamPage.tsx
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import TeamLanding from "@/components/team/TeamLanding";
 import TeamDetail from "@/components/team/TeamDetail";
-import type { Team } from "@/mock/teamData";
+import { KBO_TEAMS, type Team } from "@/mock/teamData";
 
-export default function TeamPage({
-  onSelectPlayer,
-}: {
-  onSelectPlayer: (pid: number) => void;
-}) {
+interface TeamPageProps {
+  onTeamChange?: (team: Team | null) => void;
+}
+
+export default function TeamPage({ onTeamChange }: TeamPageProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const handleSelect = useCallback((t: Team) => setSelectedTeam(t), []);
-  const handleBack = useCallback(() => setSelectedTeam(null), []);
+
+  useEffect(() => {
+    const state = location.state as any;
+    if (!state) return;
+
+    // 랜딩 복귀
+    if (state.reset) {
+      setSelectedTeam(null);
+      onTeamChange?.(null);
+      window.history.replaceState({}, "");
+      return;
+    }
+
+    // Navbar 드롭다운에서 Team 객체 직접 전달
+    if (state.team) {
+      setSelectedTeam(state.team as Team);
+      onTeamChange?.(state.team as Team);
+      window.history.replaceState({}, "");
+      return;
+    }
+
+    // 메인 페이지 순위표 클릭 — teamId 문자열로 전달
+    if (state.teamId) {
+      const found = KBO_TEAMS.find((t) => t.id === state.teamId) ?? null;
+      if (found) {
+        setSelectedTeam(found);
+        onTeamChange?.(found);
+      }
+      window.history.replaceState({}, "");
+      return;
+    }
+  }, [location.state]);
+
+  const handleSelect = useCallback(
+    (t: Team) => {
+      setSelectedTeam(t);
+      onTeamChange?.(t);
+    },
+    [onTeamChange],
+  );
+
+  const handleBack = useCallback(() => {
+    setSelectedTeam(null);
+    onTeamChange?.(null);
+  }, [onTeamChange]);
+
+  const handleSelectPlayer = useCallback(
+    (pid: number) => {
+      navigate("/player", { state: { pid } });
+    },
+    [navigate],
+  );
 
   return selectedTeam ? (
     <TeamDetail
       team={selectedTeam}
       onBack={handleBack}
-      onSelectPlayer={onSelectPlayer}
+      onSelectPlayer={handleSelectPlayer}
     />
   ) : (
     <TeamLanding onSelect={handleSelect} />

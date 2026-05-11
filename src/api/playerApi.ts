@@ -49,7 +49,7 @@ export interface HitterRadar {
   speed: number; // (2B+3B*3)/H 기반
   contrib: number; // RBI/G 기반
   eye: number; // (PA-AB)/PA 기반
-  style: string; // "슬러거" | "스피드스터" | "클린업" | "교타자" | "올라운더"
+  //style: string; // "슬러거" | "스피드스터" | "클린업" | "교타자" | "올라운더"
 }
 
 /** 투수 레이더 — 실제 지표 기반으로 0~100 정규화된 값 */
@@ -60,7 +60,7 @@ export interface PitcherRadar {
   hrControl: number; // 역수HR/IP 기반
   stamina: number; // IP/G 기반
   hitControl: number; // 역수H/IP 기반
-  style: string; // "파워피처" | "에이스" | "기교파" | "이닝이터" | "마무리형"
+  //style: string; // "파워피처" | "에이스" | "기교파" | "이닝이터" | "마무리형"
 }
 
 export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
@@ -209,5 +209,48 @@ export async function fetchPitcherBest(
     return res.json();
   } catch {
     return null;
+  }
+}
+
+export interface VsHitterRecord {
+  pitcherPid: number;
+  pitcherTeam: string;
+  pitcherName: string;
+  batterPid: number;
+  batterTeam: string;
+  batterName: string;
+  season: number;
+  pa: number;
+  ab: number;
+  hit: number;
+  h2: number;
+  h3: number;
+  hr: number;
+  rbi: number;
+  bb: number;
+  so: number;
+  gdp: number;
+  avg: number;
+  obp: number;
+  slg: number;
+  ops: number;
+}
+
+/**
+ * GET /api/vs?pitcherPid=50720&batterPid=63123
+ * → 최근 3시즌 상대전적
+ */
+export async function fetchVsRecord(
+  pitcherPid: number,
+  batterPid: number,
+): Promise<VsHitterRecord[]> {
+  try {
+    const res = await fetch(
+      `/api/vs?pitcherPid=${pitcherPid}&batterPid=${batterPid}`,
+    );
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
   }
 }

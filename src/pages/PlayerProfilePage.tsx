@@ -1,5 +1,6 @@
-// 선수 프로필 페이지 - 상태관리 + 컴포넌트 조합만 담당
+// src/pages/PlayerProfilePage.tsx
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import PlayerSearchBar from "@/components/common/PlayerSearchBar";
 import PlayerHeroBanner from "@/components/profile/PlayerHeroBanner";
 import HotColdTab from "@/components/profile/Hitter/HotCold/HotColdTab";
@@ -9,7 +10,7 @@ import PitcherStatcastTab from "@/components/profile/Pitcher/Statcast/PitcherSta
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   searchPlayersByName,
-  fetchPlayerBasic, // ← pid로 선수 단건 조회 (기존 함수 재사용)
+  fetchPlayerBasic,
   fetchHitterStats,
   fetchPitcherStats,
   fetchHitterRadar,
@@ -29,6 +30,9 @@ import { isPitcher, fmtAvg, fmtEra, fmtWhip } from "@/utils/playerUtils";
 import type { HitterStat, PitcherStat } from "@/types/playerStats";
 
 export default function PlayerProfilePage() {
+  const location = useLocation();
+  const initialPid: number | null = (location.state as any)?.pid ?? null;
+
   const [searchInput, setSearchInput] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
@@ -36,18 +40,15 @@ export default function PlayerProfilePage() {
   const [playerBasic, setPlayerBasic] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // ── 시즌 스탯 ────────────────────────────────────────────────────────────
   const [hitterStats, setHitterStats] = useState<HitterStat[]>([]);
   const [pitcherStats, setPitcherStats] = useState<PitcherStat[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
 
-  // ── 레이더 ───────────────────────────────────────────────────────────────
   const [radarData, setRadarData] = useState<HitterRadar | PitcherRadar | null>(
     null,
   );
   const [radarLoading, setRadarLoading] = useState(false);
 
-  // ── 차트 (존별 개별 상태) ────────────────────────────────────────────────
   const [hotColdZone, setHotColdZone] = useState<ZoneGrid | null>(null);
   const [strikeoutZone, setStrikeoutZone] = useState<ZoneGrid | null>(null);
   const [hitDirection, setHitDirection] = useState<HitDirection | null>(null);
@@ -56,14 +57,23 @@ export default function PlayerProfilePage() {
   const [baZone, setBaZone] = useState<ZoneGrid | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
 
-  // ── 선수 변경 시 API 동시 호출 ───────────────────────────────────────────
+  useEffect(() => {
+    if (!initialPid) return;
+    fetchPlayerBasic(initialPid)
+      .then((basic) => {
+        setPlayerBasic(basic);
+        setSearchInput(basic.playerName ?? "");
+        setError(null);
+        setShowResults(false);
+      })
+      .catch(() => setError("선수 정보를 불러오지 못했습니다."));
+  }, [initialPid]);
+
   useEffect(() => {
     if (!playerBasic) return;
-
     const pid = playerBasic.pid as number;
     const pitcherType = isPitcher(playerBasic.playerMPosition);
 
-    // 스탯
     setHitterStats([]);
     setPitcherStats([]);
     setStatsLoading(true);
@@ -76,7 +86,6 @@ export default function PlayerProfilePage() {
       .catch(() => {})
       .finally(() => setStatsLoading(false));
 
-    // 레이더
     setRadarData(null);
     setRadarLoading(true);
     const radarFetcher = pitcherType ? fetchPitcherRadar : fetchHitterRadar;
@@ -85,7 +94,6 @@ export default function PlayerProfilePage() {
       .catch(() => setRadarData(null))
       .finally(() => setRadarLoading(false));
 
-    // 차트 — 타자/투수에 따라 필요한 존만 호출
     setHotColdZone(null);
     setStrikeoutZone(null);
     setHitDirection(null);
@@ -117,7 +125,6 @@ export default function PlayerProfilePage() {
     }
   }, [playerBasic]);
 
-  // ── 검색 핸들러 ──────────────────────────────────────────────────────────
   const handleSearch = async () => {
     const name = searchInput.trim();
     if (!name) return;
@@ -164,7 +171,6 @@ export default function PlayerProfilePage() {
     setBaZone(null);
   };
 
-  // ── 초기 검색 화면 ───────────────────────────────────────────────────────
   if (!playerBasic) {
     return (
       <PlayerSearchBar
@@ -184,13 +190,13 @@ export default function PlayerProfilePage() {
     );
   }
 
-  // ── 선수 정보 파싱 ───────────────────────────────────────────────────────
   const tc = TEAM_COLORS[playerBasic.playerEnter] ?? {
     bg: "#1e293b",
     accent: "#64748b",
   };
   const pitcher = isPitcher(playerBasic.playerMPosition);
   const heroAccent = pitcher ? "#F97316" : "#3B82F6";
+  const playerType = pitcher ? "pitcher" : "hitter";
 
   const hwRaw = playerBasic.heightWeight ?? "";
   const hwParts = hwRaw.split("/");
@@ -225,7 +231,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#F97316",
+          color: "#FFFFFF",
         },
         {
           label: "W-L",
@@ -234,7 +240,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#10B981",
+          color: "#FFFFFF",
         },
         {
           label: "WHIP",
@@ -243,7 +249,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#8B5CF6",
+          color: "#FFFFFF",
         },
       ]
     : [
@@ -254,7 +260,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#3B82F6",
+          color: "#FFFFFF",
         },
         {
           label: "HR",
@@ -263,7 +269,7 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#EF4444",
+          color: "#FFFFFF",
         },
         {
           label: "RBI",
@@ -272,15 +278,12 @@ export default function PlayerProfilePage() {
             : statsLoading
               ? "..."
               : "-",
-          color: "#F59E0B",
+          color: "#FFFFFF",
         },
       ];
 
-  const bgGradient = `linear-gradient(160deg, ${tc.bg} 0%, ${
-    tc.accent === "#000000" ? "#1e1e2e" : tc.accent
-  } 55%, #0f0f1a 100%)`;
+  const bgGradient = `linear-gradient(160deg, ${tc.bg} 0%, ${tc.accent === "#000000" ? "#1e1e2e" : tc.accent} 55%, #0f0f1a 100%)`;
 
-  // HotColdTab용 data 조합
   const hotColdTabData =
     hotColdZone && strikeoutZone
       ? {
@@ -292,13 +295,10 @@ export default function PlayerProfilePage() {
             : { LF: "-", CF: "-", RF: "-" },
         }
       : null;
-
-  // HitterStatcastTab용 hitDistrib
   const resolvedHitDistrib = hitDirection
     ? { LF: hitDirection.lf, CF: hitDirection.cf, RF: hitDirection.rf }
     : undefined;
 
-  // ── 렌더링 ───────────────────────────────────────────────────────────────
   return (
     <div>
       <PlayerSearchBar
@@ -333,6 +333,7 @@ export default function PlayerProfilePage() {
       />
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-10">
+        {/* ── 기존 스탯캐스트 / 존 섹션 ────────────────────────────────── */}
         {pitcher ? (
           <>
             <section>
@@ -344,7 +345,6 @@ export default function PlayerProfilePage() {
               </div>
               <PitcherStatcastTab pid={playerBasic.pid} stats={pitcherStats} />
             </section>
-
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-1 h-5 rounded-full bg-orange-400 inline-block" />
@@ -384,7 +384,6 @@ export default function PlayerProfilePage() {
                 hitDistrib={resolvedHitDistrib}
               />
             </section>
-
             <section>
               <div className="flex items-center gap-2 mb-4">
                 <span className="w-1 h-5 rounded-full bg-blue-400 inline-block" />
@@ -397,7 +396,11 @@ export default function PlayerProfilePage() {
                   차트 로딩 중...
                 </div>
               ) : hotColdTabData ? (
-                <HotColdTab data={hotColdTabData} dataSource="db" />
+                <HotColdTab
+                  data={hotColdTabData}
+                  dataSource="db"
+                  battingSide={playerBasic.battingSide}
+                />
               ) : (
                 <div className="text-center py-16 text-gray-300 text-sm">
                   핫/콜드존 데이터가 없습니다.

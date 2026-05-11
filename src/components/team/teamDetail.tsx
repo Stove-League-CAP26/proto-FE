@@ -1,16 +1,20 @@
-// 팀 상세 뷰 — 화이트 기반 + 팀 컬러 포인트 디자인
-// · 배경: 흰색 + 상단 팀 컬러 워시 그라디언트
-// · 카드: bg-white, border-gray-100, shadow-sm
-// · 팀 컬러: 헤더 강조 / 탭 액티브 / 뱃지 포인트 용도로만 사용
-import { useState } from "react";
+// src/components/team/teamDetail.tsx
+import { useState, useEffect } from "react";
 import RosterTab from "@/components/team/RosterTab";
 import HistoryTab from "@/components/team/HistoryTab";
 import SongsTab from "@/components/team/SongsTab";
 import TeamRadarChart from "@/components/team/TeamRadarChart";
+import TeamDepthTab from "@/components/team/TeamDepthTab";
 import type { Team } from "@/mock/teamData";
-import { RADAR_AXES } from "@/constants/teamConstants";
+import {
+  fetchTeamStats,
+  fetchTeamRadar,
+  fetchLeagueAverageRadar,
+  type TeamStats,
+  type TeamRadarData,
+} from "@/api/teamStatsApi";
 
-const TABS = ["홈", "로스터", "히스토리", "응원가"] as const;
+const TABS = ["홈", "로스터", "포지션", "응원가"] as const;
 type TabType = (typeof TABS)[number];
 
 interface TeamDetailProps {
@@ -19,22 +23,223 @@ interface TeamDetailProps {
   onSelectPlayer: (pid: number) => void;
 }
 
+// ── 전체 스탯 테이블 ──────────────────────────────────────────
+function TeamFullStatTable({
+  stats,
+  primary,
+}: {
+  stats: TeamStats;
+  primary: string;
+}) {
+  const [tab, setTab] = useState<"batting" | "pitching">("batting");
+
+  const battingRows = [
+    { label: "경기", val: stats.g, unit: "G" },
+    { label: "타석", val: stats.pa, unit: "PA" },
+    { label: "타수", val: stats.ab, unit: "AB" },
+    { label: "득점", val: stats.r, unit: "R" },
+    { label: "안타", val: stats.h, unit: "H" },
+    { label: "2루타", val: stats.b2, unit: "2B" },
+    { label: "3루타", val: stats.b3, unit: "3B" },
+    { label: "홈런", val: stats.hr, unit: "HR" },
+    { label: "루타", val: stats.tb, unit: "TB" },
+    { label: "타점", val: stats.rbi, unit: "RBI" },
+    { label: "희생번트", val: stats.sac, unit: "SAC" },
+    { label: "희생플라이", val: stats.sf, unit: "SF" },
+    { label: "볼넷", val: stats.bb, unit: "BB" },
+    { label: "고의사구", val: stats.ibb, unit: "IBB" },
+    { label: "사구", val: stats.hbp, unit: "HBP" },
+    { label: "삼진", val: stats.so, unit: "SO" },
+    { label: "병살", val: stats.gdp, unit: "GDP" },
+    { label: "멀티히트", val: stats.mh, unit: "MH" },
+    { label: "도루", val: stats.sb, unit: "SB" },
+    { label: "타율", val: stats.avg?.toFixed(3), unit: "AVG", highlight: true },
+    {
+      label: "출루율",
+      val: stats.obp?.toFixed(3),
+      unit: "OBP",
+      highlight: true,
+    },
+    {
+      label: "장타율",
+      val: stats.slg?.toFixed(3),
+      unit: "SLG",
+      highlight: true,
+    },
+    { label: "OPS", val: stats.ops?.toFixed(3), unit: "OPS", highlight: true },
+    {
+      label: "득점권타율",
+      val: stats.risp?.toFixed(3),
+      unit: "RISP",
+      highlight: true,
+    },
+    { label: "대타타율", val: stats.phBa?.toFixed(3), unit: "PH" },
+  ];
+
+  const pitchingRows = [
+    { label: "ERA", val: stats.era?.toFixed(2), unit: "ERA", highlight: true },
+    { label: "경기", val: stats.g, unit: "G" },
+    { label: "승", val: stats.w, unit: "W" },
+    { label: "패", val: stats.l, unit: "L" },
+    { label: "세이브", val: stats.sv, unit: "SV" },
+    { label: "홀드", val: stats.hld, unit: "HLD" },
+    { label: "승률", val: stats.wpct?.toFixed(3), unit: "W%", highlight: true },
+    { label: "이닝", val: stats.ip, unit: "IP" },
+    { label: "피안타", val: stats.pitchH, unit: "H" },
+    { label: "피홈런", val: stats.pitchHr, unit: "HR" },
+    { label: "볼넷", val: stats.pitchBb, unit: "BB" },
+    { label: "사구", val: stats.pitchHbp, unit: "HBP" },
+    { label: "탈삼진", val: stats.pitchSo, unit: "K" },
+    { label: "실점", val: stats.pitchR, unit: "R" },
+    { label: "자책점", val: stats.er, unit: "ER" },
+    {
+      label: "WHIP",
+      val: stats.whip?.toFixed(2),
+      unit: "WHIP",
+      highlight: true,
+    },
+    { label: "완투", val: stats.cg, unit: "CG" },
+    { label: "완봉", val: stats.sho, unit: "SHO" },
+    { label: "QS", val: stats.qs, unit: "QS", highlight: true },
+    { label: "블론세이브", val: stats.bsv, unit: "BSV" },
+    { label: "피타자", val: stats.tbf, unit: "TBF" },
+    { label: "투구수", val: stats.np, unit: "NP" },
+    {
+      label: "피타율",
+      val: stats.pitchAvg?.toFixed(3),
+      unit: "AVG",
+      highlight: true,
+    },
+    { label: "폭투", val: stats.wp, unit: "WP" },
+    { label: "보크", val: stats.bk, unit: "BK" },
+    { label: "실책", val: stats.e, unit: "E" },
+  ];
+
+  const rows = tab === "batting" ? battingRows : pitchingRows;
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-gray-100">
+      {/* 탭 */}
+      <div className="flex">
+        {(["batting", "pitching"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className="flex-1 py-3 text-xs font-bold transition-all border-b-2"
+            style={{
+              color: tab === t ? primary : "#94a3b8",
+              borderBottomColor: tab === t ? primary : "transparent",
+              background: tab === t ? `${primary}06` : "#f8fafc",
+            }}
+          >
+            {t === "batting" ? "공격 팀 타격" : "수비 팀 투수"}
+          </button>
+        ))}
+      </div>
+
+      {/* 테이블 */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr style={{ background: `${primary}08` }}>
+              {rows.map((row) => (
+                <th
+                  key={row.unit}
+                  className="px-3 py-2 text-center whitespace-nowrap border-b border-gray-100"
+                  style={{
+                    color: row.highlight ? primary : "#64748b",
+                    fontSize: "10px",
+                    fontWeight: row.highlight ? 900 : 700,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  {row.unit}
+                </th>
+              ))}
+            </tr>
+            <tr style={{ background: "#f8fafc" }}>
+              {rows.map((row) => (
+                <th
+                  key={row.unit}
+                  className="px-3 py-1.5 text-center whitespace-nowrap border-b border-gray-100 text-[10px] text-gray-400 font-medium"
+                >
+                  {row.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="hover:bg-gray-50 transition-colors">
+              {rows.map((row) => (
+                <td
+                  key={row.unit}
+                  className="px-3 py-3 text-center whitespace-nowrap"
+                  style={{
+                    color: row.highlight ? primary : "#1e293b",
+                    fontWeight: row.highlight ? 800 : 600,
+                    fontSize: row.highlight ? "14px" : "13px",
+                  }}
+                >
+                  {row.val ?? "-"}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────
 export default function TeamDetail({
   team,
   onBack,
   onSelectPlayer,
 }: TeamDetailProps) {
   const [activeTab, setActiveTab] = useState<TabType>("홈");
-  const [stadiumImgError, setStadiumImgError] = useState(
-    !team.stadium.imageUrl,
+  const [stadiumImgError, setStadiumImgError] = useState(false);
+  const [teamStats, setTeamStats] = useState<TeamStats | null>(null);
+  const [teamRadar, setTeamRadar] = useState<TeamRadarData | null>(null);
+  const [leagueAvgRadar, setLeagueAvgRadar] = useState<TeamRadarData | null>(
+    null,
   );
+  const [statsLoading, setStatsLoading] = useState(true);
 
+  // ── 시즌 토글 state (2024 / 2025) ────────────────────────────
+  const [statSeason, setStatSeason] = useState<2024 | 2025>(2025);
+
+  const stadiumSrc = team.stadium.imageUrl || `/images/stadium/${team.id}.png`;
   const tc = team.colors;
   const primary = tc.primary;
 
+  // 팀 디테일 진입 시 스크롤 최상단으로 초기화
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [team.id]);
+
+  // team.id 또는 statSeason 변경 시 데이터 재조회
+  useEffect(() => {
+    setStatsLoading(true);
+    setTeamStats(null);
+    setTeamRadar(null);
+
+    Promise.all([
+      fetchTeamStats(team.id, statSeason).catch(() => null),
+      fetchTeamRadar(team.id, statSeason).catch(() => null),
+      fetchLeagueAverageRadar(statSeason).catch(() => null),
+    ])
+      .then(([stats, radar, avgRadar]) => {
+        setTeamStats(stats);
+        setTeamRadar(radar);
+        setLeagueAvgRadar(avgRadar);
+      })
+      .finally(() => setStatsLoading(false));
+  }, [team.id, statSeason]);
+
   return (
     <div className="min-h-screen" style={{ background: "#f8fafc" }}>
-      {/* ── 히어로 헤더 ── */}
+      {/* 히어로 헤더 */}
       <div
         className="relative overflow-hidden"
         style={{
@@ -42,14 +247,11 @@ export default function TeamDetail({
           borderBottom: `1px solid ${primary}20`,
         }}
       >
-        {/* 우측 장식 원 */}
         <div
           className="absolute -right-20 -top-20 w-72 h-72 rounded-full pointer-events-none"
           style={{ background: `${primary}08` }}
         />
-
-        <div className="relative px-5 pt-5 pb-7 max-w-4xl mx-auto">
-          {/* 뒤로 가기 */}
+        <div className="relative px-4 pt-5 pb-7 max-w-6xl mx-auto">
           <button
             onClick={onBack}
             className="flex items-center gap-1.5 text-sm font-semibold mb-5 px-3 py-1.5 rounded-full transition-all hover:bg-black/5 w-fit"
@@ -57,17 +259,13 @@ export default function TeamDetail({
           >
             ← 팀 선택으로
           </button>
-
           <div className="flex items-start gap-5">
-            {/* 팀 엠블럼 */}
             <div
               className="w-20 h-20 rounded-2xl flex-shrink-0 flex items-center justify-center shadow-lg overflow-hidden"
               style={{
                 background: team.logoUrl
                   ? "white"
-                  : `linear-gradient(135deg, ${tc.primary}, ${
-                      tc.secondary === "#000000" ? tc.accent : tc.secondary
-                    })`,
+                  : `linear-gradient(135deg, ${tc.primary}, ${tc.secondary === "#000000" ? tc.accent : tc.secondary})`,
                 boxShadow: `0 8px 24px ${primary}33`,
                 border: `1px solid ${primary}20`,
               }}
@@ -87,7 +285,6 @@ export default function TeamDetail({
                 </span>
               )}
             </div>
-
             <div className="flex-1 min-w-0">
               <p className="text-gray-400 text-xs font-semibold tracking-wide">
                 {team.city} · {team.stadium.name}
@@ -99,70 +296,24 @@ export default function TeamDetail({
                 <span className="text-gray-400 text-xs">
                   창단 {team.founded}
                 </span>
-                <span className="text-gray-300 text-xs">·</span>
-                <span className="text-gray-400 text-xs">{team.mascotName}</span>
-              </div>
-
-              {/* 스탯 뱃지 */}
-              <div className="flex gap-2 mt-3 flex-wrap">
-                {[
-                  {
-                    label: "우승",
-                    val: `${team.championships}회`,
-                    color: "#F59E0B",
-                  },
-                  {
-                    label: "ERA",
-                    val: team.stats2024.era.toFixed(2),
-                    color: primary,
-                  },
-                  {
-                    label: "OPS",
-                    val: team.stats2024.ops.toFixed(3),
-                    color: "#10B981",
-                  },
-                  {
-                    label: "AVG",
-                    val: team.stats2024.avg.toFixed(3),
-                    color: "#3B82F6",
-                  },
-                ].map((b) => (
-                  <div
-                    key={b.label}
-                    className="flex items-baseline gap-1 px-2.5 py-1.5 rounded-xl bg-white shadow-sm"
-                    style={{ border: `1px solid ${b.color}25` }}
-                  >
-                    <span
-                      className="text-xs font-black"
-                      style={{ color: b.color }}
-                    >
-                      {b.val}
-                    </span>
-                    <span className="text-[9px] font-semibold text-gray-400">
-                      {b.label}
-                    </span>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── 탭바 ── */}
+      {/* 탭바 */}
       <div
-        className="sticky top-0 z-20 bg-white border-b border-gray-100 px-5"
+        className="sticky top-0 z-20 bg-white border-b border-gray-100 px-4"
         style={{ boxShadow: "0 1px 12px rgba(0,0,0,0.06)" }}
       >
-        <div className="max-w-4xl mx-auto flex gap-1">
+        <div className="max-w-6xl mx-auto flex gap-1">
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className="relative flex-shrink-0 px-4 py-3.5 text-sm font-bold transition-all"
-              style={{
-                color: activeTab === tab ? primary : "#94a3b8",
-              }}
+              style={{ color: activeTab === tab ? primary : "#94a3b8" }}
             >
               {tab}
               {activeTab === tab && (
@@ -176,16 +327,15 @@ export default function TeamDetail({
         </div>
       </div>
 
-      {/* ── 탭 콘텐츠 ── */}
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        {/* ──── 홈 탭 ──── */}
+      {/* 탭 콘텐츠 */}
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
         {activeTab === "홈" && (
           <>
             {/* 구장 카드 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {!stadiumImgError ? (
                 <img
-                  src={team.stadium.imageUrl}
+                  src={stadiumSrc}
                   alt={team.stadium.name}
                   className="w-full h-44 object-cover"
                   onError={() => setStadiumImgError(true)}
@@ -201,123 +351,255 @@ export default function TeamDetail({
                   <p className="text-gray-400 text-xs">이미지 준비중</p>
                 </div>
               )}
-              <div className="p-5 grid grid-cols-3 gap-4">
-                {[
-                  { label: "구장명", value: team.stadium.name },
-                  { label: "위치", value: team.city },
-                  {
-                    label: "수용인원",
-                    value: `${team.stadium.capacity.toLocaleString()}명`,
-                  },
-                  { label: "개장", value: `${team.stadium.openYear}년` },
-                  { label: "그라운드", value: team.stadium.surface },
-                  { label: "형태", value: team.stadium.roofType },
-                ].map(({ label, value }) => (
-                  <div key={label}>
-                    <p className="text-gray-400 text-[10px] font-semibold">
-                      {label}
-                    </p>
-                    <p className="text-gray-800 text-sm font-bold mt-0.5">
-                      {value}
-                    </p>
+              <div className="p-5 gap-4">
+                {/* 구장 정보, 팀 역사 */}
+                <div className="p-5 grid grid-cols-2 gap-4">
+                  <div className="bg-withe rounded-2xl shadow-sm border border-gray-100 p-5">
+                    <div className="flex items-center gap-2 mb-5">
+                      <div
+                        className="w-1 h-5 rounded-full"
+                        style={{ background: primary }}
+                      />
+                      <h3 className="text-gray-800 text-sm font-extrabold">
+                        구장 정보
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {[
+                        { label: "구장명", value: team.stadium.name },
+                        { label: "위치", value: team.city },
+                        {
+                          label: "수용인원",
+                          value: `${team.stadium.capacity.toLocaleString()}명`,
+                        },
+                        { label: "개장", value: `${team.stadium.openYear}년` },
+                        { label: "그라운드", value: team.stadium.surface },
+                        { label: "형태", value: team.stadium.roofType },
+                      ].map(({ label, value }) => (
+                        <div key={label}>
+                          <p className="text-gray-400 text-[10px] font-semibold">
+                            {label}
+                          </p>
+                          <p className="text-gray-800 text-sm font-bold mt-0.5">
+                            {value}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                  <div className="bg-withe rounded-2xl shadow-sm border border-gray-100 p-5">
+                    <div className="flex items-center gap-2 mb-5">
+                      <div
+                        className="w-1 h-5 rounded-full"
+                        style={{ background: primary }}
+                      />
+                      <h3 className="text-gray-800 text-sm font-extrabold">
+                        팀 역사
+                      </h3>
+                    </div>
+                    <HistoryTab history={team.history} teamColor={primary} />
+                  </div>
+                </div>
+                {/* 우승 연도 */}
+                {team.championshipYears.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div
+                        className="w-1 h-5 rounded-full"
+                        style={{ background: "#F59E0B" }}
+                      />
+                      <h3 className="text-gray-800 text-sm font-extrabold">
+                        🏆 한국시리즈 우승
+                        <span
+                          className="ml-1.5 font-black"
+                          style={{ color: "#F59E0B" }}
+                        >
+                          {team.championships}회
+                        </span>
+                      </h3>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {team.championshipYears.map((y) => (
+                        <span
+                          key={y}
+                          className="px-2.5 py-1 rounded-full text-xs font-black"
+                          style={{
+                            background: "#FEF3C7",
+                            color: "#92400E",
+                            border: "1px solid #FDE68A",
+                          }}
+                        >
+                          {y}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* 우승 연도 */}
-            {team.championshipYears.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div
-                    className="w-1 h-5 rounded-full"
-                    style={{ background: "#F59E0B" }}
-                  />
-                  <h3 className="text-gray-800 text-sm font-extrabold">
-                    🏆 한국시리즈 우승
-                    <span
-                      className="ml-1.5 font-black"
-                      style={{ color: "#F59E0B" }}
-                    >
-                      {team.championships}회
-                    </span>
-                  </h3>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {team.championshipYears.map((y) => (
-                    <span
-                      key={y}
-                      className="px-2.5 py-1 rounded-full text-xs font-black"
-                      style={{
-                        background: "#FEF3C7",
-                        color: "#92400E",
-                        border: "1px solid #FDE68A",
-                      }}
-                    >
-                      {y}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 팀 스탯 레이더 */}
+            {/* 팀 스탯 분석 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center gap-2 mb-4">
+              <div className="flex items-center gap-2 mb-5">
                 <div
                   className="w-1 h-5 rounded-full"
                   style={{ background: primary }}
                 />
                 <h3 className="text-gray-800 text-sm font-extrabold">
-                  2024 팀 스탯 분석
+                  {statSeason} 팀 스탯 분석
                 </h3>
-                <span className="ml-auto text-gray-400 text-xs">
-                  🛡️ 수비 / ⚔️ 공격
-                </span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                {/* 레이더 차트 — 다크 배경 그대로 유지 (가독성 ↑) */}
-                <div
-                  className="rounded-2xl p-3"
-                  style={{ background: "#0f172a" }}
-                >
-                  <TeamRadarChart team={team} />
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {RADAR_AXES.map((ax) => (
-                    <div
-                      key={ax.key}
-                      className="rounded-xl p-3 text-center border border-gray-100"
-                      style={{ background: `${primary}08` }}
+
+                {/* ── 시즌 토글 버튼 ── */}
+                <div className="flex gap-1 ml-2">
+                  {([2025, 2024] as const).map((yr) => (
+                    <button
+                      key={yr}
+                      onClick={() => setStatSeason(yr)}
+                      className="px-3 py-1 rounded-full text-xs font-black transition-all"
+                      style={
+                        statSeason === yr
+                          ? { background: primary, color: "#ffffff" }
+                          : { background: "#f1f5f9", color: "#64748b" }
+                      }
                     >
-                      <p className="text-[9px] text-gray-500 font-semibold">
-                        {ax.sub}
-                      </p>
-                      <p
-                        className="text-sm font-black mt-0.5"
-                        style={{ color: primary }}
-                      >
-                        {ax.key === "ERA"
-                          ? team.stats2024.era.toFixed(2)
-                          : ax.key === "WHIP"
-                            ? team.stats2024.whip.toFixed(2)
-                            : ax.key === "QS"
-                              ? `${team.stats2024.qs}회`
-                              : ax.key === "AVG"
-                                ? team.stats2024.avg.toFixed(3)
-                                : ax.key === "SB"
-                                  ? `${team.stats2024.sb}개`
-                                  : team.stats2024.ops.toFixed(3)}
-                      </p>
-                    </div>
+                      {yr}
+                    </button>
                   ))}
                 </div>
+
+                <span className="ml-auto text-[10px] text-gray-400">
+                  🛡️ ERA · WHIP · 수비 &nbsp;/&nbsp; ⚔️ 도루 · OPS · 타율
+                </span>
               </div>
+
+              {statsLoading ? (
+                <div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />
+              ) : (
+                <>
+                  {/* ── 상단: 레이더 + 6개 주요 스탯 ── */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start mb-6">
+                    <div
+                      className="rounded-2xl p-3 flex justify-center"
+                      style={{ background: "#0f172a" }}
+                    >
+                      <div className="w-full max-w-[400px]">
+                        <TeamRadarChart
+                          team={team}
+                          radarData={teamRadar}
+                          avgData={leagueAvgRadar}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 6개 주요 스탯 */}
+                    <div>
+                      <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-2.5">
+                        주요 스탯
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 gap-y-8">
+                        {[
+                          {
+                            label: "ERA",
+                            sub: "평균자책점",
+                            val:
+                              teamStats?.era != null
+                                ? teamStats.era.toFixed(2)
+                                : team.stats2024.era.toFixed(2),
+                            desc: "낮을수록 좋음",
+                          },
+                          {
+                            label: "WHIP",
+                            sub: "이닝당 출루허용",
+                            val:
+                              teamStats?.whip != null
+                                ? teamStats.whip.toFixed(2)
+                                : team.stats2024.whip.toFixed(2),
+                            desc: "낮을수록 좋음",
+                          },
+                          {
+                            label: "OPS",
+                            sub: "출루율 + 장타율",
+                            val:
+                              teamStats?.ops != null
+                                ? teamStats.ops.toFixed(3)
+                                : team.stats2024.ops.toFixed(3),
+                            desc: "높을수록 좋음",
+                          },
+                          {
+                            label: "타율",
+                            sub: "팀 타율",
+                            val:
+                              teamStats?.avg != null
+                                ? teamStats.avg.toFixed(3)
+                                : team.stats2024.avg.toFixed(3),
+                            desc: "높을수록 좋음",
+                          },
+                          {
+                            label: "도루",
+                            sub: "팀 도루",
+                            val:
+                              teamStats?.sb != null
+                                ? `${teamStats.sb}개`
+                                : `${team.stats2024.sb}개`,
+                            desc: "시즌 누적",
+                          },
+                          {
+                            label: "QS",
+                            sub: "퀄리티스타트",
+                            val:
+                              teamStats?.qs != null
+                                ? `${teamStats.qs}회`
+                                : `${team.stats2024.qs}회`,
+                            desc: "시즌 누적",
+                          },
+                        ].map((s) => (
+                          <div
+                            key={s.label}
+                            className="rounded-xl p-3 border"
+                            style={{
+                              background: `${primary}08`,
+                              borderColor: `${primary}20`,
+                            }}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[10px] text-gray-400 font-semibold">
+                                {s.sub}
+                              </p>
+                              <span
+                                className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                                style={{
+                                  background: `${primary}15`,
+                                  color: primary,
+                                }}
+                              >
+                                {s.desc}
+                              </span>
+                            </div>
+                            <p
+                              className="text-xl font-black mt-0.5"
+                              style={{ color: primary }}
+                            >
+                              {s.val}
+                            </p>
+                            <p className="text-[10px] text-gray-500 font-bold mt-0.5">
+                              {s.label}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── 하단: 전체 스탯 테이블 ── */}
+                  {teamStats && (
+                    <TeamFullStatTable stats={teamStats} primary={primary} />
+                  )}
+                </>
+              )}
             </div>
           </>
         )}
 
-        {/* ──── 로스터 탭 ──── */}
         {activeTab === "로스터" && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center gap-2 mb-5">
@@ -326,29 +608,21 @@ export default function TeamDetail({
                 style={{ background: primary }}
               />
               <h3 className="text-gray-800 text-sm font-extrabold">선수단</h3>
-              <span className="ml-auto text-gray-400 text-xs">
-                선수 클릭 → 선수 프로필
-              </span>
             </div>
             <RosterTab team={team} onSelectPlayer={onSelectPlayer} />
           </div>
         )}
 
-        {/* ──── 히스토리 탭 ──── */}
-        {activeTab === "히스토리" && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="flex items-center gap-2 mb-5">
-              <div
-                className="w-1 h-5 rounded-full"
-                style={{ background: primary }}
-              />
-              <h3 className="text-gray-800 text-sm font-extrabold">팀 역사</h3>
-            </div>
-            <HistoryTab history={team.history} teamColor={primary} />
-          </div>
+        {/* 뎁스 탭 — fetch·캐시·시즌토글 모두 TeamDepthTab 내부에서 처리 */}
+        {activeTab === "포지션" && (
+          <TeamDepthTab
+            teamId={team.id}
+            primary={primary}
+            accent={tc.accent}
+            onSelectPlayer={onSelectPlayer}
+          />
         )}
 
-        {/* ──── 응원가 탭 ──── */}
         {activeTab === "응원가" && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <div className="flex items-center gap-2 mb-5">
@@ -358,7 +632,7 @@ export default function TeamDetail({
               />
               <h3 className="text-gray-800 text-sm font-extrabold">응원가</h3>
             </div>
-            <SongsTab songs={team.songs} team={team} />
+            <SongsTab teamId={team.id} teamColor={primary} />
           </div>
         )}
       </div>

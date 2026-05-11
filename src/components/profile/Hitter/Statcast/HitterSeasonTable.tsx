@@ -1,4 +1,4 @@
-// 타자 시즌 기록 테이블 컴포넌트 — 전체 스탯 컬럼 + 좌우 스크롤
+// 타자 시즌 기록 테이블 — sb 컬럼 추가
 import type { HitterCombinedStat } from "@/utils/StatsCalculator";
 import { calcHitterDerived, fmtAvg, fmtPct } from "@/utils/StatsCalculator";
 
@@ -24,6 +24,7 @@ const COLUMNS: {
   { key: "hr", label: "HR", color: "text-red-500" },
   { key: "tb", label: "TB" },
   { key: "rbi", label: "RBI", color: "text-amber-500" },
+  { key: "sb", label: "SB", color: "text-cyan-500" }, // ← 추가
   { key: "sac", label: "SAC" },
   { key: "sf", label: "SF" },
   { key: "bb", label: "BB" },
@@ -42,7 +43,6 @@ const COLUMNS: {
   { key: "kPct", label: "K%", color: "text-violet-500", derived: true },
 ];
 
-// 연도·팀 sticky 처리
 const STICKY: Record<string, string> = {
   season: "sticky left-0 z-10",
   team: "sticky left-[60px] z-10",
@@ -78,6 +78,8 @@ function fmtCell(
       return row.tb != null ? String(row.tb) : "-";
     case "rbi":
       return row.rbi != null ? String(row.rbi) : "-";
+    case "sb":
+      return (row as any).sb != null ? String((row as any).sb) : "-"; // ← 추가
     case "sac":
       return row.sac != null ? String(row.sac) : "-";
     case "sf":
@@ -87,7 +89,7 @@ function fmtCell(
     case "ibb":
       return row.ibb != null ? String(row.ibb) : "-";
     case "hbp":
-      return row.hbp != null ? String(row.hbp) : "-";
+      return (row as any).hbp != null ? String((row as any).hbp) : "-";
     case "so":
       return row.so != null ? String(row.so) : "-";
     case "gdp":
@@ -125,7 +127,6 @@ export default function HitterSeasonTable({ stats }: HitterSeasonTableProps) {
         <h3 className="font-bold text-gray-800">시즌 기록</h3>
         <span className="ml-auto text-xs text-gray-400">← 좌우 스크롤</span>
       </div>
-
       <div className="overflow-x-auto table-scroll">
         <table className="text-sm border-collapse min-w-full">
           <thead>
@@ -151,17 +152,14 @@ export default function HitterSeasonTable({ stats }: HitterSeasonTableProps) {
             {sorted.map((row, i) => {
               const d = calcHitterDerived(row);
               const isLatest = i === 0;
-              const rowBg = isLatest ? "bg-blue-50/40" : "";
-
               return (
                 <tr
                   key={i}
-                  className={`border-t border-gray-50 ${rowBg} hover:brightness-95`}
+                  className={`border-t border-gray-50 ${isLatest ? "bg-blue-50/40" : ""} hover:brightness-95`}
                 >
                   {COLUMNS.map((col) => {
                     const isSticky = !!STICKY[col.key];
                     const stickyBg = isLatest ? "bg-blue-50/60" : "bg-white";
-
                     return (
                       <td
                         key={col.key}
