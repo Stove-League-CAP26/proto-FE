@@ -1,14 +1,8 @@
 // src/pages/MainPage.tsx
-// [변경사항]
-// 1. import에 fetchPredictionsByDate, getProviderColor, TodayPrediction 추가
-// 2. import에 GamePredictionBar 추가
-// 3. PROVIDER_LABEL, PROVIDER_IMAGE, GamePredictionBar 컴포넌트 코드 제거 (파일 분리)
-// 4. MainPage state에 predictions, predictionsLoading 추가
-// 5. selectedDate 변경 시 fetchPredictionsByDate 호출하는 useEffect 추가
-// 6. 경기 목록 렌더링에서 GameCard 아래 <GamePredictionBar> 추가
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { DayPicker } from "react-day-picker";
+import "react-day-picker/dist/style.css";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   fetchGamesByDate,
@@ -40,30 +34,159 @@ import {
   type TodayPrediction,
 } from "@/api/predictionApi";
 
-import AiPredictionSection from "@/components/main/AiPredictionSection";
-import GamePredictionBar from "@/components/main/GamePredictionBar";
+import GamePredictionPanel from "@/components/main/GamePredictionPanel";
+import AiRankingBar from "@/components/main/AiRankingBar";
 
 interface MainPageProps {
   onSelectPlayer?: (pid: number) => void;
 }
 
-function buildDateTabs() {
-  const tabs = [];
-  const today = new Date();
-  const days = ["일", "월", "화", "수", "목", "금", "토"];
-  for (let i = -2; i <= 3; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const dateStr = `${yyyy}-${mm}-${dd}`;
-    const label = `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]})`;
-    tabs.push({ dateStr, label, isToday: i === 0 });
-  }
-  return tabs;
+// ── 날짜 유틸 ────────────────────────────────────────────────────────────────
+function toDateStr(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
+function toDisplayLabel(dateStr: string): string {
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  const d = new Date(dateStr);
+  return `${d.getMonth() + 1}/${d.getDate()}(${days[d.getDay()]})`;
+}
+
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + n);
+  return toDateStr(d);
+}
+
+// ── 날짜 네비게이터 ──────────────────────────────────────────────────────────
+function DateNavigator({
+  selectedDate,
+  onChange,
+}: {
+  selectedDate: string;
+  onChange: (date: string) => void;
+}) {
+  const [calOpen, setCalOpen] = useState(false);
+  const calRef = useRef<HTMLDivElement>(null);
+  const todayStr = toDateStr(new Date());
+  const isToday = selectedDate === todayStr;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (calRef.current && !calRef.current.contains(e.target as Node)) {
+        setCalOpen(false);
+      }
+    }
+    if (calOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [calOpen]);
+
+  return (
+    <div className="flex items-center gap-2 relative">
+      <button
+        onClick={() => onChange(addDays(selectedDate, -1))}
+        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all text-gray-600 font-bold text-sm"
+      >
+        ‹
+      </button>
+      <button
+        onClick={() => onChange(todayStr)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-gray-200 hover:border-gray-400 transition-all min-w-[110px] justify-center"
+      >
+        <span className="text-sm font-black text-gray-800">
+          {toDisplayLabel(selectedDate)}
+        </span>
+        {isToday && (
+          <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-500 text-white leading-none">
+            오늘
+          </span>
+        )}
+      </button>
+      <button
+        onClick={() => onChange(addDays(selectedDate, 1))}
+        className="w-8 h-8 flex items-center justify-center rounded-xl bg-white border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all text-gray-600 font-bold text-sm"
+      >
+        ›
+      </button>
+      <button
+        onClick={() => setCalOpen((v) => !v)}
+        className={`w-8 h-8 flex items-center justify-center rounded-xl border transition-all text-sm ${calOpen ? "bg-gray-900 border-gray-900 text-white" : "bg-white border-gray-200 hover:border-gray-400 hover:bg-gray-50 text-gray-600"}`}
+      >
+        📅
+      </button>
+      {calOpen && (
+        <div
+          ref={calRef}
+          className="absolute top-10 right-0 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-2"
+          style={{ minWidth: 280 }}
+        >
+          <DayPicker
+            mode="single"
+            selected={new Date(selectedDate)}
+            onSelect={(day) => {
+              if (day) {
+                onChange(toDateStr(day));
+                setCalOpen(false);
+              }
+            }}
+            locale={{
+              localize: {
+                day: (n: number) =>
+                  ["일", "월", "화", "수", "목", "금", "토"][n],
+                month: (n: number) =>
+                  [
+                    "1월",
+                    "2월",
+                    "3월",
+                    "4월",
+                    "5월",
+                    "6월",
+                    "7월",
+                    "8월",
+                    "9월",
+                    "10월",
+                    "11월",
+                    "12월",
+                  ][n],
+                ordinalNumber: (n: number) => `${n}`,
+                era: () => "",
+                quarter: () => "",
+                dayPeriod: () => "",
+              },
+              formatLong: {
+                date: () => "yyyy년 MM월 dd일",
+                time: () => "HH:mm:ss",
+                dateTime: () => "yyyy년 MM월 dd일 HH:mm:ss",
+              },
+              options: { weekStartsOn: 0 },
+              match: {
+                day: () => /./,
+                month: () => /./,
+                ordinalNumber: () => /\d+/,
+                era: () => /./,
+                quarter: () => /./,
+                dayPeriod: () => /./,
+              },
+              code: "ko",
+              formatDistance: () => "",
+              formatRelative: () => "",
+            }}
+            styles={{
+              caption: { fontSize: 13, fontWeight: 800 },
+              day: { fontSize: 12, borderRadius: 8 },
+              head_cell: { fontSize: 11, color: "#9ca3af", fontWeight: 700 },
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── 팀 코드/이름 맵 ──────────────────────────────────────────────────────────
 const TEAM_CODE_TO_NAME: Record<string, string> = {
   LG: "LG",
   KT: "KT",
@@ -76,7 +199,6 @@ const TEAM_CODE_TO_NAME: Record<string, string> = {
   HH: "한화",
   WO: "키움",
 };
-
 const TEAM_CODE_TO_IMAGE: Record<string, string> = {
   LG: "/images/teams/lg.png",
   KT: "/images/teams/kt.png",
@@ -89,7 +211,6 @@ const TEAM_CODE_TO_IMAGE: Record<string, string> = {
   HH: "/images/teams/hanwha.png",
   WO: "/images/teams/kiwoom.png",
 };
-
 const TEAM_NAME_TO_IMAGE: Record<string, string> = {
   LG: "/images/teams/lg.png",
   KT: "/images/teams/kt.png",
@@ -176,7 +297,18 @@ function PlayerAvatar({
   );
 }
 
-function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
+// ── 경기 카드 ────────────────────────────────────────────────────────────────
+function GameCard({
+  game,
+  onClick,
+  onPredictionClick,
+  isPredictionSelected,
+}: {
+  game: GameInfo;
+  onClick: () => void;
+  onPredictionClick: (e: React.MouseEvent) => void;
+  isPredictionSelected: boolean;
+}) {
   const homeTeamName =
     TEAM_CODE_TO_NAME[game.homeTeamCode] ?? game.homeTeamName;
   const awayTeamName =
@@ -190,176 +322,192 @@ function GameCard({ game, onClick }: { game: GameInfo; onClick: () => void }) {
   const isCancel = game.cancel;
   const homeWin = game.winner === "HOME";
   const awayWin = game.winner === "AWAY";
+
   return (
     <div
-      onClick={onClick}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow flex flex-col cursor-pointer"
+      className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all ${isPredictionSelected ? "border-purple-300 shadow-purple-100 shadow-md" : "border-gray-100 hover:shadow-md"}`}
     >
-      <div className="flex items-center justify-between px-3 pt-3 pb-1">
-        <span className="text-[10px] text-gray-400 truncate max-w-[60%]">
-          {game.stadium}
-        </span>
-        {isLive ? (
-          <span className="flex items-center gap-1 text-[10px] font-black text-red-500 flex-shrink-0">
-            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping absolute" />
-            <span className="w-1.5 h-1.5 bg-red-500 rounded-full relative" />
-            {game.statusInfo || "LIVE"}
+      <div onClick={onClick} className="cursor-pointer flex-1">
+        <div className="flex items-center justify-between px-3 pt-3 pb-1">
+          <span className="text-[10px] text-gray-400 truncate max-w-[60%]">
+            {game.stadium}
           </span>
-        ) : isResult ? (
-          <span className="text-[10px] font-bold text-gray-400 flex-shrink-0">
-            종료
-          </span>
-        ) : isCancel ? (
-          <span className="text-[10px] font-bold text-blue-400 flex-shrink-0">
+          {isLive ? (
+            <span className="flex items-center gap-1 text-[10px] font-black text-red-500 flex-shrink-0">
+              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping absolute" />
+              <span className="w-1.5 h-1.5 bg-red-500 rounded-full relative" />
+              {game.statusInfo || "LIVE"}
+            </span>
+          ) : isResult ? (
+            <span className="text-[10px] font-bold text-gray-400 flex-shrink-0">
+              종료
+            </span>
+          ) : isCancel ? (
+            <span className="text-[10px] font-bold text-blue-400 flex-shrink-0">
+              취소
+            </span>
+          ) : (
+            <span className="text-[10px] font-bold text-blue-500 flex-shrink-0">
+              {formatGameTime(game.gameDateTime)}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center px-3 py-2 gap-2">
+          <div
+            className={`flex-1 flex flex-col items-center gap-1 ${isResult && !awayWin ? "opacity-40" : ""}`}
+          >
+            <img
+              src={
+                TEAM_CODE_TO_IMAGE[game.awayTeamCode] ?? game.awayTeamEmblemUrl
+              }
+              alt={awayTeamName}
+              className="w-9 h-9 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                const n = e.currentTarget
+                  .nextElementSibling as HTMLElement | null;
+                if (n) n.style.display = "flex";
+              }}
+            />
+            <div
+              className="w-9 h-9 rounded-xl items-center justify-center text-white text-[10px] font-black hidden"
+              style={{ backgroundColor: awayColor }}
+            >
+              {awayTeamName.slice(0, 2)}
+            </div>
+            <span className="text-[10px] font-bold text-gray-600">
+              {awayTeamName}
+            </span>
+            {isResult && (
+              <span
+                className={`text-xl font-black leading-none ${awayWin ? "text-gray-900" : "text-gray-400"}`}
+              >
+                {game.awayTeamScore}
+              </span>
+            )}
+            {isLive && (
+              <span
+                className="text-2xl font-black leading-none"
+                style={{ color: awayColor }}
+              >
+                {game.awayTeamScore}
+              </span>
+            )}
+          </div>
+          {isLive ? (
+            <div className="flex flex-col items-center gap-0.5">
+              <span className="text-[9px] font-black text-red-400 animate-pulse">
+                LIVE
+              </span>
+              <span className="text-xs font-bold text-gray-300">:</span>
+            </div>
+          ) : (
+            <span className="text-xs font-bold text-gray-200">VS</span>
+          )}
+          <div
+            className={`flex-1 flex flex-col items-center gap-1 ${isResult && !homeWin ? "opacity-40" : ""}`}
+          >
+            <img
+              src={
+                TEAM_CODE_TO_IMAGE[game.homeTeamCode] ?? game.homeTeamEmblemUrl
+              }
+              alt={homeTeamName}
+              className="w-9 h-9 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                const n = e.currentTarget
+                  .nextElementSibling as HTMLElement | null;
+                if (n) n.style.display = "flex";
+              }}
+            />
+            <div
+              className="w-9 h-9 rounded-xl items-center justify-center text-white text-[10px] font-black hidden"
+              style={{ backgroundColor: homeColor }}
+            >
+              {homeTeamName.slice(0, 2)}
+            </div>
+            <span className="text-[10px] font-bold text-gray-600">
+              {homeTeamName}
+            </span>
+            {isResult && (
+              <span
+                className={`text-xl font-black leading-none ${homeWin ? "text-gray-900" : "text-gray-400"}`}
+              >
+                {game.homeTeamScore}
+              </span>
+            )}
+            {isLive && (
+              <span
+                className="text-2xl font-black leading-none"
+                style={{ color: homeColor }}
+              >
+                {game.homeTeamScore}
+              </span>
+            )}
+          </div>
+        </div>
+        {isResult && game.winner !== "DRAW" && (
+          <div
+            className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-black text-white"
+            style={{ backgroundColor: homeWin ? homeColor : awayColor }}
+          >
+            {homeWin ? homeTeamName : awayTeamName} 승리
+          </div>
+        )}
+        {isResult &&
+          game.winner === "DRAW" &&
+          (game.homeTeamScore > 0 || game.awayTeamScore > 0) && (
+            <div className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-bold text-gray-500 bg-gray-100">
+              무승부
+            </div>
+          )}
+        {isResult && game.winPitcherName && (
+          <div className="mx-3 mb-2 text-center">
+            <span className="text-[10px] text-green-600 font-bold">
+              승 {game.winPitcherName}
+            </span>
+            <span className="text-gray-300 mx-1">·</span>
+            <span className="text-[10px] text-red-500 font-bold">
+              패 {game.losePitcherName}
+            </span>
+          </div>
+        )}
+        {!isResult && !isLive && !isCancel && game.homeStarterName && (
+          <div className="flex justify-between mx-3 mb-1 text-[10px] text-gray-400 border-t pt-1.5">
+            <span>{game.awayStarterName || "-"}</span>
+            <span className="text-gray-300">선발</span>
+            <span>{game.homeStarterName || "-"}</span>
+          </div>
+        )}
+        {game.broadChannel && (
+          <div className="text-center text-[10px] text-gray-400 mb-1 px-2">
+            📺 {game.broadChannel.replace("^", " / ")}
+          </div>
+        )}
+        {!isResult && !isLive && !isCancel && !game.broadChannel && (
+          <p className="text-center text-[10px] text-gray-400 mb-1 px-2">
+            {formatGameDate(game.gameDate)} {formatGameTime(game.gameDateTime)}
+          </p>
+        )}
+        {isCancel && (
+          <p className="text-center text-[10px] text-blue-400 font-bold mb-1">
             취소
-          </span>
-        ) : (
-          <span className="text-[10px] font-bold text-blue-500 flex-shrink-0">
-            {formatGameTime(game.gameDateTime)}
-          </span>
+          </p>
         )}
       </div>
-      <div className="flex items-center px-3 py-2 gap-2 flex-1">
-        <div
-          className={`flex-1 flex flex-col items-center gap-1 ${isResult && !awayWin ? "opacity-40" : ""}`}
+
+      {/* AI 예측 버튼 */}
+      {!isCancel && (
+        <button
+          onClick={onPredictionClick}
+          className={`mx-2 mb-2 py-1.5 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 ${
+            isPredictionSelected
+              ? "bg-purple-600 text-white"
+              : "bg-purple-50 text-purple-600 hover:bg-purple-100"
+          }`}
         >
-          <img
-            src={
-              TEAM_CODE_TO_IMAGE[game.awayTeamCode] ?? game.awayTeamEmblemUrl
-            }
-            alt={awayTeamName}
-            className="w-9 h-9 object-contain"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              const n = e.currentTarget
-                .nextElementSibling as HTMLElement | null;
-              if (n) n.style.display = "flex";
-            }}
-          />
-          <div
-            className="w-9 h-9 rounded-xl items-center justify-center text-white text-[10px] font-black hidden"
-            style={{ backgroundColor: awayColor }}
-          >
-            {awayTeamName.slice(0, 2)}
-          </div>
-          <span className="text-[10px] font-bold text-gray-600">
-            {awayTeamName}
-          </span>
-          {isResult && (
-            <span
-              className={`text-xl font-black leading-none ${awayWin ? "text-gray-900" : "text-gray-400"}`}
-            >
-              {game.awayTeamScore}
-            </span>
-          )}
-          {isLive && (
-            <span
-              className="text-2xl font-black leading-none"
-              style={{ color: awayColor }}
-            >
-              {game.awayTeamScore}
-            </span>
-          )}
-        </div>
-        {isLive ? (
-          <div className="flex flex-col items-center gap-0.5">
-            <span className="text-[9px] font-black text-red-400 animate-pulse">
-              LIVE
-            </span>
-            <span className="text-xs font-bold text-gray-300">:</span>
-          </div>
-        ) : (
-          <span className="text-xs font-bold text-gray-200">VS</span>
-        )}
-        <div
-          className={`flex-1 flex flex-col items-center gap-1 ${isResult && !homeWin ? "opacity-40" : ""}`}
-        >
-          <img
-            src={
-              TEAM_CODE_TO_IMAGE[game.homeTeamCode] ?? game.homeTeamEmblemUrl
-            }
-            alt={homeTeamName}
-            className="w-9 h-9 object-contain"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              const n = e.currentTarget
-                .nextElementSibling as HTMLElement | null;
-              if (n) n.style.display = "flex";
-            }}
-          />
-          <div
-            className="w-9 h-9 rounded-xl items-center justify-center text-white text-[10px] font-black hidden"
-            style={{ backgroundColor: homeColor }}
-          >
-            {homeTeamName.slice(0, 2)}
-          </div>
-          <span className="text-[10px] font-bold text-gray-600">
-            {homeTeamName}
-          </span>
-          {isResult && (
-            <span
-              className={`text-xl font-black leading-none ${homeWin ? "text-gray-900" : "text-gray-400"}`}
-            >
-              {game.homeTeamScore}
-            </span>
-          )}
-          {isLive && (
-            <span
-              className="text-2xl font-black leading-none"
-              style={{ color: homeColor }}
-            >
-              {game.homeTeamScore}
-            </span>
-          )}
-        </div>
-      </div>
-      {isResult && game.winner !== "DRAW" && (
-        <div
-          className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-black text-white"
-          style={{ backgroundColor: homeWin ? homeColor : awayColor }}
-        >
-          {homeWin ? homeTeamName : awayTeamName} 승리
-        </div>
-      )}
-      {isResult &&
-        game.winner === "DRAW" &&
-        (game.homeTeamScore > 0 || game.awayTeamScore > 0) && (
-          <div className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-bold text-gray-500 bg-gray-100">
-            무승부
-          </div>
-        )}
-      {isResult && game.winPitcherName && (
-        <div className="mx-3 mb-2 text-center">
-          <span className="text-[10px] text-green-600 font-bold">
-            승 {game.winPitcherName}
-          </span>
-          <span className="text-gray-300 mx-1">·</span>
-          <span className="text-[10px] text-red-500 font-bold">
-            패 {game.losePitcherName}
-          </span>
-        </div>
-      )}
-      {!isResult && !isLive && !isCancel && game.homeStarterName && (
-        <div className="flex justify-between mx-3 mb-2 text-[10px] text-gray-400 border-t pt-1.5">
-          <span>{game.awayStarterName || "-"}</span>
-          <span className="text-gray-300">선발</span>
-          <span>{game.homeStarterName || "-"}</span>
-        </div>
-      )}
-      {game.broadChannel && (
-        <div className="text-center text-[10px] text-gray-400 mb-2.5 px-2">
-          📺 {game.broadChannel.replace("^", " / ")}
-        </div>
-      )}
-      {!isResult && !isLive && !isCancel && !game.broadChannel && (
-        <p className="text-center text-[10px] text-gray-400 mb-2.5 px-2">
-          {formatGameDate(game.gameDate)} {formatGameTime(game.gameDateTime)}
-        </p>
-      )}
-      {isCancel && (
-        <p className="text-center text-[10px] text-blue-400 font-bold mb-2.5">
-          취소
-        </p>
+          🤖 <span>{isPredictionSelected ? "예측 닫기" : "AI 예측 보기"}</span>
+        </button>
       )}
     </div>
   );
@@ -412,7 +560,7 @@ function LineScoreModal({
               </span>
               {game.statusCode === "LIVE" && (
                 <span className="flex items-center gap-1 text-xs font-black text-red-500 animate-pulse ml-1">
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full inline-block" />{" "}
                   LIVE
                 </span>
               )}
@@ -908,7 +1056,7 @@ function SectionHeader({
 // ── 메인 페이지 ───────────────────────────────────────────────────────────────
 export default function MainPage({ onSelectPlayer }: MainPageProps) {
   const navigate = useNavigate();
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = toDateStr(new Date());
   const [selectedDate, setSelectedDate] = useState(todayStr);
   const [games, setGames] = useState<GameInfo[]>([]);
   const [displayDate, setDisplayDate] = useState(todayStr);
@@ -925,12 +1073,9 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
   const [gameScore, setGameScore] = useState<GameScore | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
   const [pendingGame, setPendingGame] = useState<GameInfo | null>(null);
-
-  // ── [추가] 날짜별 AI 예측 ──────────────────────────────────────────────────
   const [predictions, setPredictions] = useState<TodayPrediction[]>([]);
   const [predictionsLoading, setPredictionsLoading] = useState(false);
-
-  const dateTabs = buildDateTabs();
+  const [predictionGameId, setPredictionGameId] = useState<string | null>(null);
 
   const handleSelectPlayer = (pid: number) => {
     if (onSelectPlayer) onSelectPlayer(pid);
@@ -957,23 +1102,28 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
     }
   };
 
+  const handlePredictionClick = (gameId: string) => {
+    setPredictionGameId((prev) => (prev === gameId ? null : gameId));
+  };
+
+  const handleDateChange = (date: string) => {
+    setSelectedDate(date);
+    setPredictionGameId(null);
+  };
+
   useEffect(() => {
-    const load = async (silent = false): Promise<GameInfo[]> => {
+    const load = async (silent = false) => {
       if (!silent) setGamesLoading(true);
       try {
         const data = await fetchGamesByDate(selectedDate);
         setDisplayDate(selectedDate);
         setGames(data);
-        return data;
-      } catch (e) {
-        console.error("경기 로드 실패:", e);
+      } catch {
         if (!silent) setGames([]);
-        return [];
       } finally {
         if (!silent) setGamesLoading(false);
       }
     };
-
     let interval: ReturnType<typeof setInterval> | null = null;
     load();
     if (selectedDate === todayStr)
@@ -983,7 +1133,6 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
     };
   }, [selectedDate]);
 
-  // ── [추가] 날짜 변경 시 AI 예측 로드 ──────────────────────────────────────
   useEffect(() => {
     setPredictions([]);
     setPredictionsLoading(true);
@@ -1013,6 +1162,19 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
     ? standings
     : standings.slice(0, 5);
 
+  const predictionGame = games.find((g) => g.gameId === predictionGameId);
+  const activePrediction = predictions.find(
+    (p) => p.naverGameId === predictionGameId,
+  );
+  const predictionHomeTeam = predictionGame
+    ? (TEAM_CODE_TO_NAME[predictionGame.homeTeamCode] ??
+      predictionGame.homeTeamName)
+    : "";
+  const predictionAwayTeam = predictionGame
+    ? (TEAM_CODE_TO_NAME[predictionGame.awayTeamCode] ??
+      predictionGame.awayTeamName)
+    : "";
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 space-y-10">
       {selectedGame && (
@@ -1025,36 +1187,33 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
         />
       )}
 
-      {/* ══ 섹션 1: 경기 일정 / 결과 */}
+      {/* ══ 섹션 1: 경기 일정 / 결과 + AI 예측 + 적중률 */}
       <section>
-        <SectionHeader
-          title="경기 일정 & 결과"
-          subtitle={`KBO 2026 시즌 · ${formatGameDate(displayDate)}`}
-          color="#EF4444"
-        />
-        <div
-          className="flex gap-1.5 mb-4 overflow-x-auto pb-1"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {dateTabs.map((tab) => (
-            <button
-              key={tab.dateStr}
-              onClick={() => setSelectedDate(tab.dateStr)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all ${selectedDate === tab.dateStr ? "bg-gray-900 text-white shadow-sm" : "bg-white text-gray-500 border border-gray-200 hover:border-gray-300"}`}
-            >
-              {tab.label}
-              {tab.isToday && selectedDate === tab.dateStr && (
-                <span className="ml-1 text-red-400 text-xs">●</span>
-              )}
-            </button>
-          ))}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-6 rounded-full bg-red-500" />
+            <div>
+              <h2 className="text-base font-black text-gray-900">
+                경기 일정 & 결과
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                KBO 2026 시즌 · {toDisplayLabel(displayDate)}
+              </p>
+            </div>
+          </div>
+          <DateNavigator
+            selectedDate={selectedDate}
+            onChange={handleDateChange}
+          />
         </div>
+
+        {/* 경기 카드 가로 그리드 */}
         {gamesLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className="h-56 bg-gray-100 rounded-2xl animate-pulse"
+                className="h-52 bg-gray-100 rounded-2xl animate-pulse"
               />
             ))}
           </div>
@@ -1066,53 +1225,47 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {games.map((g) => {
-              const gamePred = predictions.find(
-                (p) => p.naverGameId === g.gameId,
-              );
-              return (
-                <div key={g.gameId} className="flex flex-col">
-                  {/* 경기 카드 */}
-                  <div className="relative">
-                    <GameCard
-                      game={g}
-                      onClick={() => {
-                        if (!pendingGame) handleGameClick(g);
-                      }}
-                    />
-                    {pendingGame?.gameId === g.gameId && (
-                      <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center z-10">
-                        <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* AI 예측 바 — 취소 경기 제외, 별도 컴포넌트로 분리 */}
-                  {!g.cancel && (
-                    <GamePredictionBar
-                      prediction={gamePred}
-                      loading={predictionsLoading}
-                    />
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {games.map((g) => (
+                <div key={g.gameId} className="relative">
+                  <GameCard
+                    game={g}
+                    onClick={() => {
+                      if (!pendingGame) handleGameClick(g);
+                    }}
+                    onPredictionClick={(e) => {
+                      e.stopPropagation();
+                      handlePredictionClick(g.gameId);
+                    }}
+                    isPredictionSelected={predictionGameId === g.gameId}
+                  />
+                  {pendingGame?.gameId === g.gameId && (
+                    <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center z-10">
+                      <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                    </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+
+            {/* AI 예측 패널 */}
+            {predictionGameId && (
+              <GamePredictionPanel
+                prediction={activePrediction}
+                loading={predictionsLoading}
+                homeTeamName={predictionHomeTeam}
+                awayTeamName={predictionAwayTeam}
+              />
+            )}
+
+            {/* AI 전체 적중률 */}
+            <AiRankingBar />
+          </>
         )}
       </section>
 
-      {/* ══ 섹션 2: AI 승부예측 (랭킹/적중률) */}
-      <section>
-        <SectionHeader
-          title="AI 승부예측"
-          subtitle="3개 AI 모델 적중률 비교"
-          color="#8B5CF6"
-        />
-        <AiPredictionSection />
-      </section>
-
-      {/* ══ 섹션 3: 리그 순위 */}
+      {/* ══ 섹션 2: 리그 순위 */}
       <section>
         <SectionHeader title="리그 순위" subtitle="2026 KBO" color="#F59E0B" />
         {standingsLoading ? (
@@ -1148,7 +1301,7 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
         )}
       </section>
 
-      {/* ══ 섹션 4: 야구 뉴스 */}
+      {/* ══ 섹션 3: 야구 뉴스 */}
       <section>
         <SectionHeader
           title="야구 뉴스"
@@ -1230,7 +1383,7 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
         )}
       </section>
 
-      {/* ══ 섹션 6: 중계 사이트 */}
+      {/* ══ 섹션 4: 중계 사이트 */}
       <section>
         <SectionHeader
           title="중계 사이트"
