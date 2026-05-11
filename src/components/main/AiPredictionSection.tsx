@@ -263,6 +263,11 @@ function AiModelCard({
 
   const resultOnly = item.recentResults;
 
+  const recentCorrect = resultOnly.filter((r) => r.isCorrect === true).length;
+  const recentTotal = resultOnly.filter((r) => r.isCorrect !== null).length;
+  const recentRate =
+    recentTotal > 0 ? (recentCorrect / recentTotal) * 100 : null;
+
   return (
     <div
       className="bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col"
@@ -292,13 +297,19 @@ function AiModelCard({
             <p className="text-[10px] text-gray-400">{item.provider}</p>
           </div>
         </div>
+
         <div className="text-right">
           <p className="text-[10px] text-gray-400 leading-none mb-0.5">
-            적중률
+            전체 적중률
           </p>
           <p className="text-lg font-black leading-none" style={{ color }}>
-            {item.totalCount > 0 ? item.winRate.toFixed(3) : "-"}
+            {item.totalCount > 0 ? `${(item.winRate * 100).toFixed(1)}%` : "-"}
           </p>
+          <div className="text-right">
+            <p className="text-sm font-black" style={{ color }}>
+              {item.correctCount}/{item.totalCount}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -324,13 +335,13 @@ function AiModelCard({
               <div className="text-right">
                 <p className="text-[9px] text-gray-400">적중</p>
                 <p className="text-sm font-black" style={{ color }}>
-                  {item.correctCount}/{item.totalCount}
+                  {recentCorrect}/{recentTotal}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-[9px] text-gray-400">적중률</p>
+                <p className="text-[9px] text-gray-400">최근 적중률</p>
                 <p className="text-sm font-black text-gray-700">
-                  {item.totalCount > 0 ? item.winRate.toFixed(3) : "-"}
+                  {recentRate !== null ? `${recentRate.toFixed(1)}%` : "-"}
                 </p>
               </div>
             </div>
