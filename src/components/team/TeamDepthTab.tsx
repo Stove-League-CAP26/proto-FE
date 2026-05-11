@@ -1,7 +1,7 @@
 // src/components/team/TeamDepthTab.tsx
 // 주전(is_starter=1) → 좌측 필드 차트
 // 뎁스(is_depth=1)  → 우측 필드 차트 (주전+백업 전체)
-// 시즌 토글: 24 / 25 / 26 — 탭 클릭 시 해당 시즌 fetch (1회 캐시)
+// 시즌 토글: 24 / 25 / 26 — 탭 클릭 시 해당 시즌 fetch
 
 import { useState, useEffect } from "react";
 import {
@@ -149,7 +149,6 @@ function FieldChart({
             const players = posMap[pos] ?? [];
             if (players.length === 0) return null;
 
-            // 투수는 마운드 위에 작게 표시
             const isPitcher = pos === "P";
 
             return (
@@ -172,7 +171,6 @@ function FieldChart({
                     opacity: isPitcher ? 0.92 : 1,
                   }}
                 >
-                  {/* 투수는 첫 번째 선수만 표시 (마운드 공간 협소) */}
                   {(isPitcher ? players.slice(0, 1) : players).map((p, i) => (
                     <p
                       key={i}
@@ -369,22 +367,18 @@ export default function TeamDepthTab({
   onSelectPlayer,
 }: TeamDepthTabProps) {
   const [season, setSeason] = useState<Season>("26");
-  const [cache, setCache] = useState<
-    Partial<Record<Season, TeamDepthResponse | null>>
-  >({});
+  const [data, setData] = useState<TeamDepthResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   const depthColor = accent === "#000000" ? primary : accent;
 
   useEffect(() => {
-    if (season in cache) return;
     setLoading(true);
+    setData(null);
     fetchTeamDepth(teamId, season)
-      .then((res) => setCache((prev) => ({ ...prev, [season]: res })))
+      .then((res) => setData(res))
       .finally(() => setLoading(false));
   }, [season, teamId]);
-
-  const data = cache[season];
 
   return (
     <div className="space-y-4">
