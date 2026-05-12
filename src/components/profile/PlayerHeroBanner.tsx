@@ -1,6 +1,6 @@
 // src/components/profile/PlayerHeroBanner.tsx
-// 프로필 사진: rounded-full (원형) 적용, 사이즈 조정
-// 이모티콘 제거
+// 레이더 시즌 탭 (2024 / 2025 / 2026) 추가
+import { useState } from "react";
 import PlayerAvatar from "@/components/common/PlayerAvatar";
 import RadarChart from "@/components/common/RadarChart";
 import { mapHitterRadar, mapPitcherRadar } from "@/utils/playerUtils";
@@ -23,6 +23,9 @@ interface PlayerHeroBannerProps {
   heroBadges: HeroBadge[];
   radarData: HitterRadar | PitcherRadar | null;
   radarLoading: boolean;
+  // 시즌 탭 제어 — 부모에서 관리
+  radarSeason: number;
+  onRadarSeasonChange: (season: number) => void;
 }
 
 function extractRadarValues(
@@ -32,6 +35,8 @@ function extractRadarValues(
   const raw = radar as Record<string, number | string>;
   return isPitcher ? mapPitcherRadar(raw) : mapHitterRadar(raw);
 }
+
+const SEASONS = [2024, 2025, 2026] as const;
 
 export default function PlayerHeroBanner({
   playerBasic,
@@ -44,6 +49,8 @@ export default function PlayerHeroBanner({
   heroBadges,
   radarData,
   radarLoading,
+  radarSeason,
+  onRadarSeasonChange,
 }: PlayerHeroBannerProps) {
   const radarValues = radarData
     ? extractRadarValues(radarData, isPitcherPlayer)
@@ -53,10 +60,9 @@ export default function PlayerHeroBanner({
     <div style={{ background: bgGradient }}>
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-center">
-          {/* ── 왼쪽: 선수 사진 + 기본정보 ── */}
+          {/* 좌: 선수 사진 + 기본정보 */}
           <div className="lg:col-span-2 flex items-start gap-5">
             <div className="relative flex-shrink-0">
-              {/* 프로필 사진: rounded-full(원형), 140×140 */}
               <div
                 className="overflow-hidden border-4 shadow-2xl"
                 style={{
@@ -72,7 +78,6 @@ export default function PlayerHeroBanner({
                   size={140}
                 />
               </div>
-              {/* 등번호 뱃지 */}
               <div
                 className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
                 style={{ backgroundColor: heroAccent }}
@@ -152,56 +157,80 @@ export default function PlayerHeroBanner({
             </div>
           </div>
 
-          {/* ── 오른쪽: 레이더 차트 + 항목별 수치 ── */}
+          {/* 우: 레이더 차트 + 시즌 탭 */}
           <div className="lg:col-span-3">
             <div
               className="rounded-2xl overflow-hidden border border-white/10 p-5"
               style={{ background: "rgba(0,0,0,0.25)" }}
             >
+              {/* 시즌 탭 */}
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-[10px] text-white/30">
+                  KBO 리그 동일 시즌 기준
+                </p>
+                <div
+                  className="flex gap-1 p-1 rounded-xl"
+                  style={{ background: "rgba(255,255,255,0.08)" }}
+                >
+                  {SEASONS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => onRadarSeasonChange(s)}
+                      className="px-3 py-1 rounded-lg text-xs font-black transition-all"
+                      style={
+                        radarSeason === s
+                          ? { background: heroAccent, color: "#fff" }
+                          : { color: "rgba(255,255,255,0.4)" }
+                      }
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {radarLoading ? (
                 <div className="flex flex-col items-center justify-center h-48 gap-3">
                   <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
                   <p className="text-white/30 text-xs">능력치 분석 중...</p>
                 </div>
               ) : radarValues ? (
-                <>
-                  <p className="text-[10px] text-white/30 text-right mb-3">
-                    2025 KBO 리그 기준
-                  </p>
-                  <div className="grid grid-cols-2 gap-4 items-center">
-                    <div className="w-full aspect-square max-w-[225px] mx-auto">
-                      <RadarChart data={radarValues} accentColor={heroAccent} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(radarValues).map(([k, v]) => (
-                        <div
-                          key={k}
-                          className="rounded-xl p-2.5 border border-white/10"
-                          style={{ background: "rgba(255,255,255,0.06)" }}
-                        >
-                          <p className="text-white/50 text-xs font-medium">
-                            {k}
-                          </p>
-                          <div className="mt-1 h-1 bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all"
-                              style={{
-                                width: `${v}%`,
-                                backgroundColor: heroAccent,
-                              }}
-                            />
-                          </div>
-                          <p className="text-sm font-black mt-1 text-white">
-                            {v}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div className="w-full aspect-square max-w-[225px] mx-auto">
+                    <RadarChart data={radarValues} accentColor={heroAccent} />
                   </div>
-                </>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(radarValues).map(([k, v]) => (
+                      <div
+                        key={k}
+                        className="rounded-xl p-2.5 border border-white/10"
+                        style={{ background: "rgba(255,255,255,0.06)" }}
+                      >
+                        <p className="text-white/50 text-xs font-medium">{k}</p>
+                        <div className="mt-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${v}%`,
+                              backgroundColor: heroAccent,
+                            }}
+                          />
+                        </div>
+                        <p className="text-sm font-black mt-1 text-white">
+                          {v}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-48 gap-2">
-                  <p className="text-white/30 text-sm">레이더 데이터 준비 중</p>
+                  <p className="text-white/30 text-sm">
+                    {radarSeason}시즌 데이터가 없습니다
+                  </p>
+                  <p className="text-white/20 text-xs">
+                    다른 시즌을 선택해주세요
+                  </p>
                 </div>
               )}
             </div>

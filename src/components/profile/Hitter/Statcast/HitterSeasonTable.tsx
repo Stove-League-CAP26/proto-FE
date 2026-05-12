@@ -1,5 +1,4 @@
 // src/components/profile/Hitter/Statcast/HitterSeasonTable.tsx
-// 색 강조: AVG(blue), HR(red), RBI(amber) 만 유지 — 나머지 검정
 import type { HitterCombinedStat } from "@/utils/StatsCalculator";
 import { calcHitterDerived, fmtAvg, fmtPct } from "@/utils/StatsCalculator";
 
@@ -7,38 +6,38 @@ interface HitterSeasonTableProps {
   stats: HitterCombinedStat[];
 }
 
-// highlight: 히어로 배지에 포함된 컬럼만 색 강조
-const COLUMNS: { key: string; label: string; color?: string }[] = [
-  { key: "season", label: "연도" },
-  { key: "team", label: "팀" },
-  { key: "g", label: "G" },
-  { key: "pa", label: "PA" },
-  { key: "ab", label: "AB" },
-  { key: "r", label: "R" },
-  { key: "h", label: "H" },
-  { key: "b2", label: "2B" },
-  { key: "b3", label: "3B" },
-  { key: "hr", label: "HR", color: "text-red-500" }, // ✓ 히어로 배지
-  { key: "tb", label: "TB" },
-  { key: "rbi", label: "RBI", color: "text-amber-500" }, // ✓ 히어로 배지
-  { key: "sb", label: "SB" }, // 색 제거
-  { key: "sac", label: "SAC" },
-  { key: "sf", label: "SF" },
-  { key: "bb", label: "BB" },
-  { key: "ibb", label: "IBB" },
-  { key: "hbp", label: "HBP" },
-  { key: "so", label: "SO" },
-  { key: "gdp", label: "GDP" },
-  { key: "mh", label: "MH" },
-  { key: "avg", label: "AVG", color: "text-blue-600" }, // ✓ 히어로 배지
-  { key: "obp", label: "OBP" }, // 색 제거
-  { key: "slg", label: "SLG" }, // 색 제거
-  { key: "ops", label: "OPS" }, // 색 제거
-  { key: "risp", label: "RISP" },
-  { key: "phBa", label: "PH-BA" },
-  { key: "bbPct", label: "BB%" }, // 색 제거
-  { key: "kPct", label: "K%" }, // 색 제거
-];
+const COLUMNS: { key: string; label: string; desc?: string; color?: string }[] =
+  [
+    { key: "season", label: "연도" },
+    { key: "team", label: "팀" },
+    { key: "g", label: "G", desc: "경기" },
+    { key: "pa", label: "PA", desc: "타석" },
+    { key: "ab", label: "AB", desc: "타수" },
+    { key: "r", label: "R", desc: "득점" },
+    { key: "h", label: "H", desc: "안타" },
+    { key: "b2", label: "2B", desc: "2루타" },
+    { key: "b3", label: "3B", desc: "3루타" },
+    { key: "hr", label: "HR", desc: "홈런", color: "text-red-500" },
+    { key: "tb", label: "TB", desc: "루타" },
+    { key: "rbi", label: "RBI", desc: "타점", color: "text-amber-500" },
+    { key: "sb", label: "SB", desc: "도루" },
+    { key: "sac", label: "SAC", desc: "희생번트" },
+    { key: "sf", label: "SF", desc: "희생플라이" },
+    { key: "bb", label: "BB", desc: "볼넷" },
+    { key: "ibb", label: "IBB", desc: "고의4구" },
+    { key: "hbp", label: "HBP", desc: "사구" },
+    { key: "so", label: "SO", desc: "삼진" },
+    { key: "gdp", label: "GDP", desc: "병살" },
+    { key: "mh", label: "MH", desc: "멀티히트" },
+    { key: "avg", label: "AVG", desc: "타율", color: "text-blue-600" },
+    { key: "obp", label: "OBP", desc: "출루율" },
+    { key: "slg", label: "SLG", desc: "장타율" },
+    { key: "ops", label: "OPS", desc: "출장합" },
+    { key: "risp", label: "RISP", desc: "득점권타율" },
+    { key: "phBa", label: "PH-BA", desc: "대타타율" },
+    { key: "bbPct", label: "BB%", desc: "볼넷률" },
+    { key: "kPct", label: "K%", desc: "삼진률" },
+  ];
 
 const STICKY: Record<string, string> = {
   season: "sticky left-0 z-10",
@@ -132,15 +131,25 @@ export default function HitterSeasonTable({ stats }: HitterSeasonTableProps) {
                 <th
                   key={col.key}
                   className={[
-                    "px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-b border-gray-100",
-                    col.color ?? "text-gray-500",
+                    "px-3 py-2 text-center whitespace-nowrap border-b border-gray-100",
                     STICKY[col.key] ?? "",
                     STICKY[col.key]
                       ? "bg-gray-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]"
                       : "",
                   ].join(" ")}
                 >
-                  {col.label}
+                  {/* 영문 약어 */}
+                  <p
+                    className={`text-xs font-bold uppercase tracking-wide ${col.color ?? "text-gray-500"}`}
+                  >
+                    {col.label}
+                  </p>
+                  {/* 한국어 설명 */}
+                  {col.desc && (
+                    <p className="text-[9px] text-gray-400 font-normal mt-0.5">
+                      {col.desc}
+                    </p>
+                  )}
                 </th>
               ))}
             </tr>
@@ -169,7 +178,7 @@ export default function HitterSeasonTable({ stats }: HitterSeasonTableProps) {
                           col.key !== "team"
                             ? `font-bold ${col.color}`
                             : col.key !== "season" && col.key !== "team"
-                              ? "text-gray-800" // ← 색 강조 없는 컬럼은 검정
+                              ? "text-gray-800"
                               : "",
                           isSticky
                             ? `${STICKY[col.key]} ${stickyBg} shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]`

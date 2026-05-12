@@ -217,6 +217,16 @@ export default function PlayerSearchBar({
             {showResults && (
               <Dropdown results={searchResults} onSelect={onSelect} />
             )}
+            {/* 검색 결과 없을 때 에러 메시지 */}
+            {error && (
+              <p
+                className="absolute top-full left-0 mt-1 text-red-500 text-xs
+                 bg-white px-3 py-1.5 rounded-lg border border-red-100 shadow-sm
+                 whitespace-nowrap z-50"
+              >
+                {error}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 hidden sm:block">
