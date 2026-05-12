@@ -63,8 +63,13 @@ export interface PitcherRadar {
   //style: string; // "파워피처" | "에이스" | "기교파" | "이닝이터" | "마무리형"
 }
 
-export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
-  const res = await fetch(`${BASE_URL}/stats/hitter/radar/${pid}`);
+export async function fetchHitterRadar(
+  pid: number,
+  season = 2025,
+): Promise<HitterRadar> {
+  const res = await fetch(
+    `${BASE_URL}/stats/hitter/radar/${pid}?season=${season}`,
+  );
   if (!res.ok)
     throw new Error(
       `타자 레이더 로드 실패 (pid: ${pid}, status: ${res.status})`,
@@ -72,8 +77,13 @@ export async function fetchHitterRadar(pid: number): Promise<HitterRadar> {
   return res.json();
 }
 
-export async function fetchPitcherRadar(pid: number): Promise<PitcherRadar> {
-  const res = await fetch(`${BASE_URL}/stats/pitcher/radar/${pid}`);
+export async function fetchPitcherRadar(
+  pid: number,
+  season = 2025,
+): Promise<PitcherRadar> {
+  const res = await fetch(
+    `${BASE_URL}/stats/pitcher/radar/${pid}?season=${season}`,
+  );
   if (!res.ok)
     throw new Error(
       `투수 레이더 로드 실패 (pid: ${pid}, status: ${res.status})`,
