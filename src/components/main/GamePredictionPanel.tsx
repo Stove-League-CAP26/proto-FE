@@ -3,6 +3,7 @@ import { getProviderColor, type TodayPrediction } from "@/api/predictionApi";
 import gptImg from "@/assets/gpt.png";
 import geminiImg from "@/assets/gemini.png";
 import claudeImg from "@/assets/claude.png";
+import AiRankingBar from "./AiRankingBar";
 
 const TEAM_NAME_TO_IMAGE: Record<string, string> = {
   LG: "/images/teams/lg.png",
@@ -201,11 +202,12 @@ export default function GamePredictionPanel({
     <div className="mt-3 bg-white rounded-2xl border border-purple-100 overflow-hidden">
       {/* 패널 헤더 */}
       <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-white border-b border-purple-100 flex items-center gap-2">
-        <span className="text-base">🤖</span>
         <span className="text-sm font-black text-purple-700">AI 승부예측</span>
         <span className="text-xs text-gray-400 font-medium">
           {awayTeamName} vs {homeTeamName}
         </span>
+        {/* AI 전체 적중률 */}
+        <AiRankingBar />
       </div>
 
       {/* 3행: AI별 예측 + 근거 */}

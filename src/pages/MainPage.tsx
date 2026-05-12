@@ -6,21 +6,14 @@ import "react-day-picker/dist/style.css";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import {
   fetchGamesByDate,
-  fetchRecentGames,
-  fetchUpcomingGames,
   fetchStandings,
   fetchGameScore,
-  formatGameTime,
   formatGameDate,
   type GameInfo,
   type LeagueStanding,
   type GameScore,
 } from "@/api/gameApi";
-import {
-  YOUTUBE_CHANNELS,
-  BROADCAST_SITES,
-  COMMUNITY_LINKS,
-} from "@/mock/homeData";
+import { BROADCAST_SITES } from "@/mock/homeData";
 import {
   fetchNews,
   filterNewsByCategory,
@@ -35,7 +28,7 @@ import {
 } from "@/api/predictionApi";
 
 import GamePredictionPanel from "@/components/main/GamePredictionPanel";
-import AiRankingBar from "@/components/main/AiRankingBar";
+import GameCard from "@/components/main/GameCard";
 
 interface MainPageProps {
   onSelectPlayer?: (pid: number) => void;
@@ -294,222 +287,6 @@ function PlayerAvatar({
         />
       )}
     </button>
-  );
-}
-
-// ── 경기 카드 ────────────────────────────────────────────────────────────────
-function GameCard({
-  game,
-  onClick,
-  onPredictionClick,
-  isPredictionSelected,
-}: {
-  game: GameInfo;
-  onClick: () => void;
-  onPredictionClick: (e: React.MouseEvent) => void;
-  isPredictionSelected: boolean;
-}) {
-  const homeTeamName =
-    TEAM_CODE_TO_NAME[game.homeTeamCode] ?? game.homeTeamName;
-  const awayTeamName =
-    TEAM_CODE_TO_NAME[game.awayTeamCode] ?? game.awayTeamName;
-  const homeColor = TEAM_COLORS[homeTeamName]?.bg ?? "#334155";
-  const awayColor = TEAM_COLORS[awayTeamName]?.bg ?? "#334155";
-  const isResult =
-    !game.cancel &&
-    (game.statusCode === "RESULT" || game.statusCode === "DONE");
-  const isLive = game.statusCode === "LIVE" || game.statusCode === "STARTED";
-  const isCancel = game.cancel;
-  const homeWin = game.winner === "HOME";
-  const awayWin = game.winner === "AWAY";
-
-  return (
-    <div
-      className={`bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col transition-all ${isPredictionSelected ? "border-purple-300 shadow-purple-100 shadow-md" : "border-gray-100 hover:shadow-md"}`}
-    >
-      <div onClick={onClick} className="cursor-pointer flex-1">
-        <div className="flex items-center justify-between px-3 pt-3 pb-1">
-          <span className="text-[10px] text-gray-400 truncate max-w-[60%]">
-            {game.stadium}
-          </span>
-          {isLive ? (
-            <span className="flex items-center gap-1 text-[10px] font-black text-red-500 flex-shrink-0">
-              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping absolute" />
-              <span className="w-1.5 h-1.5 bg-red-500 rounded-full relative" />
-              {game.statusInfo || "LIVE"}
-            </span>
-          ) : isResult ? (
-            <span className="text-[10px] font-bold text-gray-400 flex-shrink-0">
-              종료
-            </span>
-          ) : isCancel ? (
-            <span className="text-[10px] font-bold text-blue-400 flex-shrink-0">
-              취소
-            </span>
-          ) : (
-            <span className="text-[10px] font-bold text-blue-500 flex-shrink-0">
-              {formatGameTime(game.gameDateTime)}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center px-3 py-2 gap-2">
-          <div
-            className={`flex-1 flex flex-col items-center gap-1 ${isResult && !awayWin ? "opacity-40" : ""}`}
-          >
-            <img
-              src={
-                TEAM_CODE_TO_IMAGE[game.awayTeamCode] ?? game.awayTeamEmblemUrl
-              }
-              alt={awayTeamName}
-              className="w-9 h-9 object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                const n = e.currentTarget
-                  .nextElementSibling as HTMLElement | null;
-                if (n) n.style.display = "flex";
-              }}
-            />
-            <div
-              className="w-9 h-9 rounded-xl items-center justify-center text-white text-[10px] font-black hidden"
-              style={{ backgroundColor: awayColor }}
-            >
-              {awayTeamName.slice(0, 2)}
-            </div>
-            <span className="text-[10px] font-bold text-gray-600">
-              {awayTeamName}
-            </span>
-            {isResult && (
-              <span
-                className={`text-xl font-black leading-none ${awayWin ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {game.awayTeamScore}
-              </span>
-            )}
-            {isLive && (
-              <span
-                className="text-2xl font-black leading-none"
-                style={{ color: awayColor }}
-              >
-                {game.awayTeamScore}
-              </span>
-            )}
-          </div>
-          {isLive ? (
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="text-[9px] font-black text-red-400 animate-pulse">
-                LIVE
-              </span>
-              <span className="text-xs font-bold text-gray-300">:</span>
-            </div>
-          ) : (
-            <span className="text-xs font-bold text-gray-200">VS</span>
-          )}
-          <div
-            className={`flex-1 flex flex-col items-center gap-1 ${isResult && !homeWin ? "opacity-40" : ""}`}
-          >
-            <img
-              src={
-                TEAM_CODE_TO_IMAGE[game.homeTeamCode] ?? game.homeTeamEmblemUrl
-              }
-              alt={homeTeamName}
-              className="w-9 h-9 object-contain"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                const n = e.currentTarget
-                  .nextElementSibling as HTMLElement | null;
-                if (n) n.style.display = "flex";
-              }}
-            />
-            <div
-              className="w-9 h-9 rounded-xl items-center justify-center text-white text-[10px] font-black hidden"
-              style={{ backgroundColor: homeColor }}
-            >
-              {homeTeamName.slice(0, 2)}
-            </div>
-            <span className="text-[10px] font-bold text-gray-600">
-              {homeTeamName}
-            </span>
-            {isResult && (
-              <span
-                className={`text-xl font-black leading-none ${homeWin ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {game.homeTeamScore}
-              </span>
-            )}
-            {isLive && (
-              <span
-                className="text-2xl font-black leading-none"
-                style={{ color: homeColor }}
-              >
-                {game.homeTeamScore}
-              </span>
-            )}
-          </div>
-        </div>
-        {isResult && game.winner !== "DRAW" && (
-          <div
-            className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-black text-white"
-            style={{ backgroundColor: homeWin ? homeColor : awayColor }}
-          >
-            {homeWin ? homeTeamName : awayTeamName} 승리
-          </div>
-        )}
-        {isResult &&
-          game.winner === "DRAW" &&
-          (game.homeTeamScore > 0 || game.awayTeamScore > 0) && (
-            <div className="mx-3 mb-2 rounded-lg py-1 text-center text-[10px] font-bold text-gray-500 bg-gray-100">
-              무승부
-            </div>
-          )}
-        {isResult && game.winPitcherName && (
-          <div className="mx-3 mb-2 text-center">
-            <span className="text-[10px] text-green-600 font-bold">
-              승 {game.winPitcherName}
-            </span>
-            <span className="text-gray-300 mx-1">·</span>
-            <span className="text-[10px] text-red-500 font-bold">
-              패 {game.losePitcherName}
-            </span>
-          </div>
-        )}
-        {!isResult && !isLive && !isCancel && game.homeStarterName && (
-          <div className="flex justify-between mx-3 mb-1 text-[10px] text-gray-400 border-t pt-1.5">
-            <span>{game.awayStarterName || "-"}</span>
-            <span className="text-gray-300">선발</span>
-            <span>{game.homeStarterName || "-"}</span>
-          </div>
-        )}
-        {game.broadChannel && (
-          <div className="text-center text-[10px] text-gray-400 mb-1 px-2">
-            📺 {game.broadChannel.replace("^", " / ")}
-          </div>
-        )}
-        {!isResult && !isLive && !isCancel && !game.broadChannel && (
-          <p className="text-center text-[10px] text-gray-400 mb-1 px-2">
-            {formatGameDate(game.gameDate)} {formatGameTime(game.gameDateTime)}
-          </p>
-        )}
-        {isCancel && (
-          <p className="text-center text-[10px] text-blue-400 font-bold mb-1">
-            취소
-          </p>
-        )}
-      </div>
-
-      {/* AI 예측 버튼 */}
-      {!isCancel && (
-        <button
-          onClick={onPredictionClick}
-          className={`mx-2 mb-2 py-1.5 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 ${
-            isPredictionSelected
-              ? "bg-purple-600 text-white"
-              : "bg-purple-50 text-purple-600 hover:bg-purple-100"
-          }`}
-        >
-          🤖 <span>{isPredictionSelected ? "예측 닫기" : "AI 예측 보기"}</span>
-        </button>
-      )}
-    </div>
   );
 }
 
@@ -1231,6 +1008,9 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
                 <div key={g.gameId} className="relative">
                   <GameCard
                     game={g}
+                    prediction={predictions.find(
+                      (p) => p.naverGameId === g.gameId,
+                    )}
                     onClick={() => {
                       if (!pendingGame) handleGameClick(g);
                     }}
@@ -1258,9 +1038,6 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
                 awayTeamName={predictionAwayTeam}
               />
             )}
-
-            {/* AI 전체 적중률 */}
-            <AiRankingBar />
           </>
         )}
       </section>
