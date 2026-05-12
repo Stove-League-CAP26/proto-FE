@@ -1,15 +1,13 @@
 // src/api/predictionApi.ts
 const BASE_URL = "/api/predictions";
 
-// ── 타입 정의 ──────────────────────────────────────────────────
-
 export interface RecentResult {
   gameScheduleId: number;
   naverGameId: string;
   gameDate: string;
   homeTeam: string;
   awayTeam: string;
-  statusCode: string; // BEFORE / LIVE / RESULT
+  statusCode: string;
   isCorrect: boolean | null;
 }
 
@@ -79,8 +77,6 @@ export interface AiProviderHistory {
   predictions: PredictionItem[];
 }
 
-// ── API 함수 ────────────────────────────────────────────────────
-
 export async function fetchAiRanking(): Promise<AiRankingItem[]> {
   try {
     const res = await fetch(`${BASE_URL}/ai-ranking`);
@@ -94,6 +90,20 @@ export async function fetchAiRanking(): Promise<AiRankingItem[]> {
 export async function fetchTodayPredictions(): Promise<TodayPrediction[]> {
   try {
     const res = await fetch(`${BASE_URL}/today`);
+    if (res.status === 204) return [];
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+// [추가] 날짜별 예측 조회 — GET /api/predictions?date=YYYY-MM-DD
+export async function fetchPredictionsByDate(
+  date: string,
+): Promise<TodayPrediction[]> {
+  try {
+    const res = await fetch(`${BASE_URL}?date=${date}`);
     if (res.status === 204) return [];
     if (!res.ok) return [];
     return res.json();
@@ -116,8 +126,6 @@ export async function fetchProviderHistory(
     return null;
   }
 }
-
-// ── 유틸 ────────────────────────────────────────────────────────
 
 export function getProviderIcon(provider: string): string {
   switch (provider) {
