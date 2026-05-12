@@ -1,6 +1,6 @@
-// 선수 히어로 배너
-// 왼쪽: 선수 사진 + 기본정보 + 스탯 배지
-// 오른쪽: 육각형 레이더 차트 + 플레이어 스타일 (시즌 기록 테이블은 하단 탭에서 표시)
+// src/components/profile/PlayerHeroBanner.tsx
+// 프로필 사진: rounded-full (원형) 적용, 사이즈 조정
+// 이모티콘 제거
 import PlayerAvatar from "@/components/common/PlayerAvatar";
 import RadarChart from "@/components/common/RadarChart";
 import { mapHitterRadar, mapPitcherRadar } from "@/utils/playerUtils";
@@ -24,25 +24,7 @@ interface PlayerHeroBannerProps {
   radarData: HitterRadar | PitcherRadar | null;
   radarLoading: boolean;
 }
-/*
-// 스타일 태그별 이모지/색상
-const STYLE_META: Record<string, { emoji: string; color: string; bg: string }> =
-  {
-    // 타자
-    슬러거: { emoji: "🪄", color: "#EF4444", bg: "#fef2f2" },
-    스피드스터: { emoji: "⚡", color: "#3B82F6", bg: "#eff6ff" },
-    클린업: { emoji: "👑", color: "#F59E0B", bg: "#fffbeb" },
-    교타자: { emoji: "🎯", color: "#10B981", bg: "#f0fdf4" },
-    올라운더: { emoji: "⭐", color: "#8B5CF6", bg: "#f5f3ff" },
-    // 투수
-    파워피처: { emoji: "🔥", color: "#EF4444", bg: "#fef2f2" },
-    에이스: { emoji: "🏆", color: "#F59E0B", bg: "#fffbeb" },
-    기교파: { emoji: "🎯", color: "#10B981", bg: "#f0fdf4" },
-    이닝이터: { emoji: "🦣", color: "#3B82F6", bg: "#eff6ff" },
-    마무리형: { emoji: "🔒", color: "#8B5CF6", bg: "#f5f3ff" },
-  };
-*/
-/** radar 응답에서 style 제외한 수치만 추출 */
+
 function extractRadarValues(
   radar: HitterRadar | PitcherRadar,
   isPitcher: boolean,
@@ -63,16 +45,6 @@ export default function PlayerHeroBanner({
   radarData,
   radarLoading,
 }: PlayerHeroBannerProps) {
-  /*
-  const styleMeta = radarData
-    ? (STYLE_META[radarData.style] ?? {
-        emoji: "⚾",
-        color: "#6B7280",
-        bg: "#f9fafb",
-      })
-    : null;
-  */
-
   const radarValues = radarData
     ? extractRadarValues(radarData, isPitcherPlayer)
     : null;
@@ -84,18 +56,25 @@ export default function PlayerHeroBanner({
           {/* ── 왼쪽: 선수 사진 + 기본정보 ── */}
           <div className="lg:col-span-2 flex items-start gap-5">
             <div className="relative flex-shrink-0">
+              {/* 프로필 사진: rounded-full(원형), 140×140 */}
               <div
-                className="w-32 h-32 rounded-2xl overflow-hidden border-4 shadow-2xl"
-                style={{ borderColor: "rgba(255,255,255,0.2)" }}
+                className="overflow-hidden border-4 shadow-2xl"
+                style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: "50%",
+                  borderColor: "rgba(255,255,255,0.25)",
+                }}
               >
                 <PlayerAvatar
                   id={playerBasic.pid}
                   name={playerBasic.playerName}
-                  size={128}
+                  size={140}
                 />
               </div>
+              {/* 등번호 뱃지 */}
               <div
-                className="absolute -bottom-2 -right-2 w-11 h-11 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
+                className="absolute -bottom-1 -right-1 w-10 h-10 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
                 style={{ backgroundColor: heroAccent }}
               >
                 <span className="text-white font-black text-xs leading-none">
@@ -129,7 +108,7 @@ export default function PlayerHeroBanner({
                 </span>
                 {playerBasic.retired && (
                   <span className="text-xs font-black px-2 py-0.5 rounded-full bg-white/10 text-white/60 border border-white/20">
-                    🏁 은퇴
+                    은퇴
                   </span>
                 )}
               </div>
@@ -186,32 +165,9 @@ export default function PlayerHeroBanner({
                 </div>
               ) : radarValues ? (
                 <>
-                  {/* 플레이어 스타일 뱃지 — 주석 처리 (style 제거)
-                  {styleMeta && radarData && (
-                    <div className="flex items-center justify-between mb-4">
-                      <p className="text-xs font-bold text-white/40 uppercase tracking-widest">
-                        플레이어 스타일
-                      </p>
-                      <div
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-black"
-                        style={{
-                          backgroundColor: styleMeta.bg,
-                          color: styleMeta.color,
-                        }}
-                      >
-                        <span>{styleMeta.emoji}</span>
-                        <span>{radarData.style}</span>
-                      </div>
-                    </div>
-                  )}
-                  */}
-
-                  {/* 2025 리그 기준 안내 */}
                   <p className="text-[10px] text-white/30 text-right mb-3">
                     2025 KBO 리그 기준
                   </p>
-
-                  {/* 레이더 차트 + 항목별 수치 */}
                   <div className="grid grid-cols-2 gap-4 items-center">
                     <div className="w-full aspect-square max-w-[225px] mx-auto">
                       <RadarChart data={radarValues} accentColor={heroAccent} />
@@ -245,7 +201,6 @@ export default function PlayerHeroBanner({
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center h-48 gap-2">
-                  <p className="text-3xl">📊</p>
                   <p className="text-white/30 text-sm">레이더 데이터 준비 중</p>
                 </div>
               )}

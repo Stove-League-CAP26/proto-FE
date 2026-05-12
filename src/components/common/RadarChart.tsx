@@ -1,16 +1,15 @@
-// 선수/팀 능력치 육각형 레이더 차트 — 팀 페이지 스타일 통일
-// accentColor: 선수 팀컬러 or heroAccent 전달 → HSL 보정 후 렌더링
+// src/components/common/RadarChart.tsx — 레이더 글씨 크기 확대
 
 interface RadarChartProps {
   data: Record<string, number>;
-  theme?: "light" | "dark"; // 하위호환 유지 (현재는 accentColor 우선)
-  accentColor?: string; // 선수/팀 컬러
+  theme?: "light" | "dark";
+  accentColor?: string;
 }
 
 const SIZE = 320;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
-const R = 108;
+const R = 100; // 라벨 공간 확보를 위해 약간 축소
 const LEVELS = 5;
 
 function polar(angleDeg: number, r: number) {
@@ -18,7 +17,6 @@ function polar(angleDeg: number, r: number) {
   return { x: CX + r * Math.cos(rad), y: CY + r * Math.sin(rad) };
 }
 
-// 팀 페이지 TeamRadarChart와 동일한 HSL 보정 함수
 function safeColor(hex: string): string {
   if (!hex || !hex.startsWith("#") || hex.length < 7) return "hsl(220,65%,62%)";
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -59,17 +57,15 @@ export default function RadarChart({
 
   const angleStep = 360 / N;
 
-  // 색상 결정: accentColor 우선, 없으면 theme 기반
   const baseColor = accentColor
     ? safeColor(accentColor)
     : theme === "dark"
       ? "hsl(38,90%,60%)"
       : "hsl(220,65%,62%)";
 
-  const colorA = baseColor; // 선 + 점
+  const colorA = baseColor;
   const colorFill = baseColor.replace("hsl(", "hsla(").replace(")", ",0.25)");
 
-  // 그리드 다각형 좌표
   const gridPolygons = Array.from({ length: LEVELS }, (_, li) => {
     const ratio = (li + 1) / LEVELS;
     return keys
@@ -80,14 +76,13 @@ export default function RadarChart({
       .join(" ");
   });
 
-  // 데이터 폴리곤
   const dataPoints = vals.map((v, i) => polar(i * angleStep, (v / 100) * R));
   const dataPoly = dataPoints
     .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
     .join(" ");
 
-  // 라벨 위치
-  const labelR = R + 30;
+  // 라벨 거리를 충분히 확보
+  const labelR = R + 36;
 
   const gradId = `rg-${Math.random().toString(36).slice(2, 7)}`;
 
@@ -100,10 +95,8 @@ export default function RadarChart({
         </radialGradient>
       </defs>
 
-      {/* 배경 */}
       <rect width={SIZE} height={SIZE} fill="#1a1a2e" rx="16" />
 
-      {/* 그리드 다각형 */}
       {gridPolygons.map((pts, li) => (
         <polygon
           key={li}
@@ -114,7 +107,6 @@ export default function RadarChart({
         />
       ))}
 
-      {/* 축 선 */}
       {keys.map((_, i) => {
         const end = polar(i * angleStep, R);
         return (
@@ -130,7 +122,6 @@ export default function RadarChart({
         );
       })}
 
-      {/* 데이터 면 */}
       <polygon
         points={dataPoly}
         fill={`url(#${gradId})`}
@@ -139,7 +130,6 @@ export default function RadarChart({
         strokeLinejoin="round"
       />
 
-      {/* 꼭짓점 */}
       {dataPoints.map((p, i) => (
         <g key={i}>
           <circle cx={p.x} cy={p.y} r="5.5" fill={colorA} opacity="0.2" />
@@ -147,17 +137,17 @@ export default function RadarChart({
         </g>
       ))}
 
-      {/* 라벨 + 수치 */}
+      {/* 라벨 — fontSize 17(항목명) + 14(수치)로 확대 */}
       {keys.map((k, i) => {
         const lp = polar(i * angleStep, labelR);
         return (
           <g key={k}>
             <text
               x={lp.x.toFixed(2)}
-              y={(lp.y - 7).toFixed(2)}
+              y={(lp.y - 9).toFixed(2)}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize="13"
+              fontSize="17"
               fontWeight="800"
               fill={colorA}
               style={{ userSelect: "none" }}
@@ -166,12 +156,12 @@ export default function RadarChart({
             </text>
             <text
               x={lp.x.toFixed(2)}
-              y={(lp.y + 8).toFixed(2)}
+              y={(lp.y + 10).toFixed(2)}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize="11"
+              fontSize="14"
               fontWeight="700"
-              fill="rgba(255,255,255,0.55)"
+              fill="rgba(255,255,255,0.65)"
               style={{ userSelect: "none" }}
             >
               {vals[i]}

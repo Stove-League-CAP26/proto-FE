@@ -1,4 +1,5 @@
-// 타자 시즌 기록 테이블 — sb 컬럼 추가
+// src/components/profile/Hitter/Statcast/HitterSeasonTable.tsx
+// 색 강조: AVG(blue), HR(red), RBI(amber) 만 유지 — 나머지 검정
 import type { HitterCombinedStat } from "@/utils/StatsCalculator";
 import { calcHitterDerived, fmtAvg, fmtPct } from "@/utils/StatsCalculator";
 
@@ -6,12 +7,8 @@ interface HitterSeasonTableProps {
   stats: HitterCombinedStat[];
 }
 
-const COLUMNS: {
-  key: string;
-  label: string;
-  color?: string;
-  derived?: boolean;
-}[] = [
+// highlight: 히어로 배지에 포함된 컬럼만 색 강조
+const COLUMNS: { key: string; label: string; color?: string }[] = [
   { key: "season", label: "연도" },
   { key: "team", label: "팀" },
   { key: "g", label: "G" },
@@ -21,10 +18,10 @@ const COLUMNS: {
   { key: "h", label: "H" },
   { key: "b2", label: "2B" },
   { key: "b3", label: "3B" },
-  { key: "hr", label: "HR", color: "text-red-500" },
+  { key: "hr", label: "HR", color: "text-red-500" }, // ✓ 히어로 배지
   { key: "tb", label: "TB" },
-  { key: "rbi", label: "RBI", color: "text-amber-500" },
-  { key: "sb", label: "SB", color: "text-cyan-500" }, // ← 추가
+  { key: "rbi", label: "RBI", color: "text-amber-500" }, // ✓ 히어로 배지
+  { key: "sb", label: "SB" }, // 색 제거
   { key: "sac", label: "SAC" },
   { key: "sf", label: "SF" },
   { key: "bb", label: "BB" },
@@ -33,14 +30,14 @@ const COLUMNS: {
   { key: "so", label: "SO" },
   { key: "gdp", label: "GDP" },
   { key: "mh", label: "MH" },
-  { key: "avg", label: "AVG", color: "text-blue-600" },
-  { key: "obp", label: "OBP", color: "text-blue-600" },
-  { key: "slg", label: "SLG", color: "text-blue-600" },
-  { key: "ops", label: "OPS", color: "text-yellow-600" },
-  { key: "risp", label: "RISP", color: "text-emerald-600" },
+  { key: "avg", label: "AVG", color: "text-blue-600" }, // ✓ 히어로 배지
+  { key: "obp", label: "OBP" }, // 색 제거
+  { key: "slg", label: "SLG" }, // 색 제거
+  { key: "ops", label: "OPS" }, // 색 제거
+  { key: "risp", label: "RISP" },
   { key: "phBa", label: "PH-BA" },
-  { key: "bbPct", label: "BB%", color: "text-violet-500", derived: true },
-  { key: "kPct", label: "K%", color: "text-violet-500", derived: true },
+  { key: "bbPct", label: "BB%" }, // 색 제거
+  { key: "kPct", label: "K%" }, // 색 제거
 ];
 
 const STICKY: Record<string, string> = {
@@ -79,7 +76,7 @@ function fmtCell(
     case "rbi":
       return row.rbi != null ? String(row.rbi) : "-";
     case "sb":
-      return (row as any).sb != null ? String((row as any).sb) : "-"; // ← 추가
+      return (row as any).sb != null ? String((row as any).sb) : "-";
     case "sac":
       return row.sac != null ? String(row.sac) : "-";
     case "sf":
@@ -136,7 +133,7 @@ export default function HitterSeasonTable({ stats }: HitterSeasonTableProps) {
                   key={col.key}
                   className={[
                     "px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-b border-gray-100",
-                    col.color ?? "text-gray-400",
+                    col.color ?? "text-gray-500",
                     STICKY[col.key] ?? "",
                     STICKY[col.key]
                       ? "bg-gray-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]"
@@ -165,14 +162,14 @@ export default function HitterSeasonTable({ stats }: HitterSeasonTableProps) {
                         key={col.key}
                         className={[
                           "px-3 py-3 text-center whitespace-nowrap",
-                          col.key === "season" ? "font-bold text-gray-800" : "",
+                          col.key === "season" ? "font-bold text-gray-900" : "",
                           col.key === "team" ? "text-gray-500" : "",
                           col.color &&
                           col.key !== "season" &&
                           col.key !== "team"
                             ? `font-bold ${col.color}`
                             : col.key !== "season" && col.key !== "team"
-                              ? "text-gray-600"
+                              ? "text-gray-800" // ← 색 강조 없는 컬럼은 검정
                               : "",
                           isSticky
                             ? `${STICKY[col.key]} ${stickyBg} shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]`
