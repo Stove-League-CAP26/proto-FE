@@ -106,8 +106,6 @@ function PredictionRow({
             {awayTeamName}
           </span>
           <span className="text-[10px] text-gray-300 mx-0.5">|</span>
-
-          <span className="text-[10px] text-gray-300 mx-0.5">|</span>
           <span className="text-sm font-black" style={{ color }}>
             {pred.awayScorePred}
           </span>

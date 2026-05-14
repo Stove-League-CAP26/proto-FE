@@ -70,7 +70,7 @@ function PredictionPreviewRow({
       {pred.isCorrect === true ? "✅" : pred.isCorrect === false ? "❌" : "⏳"}
     </span>
   ) : (
-    <span className="text-[10px] text-gray-400 flex-shrink-0">예측 중</span>
+    <span className="text-[10px] text-gray-400 flex-shrink-0">예측 완료</span>
   );
 
   return (
