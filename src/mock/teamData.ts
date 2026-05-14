@@ -75,9 +75,9 @@ export const KBO_TEAMS: Team[] = [
     city: "광주",
     founded: 1982,
     mascotName: "호랑이",
-    championships: 11,
+    championships: 12,
     championshipYears: [
-      1983, 1986, 1987, 1988, 1989, 1991, 1993, 1996, 1997, 2009, 2017,
+      1983, 1986, 1987, 1988, 1989, 1991, 1993, 1996, 1997, 2009, 2017, 2024,
     ],
     colors: {
       primary: "#EA0029",
@@ -89,7 +89,7 @@ export const KBO_TEAMS: Team[] = [
     mapCoords: { x: 112, y: 220 },
     stadium: {
       name: "광주-기아 챔피언스 필드",
-      capacity: 20000,
+      capacity: 20500, // ✅ 유지 (txt: 20,500명)
       openYear: 2014,
       surface: "천연잔디",
       roofType: "개방형",
@@ -122,10 +122,15 @@ export const KBO_TEAMS: Team[] = [
         title: "한국시리즈 우승",
         description: "두산 베어스를 꺾고 통산 11번째 우승.",
       },
+      // ✅ 추가: 2024년 한국시리즈 우승
+      {
+        year: 2024,
+        type: "championship",
+        title: "한국시리즈 우승",
+        description: "통산 12번째 한국시리즈 우승.",
+      },
     ],
-    // teamData.ts — KIA 타이거즈 songs 배열
     songs: [
-      // ── 대표 팀가 ──────────────────────────────
       { title: "KIA 없이는 못 살아", type: "팀가", youtubeId: "6RiMyqT3_t0" },
       { title: "라인업송", type: "팀가", youtubeId: "gGQatgXq2Ww" },
       {
@@ -138,7 +143,6 @@ export const KBO_TEAMS: Team[] = [
         type: "팀가",
         youtubeId: "d9ulphHCWSs",
       },
-      // ── 응원가 ────────────────────────────────
       {
         title: "광주의 함성 (승리의 이름)",
         type: "응원가",
@@ -180,14 +184,12 @@ export const KBO_TEAMS: Team[] = [
         type: "응원가",
         youtubeId: "S-WV0dUw01w",
       },
-      // ── 2025 신곡 ─────────────────────────────
       {
         title: "승리를 위해 (2025)",
         type: "2025 신곡",
         youtubeId: "MtKPgo85Bq8",
       },
       { title: "오! 최강기아!", type: "2025 신곡", youtubeId: "Hw0xWjbMLxo" },
-      // ── 미사용/레거시 ──────────────────────────
       { title: "Winner's Tigers", type: "레거시", youtubeId: "pxrL1iKuWPA" },
       { title: "Run & Win", type: "레거시", youtubeId: "KmubZRxwMGA" },
       { title: "With Us TIGERS", type: "레거시", youtubeId: "TbCRd3RziuI" },
@@ -195,9 +197,7 @@ export const KBO_TEAMS: Team[] = [
       { title: "맘마미아", type: "레거시", youtubeId: "4m2nVt0JwOg" },
       { title: "리얼리티", type: "레거시", youtubeId: "1KrgHJu_VCY" },
       { title: "팡팡", type: "레거시", youtubeId: "FxNz0OMvc_c" },
-      // ── 연고지가 ──────────────────────────────
       { title: "남행열차", type: "연고지가", youtubeId: "ssWocIQL51c" },
-      // ── 기타 ──────────────────────────────────
       {
         title: "KIA 없이는 못 살아 (alt.)",
         type: "기타",
@@ -247,6 +247,13 @@ export const KBO_TEAMS: Team[] = [
         title: "삼성 라이온즈 창단",
         description: "대구를 연고로 삼성 라이온즈 창단.",
       },
+      // ✅ 추가: 1985년 첫 우승
+      {
+        year: 1985,
+        type: "championship",
+        title: "첫 한국시리즈 우승",
+        description: "창단 첫 한국시리즈 우승.",
+      },
       {
         year: 2014,
         type: "championship",
@@ -268,10 +275,10 @@ export const KBO_TEAMS: Team[] = [
     name: "LG 트윈스",
     shortName: "LG",
     city: "서울",
-    founded: 1990,
+    founded: 1982, // ✅ 1982로 수정 (MBC 청룡 기준)
     mascotName: "트윈베어",
-    championships: 3,
-    championshipYears: [1990, 1994, 2023],
+    championships: 4, // ✅ 4회로 수정 (2025 우승 추가)
+    championshipYears: [1990, 1994, 2023, 2025], // ✅ 2025 추가
     colors: {
       primary: "#C30452",
       secondary: "#000000",
@@ -297,17 +304,32 @@ export const KBO_TEAMS: Team[] = [
       ops: 0.762,
     },
     history: [
+      // ✅ 수정: MBC 청룡 창단 추가
+      {
+        year: 1982,
+        type: "founded",
+        title: "MBC 청룡 창단",
+        description: "서울을 연고로 MBC 청룡 창단.",
+      },
+      // ✅ 수정: founded → rename, 설명 수정
       {
         year: 1990,
-        type: "founded",
-        title: "LG 트윈스 출범",
-        description: "MBC 청룡을 인수하여 LG 트윈스 출범.",
+        type: "rename",
+        title: "LG 트윈스로 개명",
+        description: "MBC 청룡을 인수하여 LG 트윈스로 개명.",
       },
       {
         year: 2023,
         type: "championship",
         title: "29년 만의 우승",
         description: "KT 위즈를 꺾고 29년 만에 한국시리즈 우승.",
+      },
+      // ✅ 추가: 2025년 한국시리즈 우승
+      {
+        year: 2025,
+        type: "championship",
+        title: "한국시리즈 우승",
+        description: "한화 이글스를 꺾고 통산 4번째 한국시리즈 우승.",
       },
     ],
     songs: [
@@ -348,11 +370,26 @@ export const KBO_TEAMS: Team[] = [
         title: "OB 베어스 창단",
         description: "서울을 연고로 OB 베어스 창단.",
       },
+      // ✅ 추가: 1985년 연고지 이전
+      {
+        year: 1985,
+        type: "relocation",
+        title: "연고지 서울 이전",
+        description: "충청도에서 서울로 연고지 변경.",
+      },
+      // ✅ 수정: 두산그룹 인수 → 구단명 변경
       {
         year: 1999,
         type: "rename",
         title: "두산 베어스로 개명",
-        description: "두산그룹이 인수하여 두산 베어스로 개명.",
+        description: "OB 베어스에서 두산 베어스로 구단명 변경.",
+      },
+      // ✅ 수정: 2019년 우승 설명 (키움 꺾고)
+      {
+        year: 2019,
+        type: "championship",
+        title: "한국시리즈 우승",
+        description: "키움 히어로즈를 꺾고 통산 6번째 한국시리즈 우승.",
       },
     ],
     songs: [
@@ -383,9 +420,9 @@ export const KBO_TEAMS: Team[] = [
     mapCoords: { x: 185, y: 222 },
     stadium: {
       name: "사직야구장",
-      capacity: 24000,
+      capacity: 23200, // ✅ 수정: 24000 → 23200
       openYear: 1985,
-      surface: "천연잔디",
+      surface: "천연잔디·인조잔디", // ✅ 수정: 천연잔디 + 인조잔디
       roofType: "개방형",
       imageUrl: "",
     },
@@ -435,7 +472,7 @@ export const KBO_TEAMS: Team[] = [
     mapCoords: { x: 128, y: 155 },
     stadium: {
       name: "한화생명 이글스파크",
-      capacity: 13000,
+      capacity: 17500, // ✅ 수정: 13000 → 17500
       openYear: 1964,
       surface: "천연잔디",
       roofType: "개방형",
@@ -456,11 +493,12 @@ export const KBO_TEAMS: Team[] = [
         title: "빙그레 이글스 창단",
         description: "대전을 연고로 빙그레 이글스 창단.",
       },
+      // ✅ 수정: 한화그룹 인수 → 구단명 변경
       {
         year: 1994,
         type: "rename",
         title: "한화 이글스로 개명",
-        description: "한화그룹 인수 후 한화 이글스로 개명.",
+        description: "빙그레 이글스에서 한화 이글스로 구단명 변경.",
       },
       {
         year: 1999,
@@ -485,8 +523,8 @@ export const KBO_TEAMS: Team[] = [
     city: "인천",
     founded: 2000,
     mascotName: "랜더",
-    championships: 2,
-    championshipYears: [2007, 2010],
+    championships: 5, // ✅ 수정: 2 → 5
+    championshipYears: [2007, 2008, 2010, 2018, 2022], // ✅ 수정
     colors: {
       primary: "#CE0E2D",
       secondary: "#FFD700",
@@ -499,7 +537,7 @@ export const KBO_TEAMS: Team[] = [
       name: "SSG 랜더스필드",
       capacity: 23000,
       openYear: 2002,
-      surface: "천연잔디",
+      surface: "천연잔디·인조잔디", // ✅ 수정: 천연잔디 + 인조잔디
       roofType: "개방형",
       imageUrl: "",
     },
@@ -516,6 +554,14 @@ export const KBO_TEAMS: Team[] = [
         type: "rename",
         title: "SSG 랜더스로 개명",
         description: "SSG가 인수하여 SSG 랜더스로 출범.",
+      },
+      // ✅ 추가: 2022년 한국시리즈 우승
+      {
+        year: 2022,
+        type: "championship",
+        title: "한국시리즈 우승",
+        description:
+          "키움 히어로즈를 꺾고 4년 만에 통산 5번째 한국시리즈 우승.",
       },
     ],
     songs: [
@@ -542,8 +588,8 @@ export const KBO_TEAMS: Team[] = [
     mapCoords: { x: 140, y: 132 },
     stadium: {
       name: "수원 KT 위즈파크",
-      capacity: 20000,
-      openYear: 2015,
+      capacity: 18700, // ✅ 수정: 20000 → 18700
+      openYear: 1989, // ✅ 수정: 2015 → 1989
       surface: "천연잔디",
       roofType: "개방형",
       imageUrl: "",
@@ -671,12 +717,10 @@ export const KBO_TEAMS: Team[] = [
 
 const findTeam = (id: string) => KBO_TEAMS.find((t) => t.id === id)!;
 
-// 수도권 — 원하는 순서대로
 export const LEFT_TEAMS: Team[] = ["lg", "doosan", "kiwoom", "ssg", "kt"].map(
   findTeam,
 );
 
-// 비수도권 — 원하는 순서대로
 export const RIGHT_TEAMS: Team[] = [
   "hanwha",
   "samsung",
@@ -690,17 +734,11 @@ export const RIGHT_TEAMS: Team[] = [
 export function normalizeStats(
   stats: Team["stats2024"],
 ): Record<string, number> {
-  // ERA: 낮을수록 좋음 (2.5~6.0 범위 가정)
   const era = Math.max(0, Math.min(100, ((6.0 - stats.era) / 3.5) * 100));
-  // WHIP: 낮을수록 좋음 (1.0~1.8 범위)
   const whip = Math.max(0, Math.min(100, ((1.8 - stats.whip) / 0.8) * 100));
-  // QS: 높을수록 좋음 (30~70 범위)
   const qs = Math.max(0, Math.min(100, ((stats.qs - 30) / 40) * 100));
-  // AVG: 높을수록 좋음 (0.240~0.300 범위)
   const avg = Math.max(0, Math.min(100, ((stats.avg - 0.24) / 0.06) * 100));
-  // SB: 높을수록 좋음 (30~110 범위)
   const sb = Math.max(0, Math.min(100, ((stats.sb - 30) / 80) * 100));
-  // OPS: 높을수록 좋음 (0.680~0.820 범위)
   const ops = Math.max(0, Math.min(100, ((stats.ops - 0.68) / 0.14) * 100));
 
   return { ERA: era, WHIP: whip, QS: qs, AVG: avg, SB: sb, OPS: ops };
