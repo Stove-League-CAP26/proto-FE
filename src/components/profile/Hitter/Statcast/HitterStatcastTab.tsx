@@ -1,84 +1,122 @@
 // src/components/profile/Hitter/Statcast/HitterStatcastTab.tsx
-// 타구 분포 옆에 AI 분석 임시 하드코딩 박스 추가
+import { useState, useEffect } from "react";
 import type { HitterCombinedStat } from "@/utils/StatsCalculator";
 import HitterSeasonTable from "@/components/profile/Hitter/Statcast/HitterSeasonTable";
 import HitDirectionChart from "@/components/profile/Hitter/Statcast/HitDirectionChart";
+import { fetchPlayerAiAnalysis, type PlayerAiAnalysis } from "@/api/playerApi";
 
 interface HitterStatcastTabProps {
+  pid: number;
   stats: HitterCombinedStat[];
   hitDistrib?: { LF: string; CF: string; RF: string };
 }
 
-// ── 임시 AI 분석 박스 ─────────────────────────────────────────────────────────
-function AiAnalysisBox({
-  hitDistrib,
-}: {
-  hitDistrib?: { LF: string; CF: string; RF: string };
-}) {
-  const lf = parseFloat(hitDistrib?.LF ?? "0") || 0;
-  const cf = parseFloat(hitDistrib?.CF ?? "0") || 0;
-  const rf = parseFloat(hitDistrib?.RF ?? "0") || 0;
-  const dominant =
-    lf > cf && lf > rf
-      ? "좌측(LF)"
-      : rf > cf && rf > lf
-        ? "우측(RF)"
-        : "중앙(CF)";
+function AiAnalysisBox({ pid }: { pid: number }) {
+  const [analysis, setAnalysis] = useState<PlayerAiAnalysis | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchPlayerAiAnalysis(pid, "hitter")
+      .then(setAnalysis)
+      .finally(() => setLoading(false));
+  }, [pid]);
 
   return (
-    <div
-      className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-5 flex flex-col gap-3"
-      style={{ minHeight: 200 }}
-    >
-      {/* 헤더 */}
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">
-          AI 타격 분석
-        </p>
-        <span className="ml-auto text-[10px] text-gray-400 bg-gray-200 px-2 py-0.5 rounded-full">
-          Beta
-        </span>
-      </div>
-
-      {/* 임시 분석 텍스트 */}
-      <div className="space-y-2">
-        <p className="text-sm font-bold text-gray-700">타구 방향 분석</p>
-        {lf + cf + rf > 0 ? (
-          <p className="text-xs text-gray-500 leading-relaxed">
-            타구 분포 데이터 기준으로 이 타자는{" "}
-            <span className="font-semibold text-gray-700">{dominant}</span> 방향
-            타구 비율이 가장 높습니다. 풀히팅 또는 푸시히팅 성향, 구종별 대응
-            방향, 수비 쉬프트 대응 전략 등의 세부 분석이 제공될 예정입니다.
-          </p>
-        ) : (
-          <p className="text-xs text-gray-500 leading-relaxed">
-            타구 방향 패턴, 풀히팅·푸시히팅 성향, 구종별 반응 방향 등의 세부
-            분석이 제공될 예정입니다.
-          </p>
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* 헤더 — PitchArsenalCard 구조와 동일 */}
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-50">
+        <div className="w-1 h-5 rounded-full bg-blue-500" />
+        <h3 className="font-bold text-gray-800 text-sm">AI 분석</h3>
+        {loading && (
+          <div className="ml-auto w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
         )}
-        <div className="border-t border-gray-200 pt-2 space-y-1.5">
-          {[
-            "타구 방향 성향 분석",
-            "구종별 대응 방향 패턴",
-            "수비 쉬프트 취약 구역",
-          ].map((item) => (
-            <div key={item} className="flex items-center gap-2">
-              <div className="w-1 h-1 rounded-full bg-gray-300 flex-shrink-0" />
-              <p className="text-xs text-gray-400">{item}</p>
-            </div>
-          ))}
-        </div>
       </div>
 
-      <p className="text-[10px] text-gray-400 mt-auto pt-2 border-t border-gray-200">
-        AI 분석은 추후 실제 프롬프트 연동 후 자동 생성됩니다.
-      </p>
+      <div className="px-5 py-4">
+        {/* 로딩 스켈레톤 */}
+        {loading && (
+          <div className="flex flex-col gap-3 animate-pulse">
+            <div className="h-3 bg-gray-100 rounded w-1/4" />
+            <div className="h-2 bg-gray-100 rounded w-full" />
+            <div className="h-2 bg-gray-100 rounded w-5/6" />
+            <div className="h-2 bg-gray-100 rounded w-4/6" />
+            <div className="h-px bg-gray-100 my-1" />
+            <div className="h-2 bg-gray-100 rounded w-3/4" />
+            <div className="h-2 bg-gray-100 rounded w-2/3" />
+          </div>
+        )}
+
+        {/* 데이터 없음 */}
+        {!loading && !analysis && (
+          <div className="flex flex-col items-center justify-center py-8 gap-2">
+            <p className="text-xs text-gray-400">
+              아직 분석 데이터가 없습니다.
+            </p>
+            <p className="text-[10px] text-gray-300">
+              시즌 데이터 업데이트 후 제공됩니다.
+            </p>
+          </div>
+        )}
+
+        {/* 실제 분석 */}
+        {!loading && analysis && (
+          <div className="space-y-3">
+            {/* 선수 유형 뱃지 */}
+            <span className="inline-block text-[11px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full">
+              {analysis.analysisJson.player_type_label}
+            </span>
+
+            {/* 요약 */}
+            <p className="text-xs text-gray-600 leading-relaxed">
+              {analysis.analysisJson.summary}
+            </p>
+
+            {/* 강점 */}
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                강점
+              </p>
+              {analysis.analysisJson.strengths.map((item) => (
+                <div key={item} className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 mt-1" />
+                  <p className="text-xs text-gray-600">{item}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* 약점 */}
+            {analysis.analysisJson.weakness && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+                  약점
+                </p>
+                <div className="flex items-start gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400 flex-shrink-0 mt-1" />
+                  <p className="text-xs text-gray-600">
+                    {analysis.analysisJson.weakness}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 푸터 — 분석 기준 시즌 */}
+      {!loading && analysis && (
+        <div className="px-5 py-3 border-t border-gray-50">
+          <p className="text-[10px] text-gray-300">
+            {analysis.mainSeason}시즌 기준 · {analysis.model}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
 export default function HitterStatcastTab({
+  pid,
   stats,
   hitDistrib,
 }: HitterStatcastTabProps) {
@@ -87,8 +125,7 @@ export default function HitterStatcastTab({
       <HitterSeasonTable stats={stats} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {hitDistrib && <HitDirectionChart hitDistrib={hitDistrib} />}
-        {/* AI 분석 임시 박스 */}
-        <AiAnalysisBox hitDistrib={hitDistrib} />
+        <AiAnalysisBox pid={pid} />
       </div>
     </div>
   );
