@@ -100,18 +100,6 @@ export default function App() {
         <TeamPage onSelectPlayer={handleSelectPlayer} />
       )}
       {currentPage === "ai-test" && <AiTestPage />}
-
-      {/* 푸터 - 인증 페이지에서는 숨김 */}
-      {!isAuthPage && (
-        <footer className="border-t border-gray-100 bg-white mt-8">
-          <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between">
-            <p className="text-xs text-gray-400">
-              ⚾ 스토브리그 · KBO 야구 팬 플랫폼 프로토타입
-            </p>
-            <p className="text-xs text-gray-300">© 2025 Stoveleague</p>
-          </div>
-        </footer>
-      )}
     </div>
   );
 }

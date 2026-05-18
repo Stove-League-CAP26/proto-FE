@@ -264,3 +264,41 @@ export async function fetchVsRecord(
     return [];
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// AI 분석 API
+// ─────────────────────────────────────────────────────────────
+
+export interface AiAnalysisJson {
+  player_type_label: string;
+  summary: string;
+  strengths: string[];
+  weakness: string | null;
+}
+
+export interface PlayerAiAnalysis {
+  pid: number;
+  mainSeason: number;
+  playerType: string;
+  analysisJson: AiAnalysisJson;
+  model: string;
+  updatedAt: string;
+}
+
+/**
+ * GET /api/players/{pid}/analysis?type=hitter|pitcher
+ * 분석 없으면 null 반환 (204 No Content)
+ */
+export async function fetchPlayerAiAnalysis(
+  pid: number,
+  type: "hitter" | "pitcher",
+): Promise<PlayerAiAnalysis | null> {
+  try {
+    const res = await fetch(`/api/players/${pid}/analysis?type=${type}`);
+    if (res.status === 204) return null; // 분석 데이터 없음
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
