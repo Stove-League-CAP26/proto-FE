@@ -1,4 +1,4 @@
-// 투수 시즌 기록 테이블 — WAR 컬럼 추가
+// src/components/profile/Pitcher/Statcast/PitcherSeasonTable.tsx
 import type { PitcherStatRaw } from "@/utils/StatsCalculator";
 import { calcPitcherDerived, fmtEra, fmtWhip } from "@/utils/StatsCalculator";
 
@@ -6,32 +6,38 @@ interface PitcherSeasonTableProps {
   stats: PitcherStatRaw[];
 }
 
-const COLUMNS: { key: string; label: string; color?: string }[] = [
-  { key: "season", label: "연도" },
-  { key: "team", label: "팀" },
-  { key: "g", label: "G" },
-  { key: "w", label: "W", color: "text-green-600" },
-  { key: "l", label: "L", color: "text-red-400" },
-  { key: "sv", label: "SV", color: "text-blue-500" },
-  { key: "hld", label: "HLD", color: "text-sky-500" },
-  { key: "wpct", label: "W%", color: "text-green-500" },
-  { key: "ip", label: "IP" },
-  { key: "h", label: "H" },
-  { key: "hr", label: "HR", color: "text-red-500" },
-  { key: "bb", label: "BB" },
-  { key: "hbp", label: "HBP" },
-  { key: "so", label: "K", color: "text-blue-600" },
-  { key: "r", label: "R" },
-  { key: "er", label: "ER" },
-  { key: "era", label: "ERA", color: "text-orange-500" },
-  { key: "whip", label: "WHIP", color: "text-orange-400" },
-  { key: "kPct", label: "K%", color: "text-violet-500" },
-  { key: "bbPct", label: "BB%", color: "text-violet-400" },
-  { key: "k9", label: "K/9", color: "text-violet-500" },
-  { key: "bb9", label: "BB/9", color: "text-violet-400" },
-  { key: "kbb", label: "K/BB", color: "text-violet-600" },
-  { key: "war", label: "WAR", color: "text-amber-500" }, // ← 신규
-];
+const COLUMNS: { key: string; label: string; desc?: string; color?: string }[] =
+  [
+    { key: "season", label: "연도" },
+    { key: "team", label: "팀" },
+    { key: "g", label: "G", desc: "경기" },
+    { key: "w", label: "W", desc: "승", color: "text-green-600" },
+    { key: "l", label: "L", desc: "패", color: "text-red-500" },
+    { key: "sv", label: "SV", desc: "세이브", color: "text-blue-500" },
+    { key: "hld", label: "HLD", desc: "홀드" },
+    { key: "wpct", label: "W%", desc: "승률" },
+    { key: "ip", label: "IP", desc: "이닝" },
+    { key: "h", label: "H", desc: "피안타" },
+    { key: "hr", label: "HR", desc: "피홈런" },
+    { key: "bb", label: "BB", desc: "볼넷" },
+    { key: "hbp", label: "HBP", desc: "사구" },
+    { key: "so", label: "K", desc: "삼진" },
+    { key: "r", label: "R", desc: "실점" },
+    { key: "er", label: "ER", desc: "자책" },
+    { key: "era", label: "ERA", desc: "평균자책", color: "text-orange-500" },
+    {
+      key: "whip",
+      label: "WHIP",
+      desc: "이닝당출루",
+      color: "text-orange-400",
+    },
+    { key: "kPct", label: "K%", desc: "삼진률" },
+    { key: "bbPct", label: "BB%", desc: "볼넷률" },
+    { key: "k9", label: "K/9", desc: "9이닝삼진" },
+    { key: "bb9", label: "BB/9", desc: "9이닝볼넷" },
+    { key: "kbb", label: "K/BB", desc: "삼진/볼넷비율" },
+    { key: "war", label: "WAR", desc: "대체선수대비" },
+  ];
 
 const STICKY: Record<string, string> = {
   season: "sticky left-0 z-10",
@@ -97,7 +103,6 @@ function fmtCell(
     case "kbb":
       return d.kbb != null ? d.kbb.toFixed(2) : "-";
     case "war": {
-      // ← 신규
       const v = (row as any).war;
       return v != null ? Number(v).toFixed(2) : "-";
     }
@@ -124,15 +129,25 @@ export default function PitcherSeasonTable({ stats }: PitcherSeasonTableProps) {
                 <th
                   key={col.key}
                   className={[
-                    "px-3 py-2.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap border-b border-gray-100",
-                    col.color ?? "text-gray-400",
+                    "px-3 py-2 text-center whitespace-nowrap border-b border-gray-100",
                     STICKY[col.key] ?? "",
                     STICKY[col.key]
                       ? "bg-gray-50 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]"
                       : "",
                   ].join(" ")}
                 >
-                  {col.label}
+                  {/* 영문 약어 */}
+                  <p
+                    className={`text-xs font-bold uppercase tracking-wide ${col.color ?? "text-gray-500"}`}
+                  >
+                    {col.label}
+                  </p>
+                  {/* 한국어 설명 */}
+                  {col.desc && (
+                    <p className="text-[9px] text-gray-400 font-normal mt-0.5">
+                      {col.desc}
+                    </p>
+                  )}
                 </th>
               ))}
             </tr>
@@ -149,20 +164,19 @@ export default function PitcherSeasonTable({ stats }: PitcherSeasonTableProps) {
                   {COLUMNS.map((col) => {
                     const isSticky = !!STICKY[col.key];
                     const stickyBg = isLatest ? "bg-orange-50/60" : "bg-white";
-                    const isWar = col.key === "war";
                     return (
                       <td
                         key={col.key}
                         className={[
                           "px-3 py-3 text-center whitespace-nowrap",
-                          col.key === "season" ? "font-bold text-gray-800" : "",
+                          col.key === "season" ? "font-bold text-gray-900" : "",
                           col.key === "team" ? "text-gray-500" : "",
                           col.color &&
                           col.key !== "season" &&
                           col.key !== "team"
                             ? `font-bold ${col.color}`
                             : col.key !== "season" && col.key !== "team"
-                              ? "text-gray-600"
+                              ? "text-gray-800"
                               : "",
                           isSticky
                             ? `${STICKY[col.key]} ${stickyBg} shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]`

@@ -1,5 +1,5 @@
-// src/pages/ComparePage.tsx — HvH / PvP / HvP 3모드 지원
-import { useState, useCallback } from "react";
+// src/pages/ComparePage.tsx — HvH / PvP / HvP 3모드 + 시즌 선택 (HvH/PvP)
+import { useState, useCallback, useEffect } from "react";
 import ComparePlayerSlot from "@/components/compare/ComparePlayerSlot";
 import CompareStatPanel from "@/components/compare/CompareStatPanel";
 import CompareZonePanel from "@/components/compare/CompareZonePanel";
@@ -15,8 +15,8 @@ import {
 import {
   fetchHotColdZone,
   fetchStrikeoutZone,
-  fetchPitchZone,
   fetchKsZone,
+  fetchPitchZone,
 } from "@/api/chartApi";
 import type { ZoneGrid } from "@/api/chartApi";
 import type { HitterRadar, PitcherRadar } from "@/api/playerApi";
@@ -25,31 +25,34 @@ import {
   mapHitterRadar,
   mapPitcherRadar,
 } from "@/utils/playerUtils";
-import {
-  MOCK_HVP_HITTER_HOTCOLD,
-  MOCK_HVP_PITCHER_PITCHZONE,
-} from "@/mock/hvpData";
+import { MOCK_HVP_HITTER_HOTCOLD } from "@/mock/hvpData";
 
 type Mode = "HvH" | "PvP" | "HvP";
 
+const SEASONS = [2024, 2025, 2026] as const;
+
 interface PlayerSlot {
   basic: any | null;
-  stats: any[];
-  latestStat: any | null;
+  stats: any[]; // 전 시즌 데이터
+  latestStat: any | null; // 선택된 시즌 스탯
+  season: number; // 선택 시즌
   radar: HitterRadar | PitcherRadar | null;
   zone: ZoneGrid | null;
   strikeoutZone: ZoneGrid | null;
   loading: boolean;
+  radarLoading: boolean;
 }
 
 const empty = (): PlayerSlot => ({
   basic: null,
   stats: [],
   latestStat: null,
+  season: 2025,
   radar: null,
   zone: null,
   strikeoutZone: null,
   loading: false,
+  radarLoading: false,
 });
 
 const MODES = [
@@ -58,11 +61,138 @@ const MODES = [
   { id: "HvP" as Mode, label: "타자 vs 투수" },
 ];
 
+// ── 시즌 탭 컴포넌트 ─────────────────────────────────────────
+function SeasonTabs({
+  stats,
+  selectedSeason,
+  accentColor,
+  onChange,
+}: {
+  stats: any[];
+  selectedSeason: number;
+  accentColor: string;
+  onChange: (s: number) => void;
+}) {
+  const availableSeasons = SEASONS.filter((s) =>
+    stats.some((st: any) => st.season === s),
+  );
+
+  return (
+    <div className="flex gap-1 mt-2 justify-center">
+      {SEASONS.map((s) => {
+        const available = availableSeasons.includes(s);
+        const active = selectedSeason === s;
+        return (
+          <button
+            key={s}
+            onClick={() => available && onChange(s)}
+            disabled={!available}
+            title={!available ? `${s}시즌 기록 없음` : `${s}시즌`}
+            className="relative px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all"
+            style={
+              active
+                ? { background: accentColor, color: "#fff" }
+                : available
+                  ? { background: "#f3f4f6", color: "#6b7280" }
+                  : {
+                      background: "#f9fafb",
+                      color: "#d1d5db",
+                      cursor: "not-allowed",
+                    }
+            }
+          >
+            {s}
+            {!available && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gray-300" />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── 슬롯 래퍼 (선수 카드 + 시즌 탭 + 기록 없음 안내) ─────────
+function SlotWithSeason({
+  slot,
+  side,
+  mode,
+  accentColor,
+  onPlayerSelected,
+  onSeasonChange,
+}: {
+  slot: PlayerSlot;
+  side: "A" | "B";
+  mode: Mode;
+  accentColor: string;
+  onPlayerSelected: (p: any) => void;
+  onSeasonChange: (s: number) => void;
+}) {
+  const hasStats = slot.basic && slot.stats.length > 0;
+  const noSeasonStat =
+    hasStats && !slot.stats.some((st: any) => st.season === slot.season);
+
+  return (
+    <div className="flex flex-col gap-1">
+      {mode === "HvP" && (
+        <p
+          className={`text-xs font-black text-center mb-1 ${side === "A" ? "text-blue-500" : "text-red-500"}`}
+        >
+          {side === "A" ? "타자 선택" : "투수 선택"}
+        </p>
+      )}
+
+      <ComparePlayerSlot
+        key={`${side}-${mode}`}
+        player={slot.basic}
+        sideLabel={side}
+        onPlayerSelected={onPlayerSelected}
+        loading={slot.loading}
+        filterType={
+          mode === "HvP"
+            ? side === "A"
+              ? "hitter"
+              : "pitcher"
+            : mode === "HvH"
+              ? "hitter"
+              : "pitcher"
+        }
+      />
+
+      {/* 시즌 탭 — HvH / PvP 에서만 */}
+      {slot.basic && mode !== "HvP" && (
+        <SeasonTabs
+          stats={slot.stats}
+          selectedSeason={slot.season}
+          accentColor={accentColor}
+          onChange={onSeasonChange}
+        />
+      )}
+
+      {/* 해당 시즌 기록 없음 안내 */}
+      {noSeasonStat && (
+        <p className="text-[10px] text-center text-amber-500 font-medium mt-0.5">
+          {slot.season}시즌 기록이 없습니다
+        </p>
+      )}
+
+      {/* 레이더 로딩 */}
+      {slot.basic && slot.radarLoading && (
+        <p className="text-[10px] text-center text-gray-400 mt-0.5">
+          레이더 불러오는 중...
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────
 export default function ComparePage() {
   const [mode, setMode] = useState<Mode>("HvH");
   const [slotA, setSlotA] = useState<PlayerSlot>(empty());
   const [slotB, setSlotB] = useState<PlayerSlot>(empty());
 
+  // 선수 로드
   const loadPlayer = useCallback(
     async (playerBasic: any, side: "A" | "B") => {
       const pid: number = playerBasic.pid;
@@ -97,13 +227,10 @@ export default function ComparePage() {
         strikeoutZone: null,
       }));
 
-      const [stats, radar, zone, strikeoutZone] = await Promise.all([
+      const [stats, zone, strikeoutZone] = await Promise.all([
         pitcher
           ? fetchPitcherStats(pid).catch(() => [])
           : fetchHitterStats(pid).catch(() => []),
-        pitcher
-          ? fetchPitcherRadar(pid).catch(() => null)
-          : fetchHitterRadar(pid).catch(() => null),
         pitcher
           ? fetchPitchZone(pid).catch(() => null)
           : fetchHotColdZone(pid).catch(() => null),
@@ -112,22 +239,56 @@ export default function ComparePage() {
           : fetchStrikeoutZone(pid).catch(() => null),
       ]);
 
+      // 최신 시즌 기본 선택
+      const allStats = stats as any[];
+      const latestSeason =
+        allStats.length > 0
+          ? Math.max(...allStats.map((s: any) => s.season))
+          : 2025;
       const latestStat =
-        (stats as any[]).length > 0
-          ? [...(stats as any[])].sort((a, b) => b.season - a.season)[0]
-          : null;
+        allStats.find((s: any) => s.season === latestSeason) ?? null;
 
-      set({
+      set((prev) => ({
+        ...prev,
         basic: playerBasic,
-        stats: stats as any[],
+        stats: allStats,
         latestStat,
-        radar: radar as any,
+        season: latestSeason,
         zone: zone as ZoneGrid | null,
         strikeoutZone: strikeoutZone as ZoneGrid | null,
         loading: false,
-      });
+        radarLoading: true,
+      }));
+
+      // 레이더 요청
+      const radarFetch = pitcher ? fetchPitcherRadar : fetchHitterRadar;
+      const radar = await radarFetch(pid, latestSeason).catch(() => null);
+      set((prev) => ({ ...prev, radar: radar as any, radarLoading: false }));
     },
     [mode],
+  );
+
+  // 시즌 변경 시 latestStat + 레이더 업데이트
+  const changeSeason = useCallback(
+    async (side: "A" | "B", season: number) => {
+      const slot = side === "A" ? slotA : slotB;
+      const set = side === "A" ? setSlotA : setSlotB;
+      if (!slot.basic) return;
+
+      const stat = slot.stats.find((s: any) => s.season === season) ?? null;
+      set((prev) => ({
+        ...prev,
+        season,
+        latestStat: stat,
+        radarLoading: true,
+      }));
+
+      const pitcher = isPitcher(slot.basic.playerMPosition);
+      const radarFetch = pitcher ? fetchPitcherRadar : fetchHitterRadar;
+      const radar = await radarFetch(slot.basic.pid, season).catch(() => null);
+      set((prev) => ({ ...prev, radar: radar as any, radarLoading: false }));
+    },
+    [slotA, slotB],
   );
 
   const changeMode = (m: Mode) => {
@@ -137,6 +298,7 @@ export default function ComparePage() {
     setSlotB(empty());
   };
 
+  // 레이더 값 매핑
   const radarA = slotA.radar
     ? mode === "PvP"
       ? mapPitcherRadar(slotA.radar as any)
@@ -148,7 +310,6 @@ export default function ComparePage() {
       : mapHitterRadar(slotB.radar as any)
     : null;
 
-  // 두 선수 모두 선택 + 로딩 완료 시에만 비교 콘텐츠 표시
   const hasBoth = !!(
     slotA.basic &&
     slotB.basic &&
@@ -161,15 +322,12 @@ export default function ComparePage() {
     hasBoth && mode === "HvP" ? (slotA.basic?.pid as number) : null;
   const hvpPitcherPid =
     hasBoth && mode === "HvP" ? (slotB.basic?.pid as number) : null;
-
   const hvpHitHot =
     hasBoth && mode === "HvP" ? (slotA.zone ?? MOCK_HVP_HITTER_HOTCOLD) : null;
   const hvpHitSo =
     hasBoth && mode === "HvP" ? (slotA.strikeoutZone ?? null) : null;
-  const hvpPitPitch =
-    hasBoth && mode === "HvP"
-      ? (slotB.zone ?? MOCK_HVP_PITCHER_PITCHZONE)
-      : null;
+  const hvpPitSo =
+    hasBoth && mode === "HvP" ? (slotB.strikeoutZone ?? null) : null;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -204,34 +362,21 @@ export default function ComparePage() {
 
       {/* 선수 선택 카드 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="grid grid-cols-3 items-stretch gap-4">
+        <div className="grid grid-cols-3 items-start gap-4">
           {/* 슬롯 A */}
-          <div>
-            {mode === "HvP" && (
-              <p className="text-xs font-black text-blue-500 text-center mb-2">
-                타자 선택
-              </p>
-            )}
-            <ComparePlayerSlot
-              player={slotA.basic}
-              sideLabel="A"
-              onPlayerSelected={(p) => loadPlayer(p, "A")}
-              loading={slotA.loading}
-              filterType={
-                mode === "HvP"
-                  ? "hitter"
-                  : mode === "HvH"
-                    ? "hitter"
-                    : "pitcher"
-              }
-            />
-          </div>
+          <SlotWithSeason
+            slot={slotA}
+            side="A"
+            mode={mode}
+            accentColor="#3B82F6"
+            onPlayerSelected={(p) => loadPlayer(p, "A")}
+            onSeasonChange={(s) => changeSeason("A", s)}
+          />
 
-          {/* 중앙 */}
-          <div className="flex flex-col items-center justify-center gap-3">
+          {/* 중앙 VS */}
+          <div className="flex flex-col items-center justify-center gap-3 pt-2">
             <div
-              className="w-14 h-14 rounded-full flex items-center justify-center text-sm
-                           font-black text-white shadow-xl"
+              className="w-14 h-14 rounded-full flex items-center justify-center text-sm font-black text-white shadow-xl"
               style={{
                 background: "linear-gradient(135deg,#3B82F6,#7C3AED,#EF4444)",
               }}
@@ -239,7 +384,23 @@ export default function ComparePage() {
               {mode === "HvP" ? "vs" : "VS"}
             </div>
 
-            {/* 간략 비교 바 (HvH / PvP, 두 선수 모두 선택 시) */}
+            {/* 시즌 비교 뱃지 — HvH/PvP 양쪽 선택 시 */}
+            {hasBoth && mode !== "HvP" && (
+              <div className="text-center">
+                <p className="text-[10px] text-gray-400 font-medium">
+                  {slotA.season}
+                  <span className="mx-1 text-gray-300">vs</span>
+                  {slotB.season}
+                </p>
+                {slotA.season !== slotB.season && (
+                  <p className="text-[9px] text-amber-500 mt-0.5">
+                    시즌이 다릅니다
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 간략 비교 바 */}
             {hasBoth &&
               slotA.latestStat &&
               slotB.latestStat &&
@@ -293,8 +454,8 @@ export default function ComparePage() {
                         },
                       ]
                   ).map((s) => {
-                    const nA = parseFloat(String(s.vA ?? 0)),
-                      nB = parseFloat(String(s.vB ?? 0));
+                    const nA = parseFloat(String(s.vA ?? 0));
+                    const nB = parseFloat(String(s.vB ?? 0));
                     const raw = nA + nB > 0 ? (nA / (nA + nB)) * 100 : 50;
                     const pct = s.low ? 100 - raw : raw;
                     return (
@@ -326,33 +487,20 @@ export default function ComparePage() {
           </div>
 
           {/* 슬롯 B */}
-          <div>
-            {mode === "HvP" && (
-              <p className="text-xs font-black text-red-500 text-center mb-2">
-                투수 선택
-              </p>
-            )}
-            <ComparePlayerSlot
-              player={slotB.basic}
-              sideLabel="B"
-              onPlayerSelected={(p) => loadPlayer(p, "B")}
-              loading={slotB.loading}
-              filterType={
-                mode === "HvP"
-                  ? "pitcher"
-                  : mode === "HvH"
-                    ? "hitter"
-                    : "pitcher"
-              }
-            />
-          </div>
+          <SlotWithSeason
+            slot={slotB}
+            side="B"
+            mode={mode}
+            accentColor="#EF4444"
+            onPlayerSelected={(p) => loadPlayer(p, "B")}
+            onSeasonChange={(s) => changeSeason("B", s)}
+          />
         </div>
       </div>
 
-      {/* ── 비교 콘텐츠 — 두 선수 모두 선택 시에만 표시 ── */}
+      {/* 비교 콘텐츠 */}
       {hasBoth && (
         <>
-          {/* HvH / PvP */}
           {(mode === "HvH" || mode === "PvP") && (
             <>
               <CompareZonePanel
@@ -364,15 +512,14 @@ export default function ComparePage() {
                 loadingA={slotA.loading}
                 loadingB={slotB.loading}
               />
-
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <CompareStatPanel
                     mode={mode}
                     statsA={slotA.latestStat}
                     statsB={slotB.latestStat}
-                    playerNameA={slotA.basic?.playerName ?? "선수 A"}
-                    playerNameB={slotB.basic?.playerName ?? "선수 B"}
+                    playerNameA={`${slotA.basic?.playerName ?? "선수 A"} (${slotA.season})`}
+                    playerNameB={`${slotB.basic?.playerName ?? "선수 B"} (${slotB.season})`}
                   />
                 </div>
                 <div className="space-y-4">
@@ -380,48 +527,56 @@ export default function ComparePage() {
                     {
                       r: radarA,
                       t: "light",
-                      n: slotA.basic?.playerName,
+                      n: `${slotA.basic?.playerName} (${slotA.season})`,
                       c: "blue",
+                      loading: slotA.radarLoading,
                     },
                     {
                       r: radarB,
                       t: "dark",
-                      n: slotB.basic?.playerName,
+                      n: `${slotB.basic?.playerName} (${slotB.season})`,
                       c: "red",
+                      loading: slotB.radarLoading,
                     },
-                  ]
-                    .filter((x) => x.r)
-                    .map((x, i) => (
-                      <div
-                        key={i}
-                        className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
-                      >
-                        <div className="flex items-center gap-2 mb-3">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{
-                              background:
-                                x.c === "blue" ? "#3B82F6" : "#EF4444",
-                            }}
-                          />
-                          <p className="text-xs font-black text-gray-700">
-                            {x.n}
-                          </p>
+                  ].map((x, i) => (
+                    <div
+                      key={i}
+                      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{
+                            background: x.c === "blue" ? "#3B82F6" : "#EF4444",
+                          }}
+                        />
+                        <p className="text-xs font-black text-gray-700">
+                          {x.n}
+                        </p>
+                      </div>
+                      {x.loading ? (
+                        <div className="flex items-center justify-center h-20">
+                          <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-400 rounded-full animate-spin" />
                         </div>
+                      ) : x.r ? (
                         <div className="w-full aspect-square max-w-[200px] mx-auto">
                           <RadarChart
                             data={x.r!}
                             theme={x.t as "light" | "dark"}
                           />
                         </div>
-                      </div>
-                    ))}
+                      ) : (
+                        <p className="text-xs text-gray-400 text-center py-6">
+                          해당 시즌 레이더 데이터가 없습니다
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </>
           )}
 
-          {/* HvP */}
           {mode === "HvP" && (
             <div className="space-y-6">
               {hvpBatterPid && hvpPitcherPid && (
@@ -432,25 +587,19 @@ export default function ComparePage() {
                   batterName={slotA.basic?.playerName ?? ""}
                 />
               )}
-
               <HvPZoneSection
                 hitterName={slotA.basic?.playerName ?? "타자"}
                 pitcherName={slotB.basic?.playerName ?? "투수"}
                 hitterHotCold={hvpHitHot}
                 hitterStrikeout={hvpHitSo}
-                pitcherStrikeout={
-                  hasBoth && mode === "HvP"
-                    ? (slotB.strikeoutZone ?? null)
-                    : null
-                }
-                pitcherPitchZone={hvpPitPitch}
+                pitcherStrikeout={hvpPitSo}
               />
             </div>
           )}
         </>
       )}
 
-      {/* 한 명만 선택됐을 때 안내 */}
+      {/* 한 명만 선택 */}
       {eitherSelected && !hasBoth && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
           <p className="text-sm text-gray-400">
@@ -459,7 +608,7 @@ export default function ComparePage() {
         </div>
       )}
 
-      {/* 아무도 선택 안 됐을 때 */}
+      {/* 아무도 선택 안 됨 */}
       {!eitherSelected && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 flex flex-col items-center gap-4">
           <div className="text-center">
@@ -475,19 +624,18 @@ export default function ComparePage() {
           <div className="flex gap-8 mt-2">
             {(mode === "HvP"
               ? [
-                  { icon: "📊", text: "상대전적" },
-                  { icon: "🎯", text: "제구 전략" },
-                  { icon: "분석", text: "매치업 인사이트" },
+                  { text: "상대전적" },
+                  { text: "공략 가이드" },
+                  { text: "핫콜드존" },
                 ]
               : [
-                  { icon: "📊", text: "스탯 비교" },
-                  { icon: "🎯", text: "존 분석" },
-                  { icon: "📡", text: "레이더 차트" },
+                  { text: "스탯 비교" },
+                  { text: "존 분석" },
+                  { text: "레이더 차트" },
                 ]
             ).map((item) => (
               <div key={item.text} className="flex flex-col items-center gap-1">
-                <span className="text-2xl">{item.icon}</span>
-                <span className="text-xs text-gray-400 font-medium">
+                <span className="text-xs font-bold text-gray-300">
                   {item.text}
                 </span>
               </div>

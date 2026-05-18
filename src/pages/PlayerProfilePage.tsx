@@ -1,4 +1,5 @@
 // src/pages/PlayerProfilePage.tsx
+// 레이더 시즌 탭 (2024/2025/2026) 상태 추가
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import PlayerSearchBar from "@/components/common/PlayerSearchBar";
@@ -44,6 +45,8 @@ export default function PlayerProfilePage() {
   const [pitcherStats, setPitcherStats] = useState<PitcherStat[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
 
+  // 레이더 — 시즌별 상태
+  const [radarSeason, setRadarSeason] = useState<number>(2025);
   const [radarData, setRadarData] = useState<HitterRadar | PitcherRadar | null>(
     null,
   );
@@ -57,6 +60,7 @@ export default function PlayerProfilePage() {
   const [baZone, setBaZone] = useState<ZoneGrid | null>(null);
   const [chartLoading, setChartLoading] = useState(false);
 
+  // 초기 선수 로드
   useEffect(() => {
     if (!initialPid) return;
     fetchPlayerBasic(initialPid)
@@ -69,6 +73,7 @@ export default function PlayerProfilePage() {
       .catch(() => setError("선수 정보를 불러오지 못했습니다."));
   }, [initialPid]);
 
+  // 선수 변경 시 스탯 + 존 로드
   useEffect(() => {
     if (!playerBasic) return;
     const pid = playerBasic.pid as number;
@@ -85,14 +90,6 @@ export default function PlayerProfilePage() {
       })
       .catch(() => {})
       .finally(() => setStatsLoading(false));
-
-    setRadarData(null);
-    setRadarLoading(true);
-    const radarFetcher = pitcherType ? fetchPitcherRadar : fetchHitterRadar;
-    radarFetcher(pid)
-      .then(setRadarData)
-      .catch(() => setRadarData(null))
-      .finally(() => setRadarLoading(false));
 
     setHotColdZone(null);
     setStrikeoutZone(null);
@@ -125,6 +122,21 @@ export default function PlayerProfilePage() {
     }
   }, [playerBasic]);
 
+  // 선수 변경 또는 시즌 탭 변경 시 레이더 재요청
+  useEffect(() => {
+    if (!playerBasic) return;
+    const pid = playerBasic.pid as number;
+    const pitcherType = isPitcher(playerBasic.playerMPosition);
+
+    setRadarData(null);
+    setRadarLoading(true);
+    const radarFetcher = pitcherType ? fetchPitcherRadar : fetchHitterRadar;
+    radarFetcher(pid, radarSeason)
+      .then(setRadarData)
+      .catch(() => setRadarData(null))
+      .finally(() => setRadarLoading(false));
+  }, [playerBasic, radarSeason]);
+
   const handleSearch = async () => {
     const name = searchInput.trim();
     if (!name) return;
@@ -153,6 +165,7 @@ export default function PlayerProfilePage() {
     setSearchResults([]);
     setSearchInput(p.playerName);
     setError(null);
+    setRadarSeason(2025); // 선수 바꾸면 탭 초기화
   };
 
   const handleBack = () => {
@@ -163,6 +176,7 @@ export default function PlayerProfilePage() {
     setHitterStats([]);
     setPitcherStats([]);
     setRadarData(null);
+    setRadarSeason(2025);
     setHotColdZone(null);
     setStrikeoutZone(null);
     setHitDirection(null);
@@ -196,7 +210,6 @@ export default function PlayerProfilePage() {
   };
   const pitcher = isPitcher(playerBasic.playerMPosition);
   const heroAccent = pitcher ? "#F97316" : "#3B82F6";
-  const playerType = pitcher ? "pitcher" : "hitter";
 
   const hwRaw = playerBasic.heightWeight ?? "";
   const hwParts = hwRaw.split("/");
@@ -234,9 +247,9 @@ export default function PlayerProfilePage() {
           color: "#FFFFFF",
         },
         {
-          label: "W-L",
+          label: "W-L-SV",
           val: latestPitcher
-            ? `${latestPitcher.w}-${latestPitcher.l}`
+            ? `${latestPitcher.w}-${latestPitcher.l}-${latestPitcher.sv ?? 0}`
             : statsLoading
               ? "..."
               : "-",
@@ -284,20 +297,19 @@ export default function PlayerProfilePage() {
 
   const bgGradient = `linear-gradient(160deg, ${tc.bg} 0%, ${tc.accent === "#000000" ? "#1e1e2e" : tc.accent} 55%, #0f0f1a 100%)`;
 
+  const resolvedHitDistrib = hitDirection
+    ? { LF: hitDirection.lf, CF: hitDirection.cf, RF: hitDirection.rf }
+    : undefined;
+
   const hotColdTabData =
     hotColdZone && strikeoutZone
       ? {
           outer: hotColdZone.outer,
           inner: hotColdZone.inner,
           strikeout: strikeoutZone,
-          hitDistrib: hitDirection
-            ? { LF: hitDirection.lf, CF: hitDirection.cf, RF: hitDirection.rf }
-            : { LF: "-", CF: "-", RF: "-" },
+          hitDistrib: resolvedHitDistrib ?? { LF: "-", CF: "-", RF: "-" },
         }
       : null;
-  const resolvedHitDistrib = hitDirection
-    ? { LF: hitDirection.lf, CF: hitDirection.cf, RF: hitDirection.rf }
-    : undefined;
 
   return (
     <div>
@@ -306,6 +318,7 @@ export default function PlayerProfilePage() {
         searchLoading={searchLoading}
         searchResults={searchResults}
         showResults={showResults}
+        error={error}
         compact={true}
         currentPlayerName={playerBasic.playerName}
         heroAccent={heroAccent}
@@ -330,10 +343,11 @@ export default function PlayerProfilePage() {
         heroBadges={heroBadges}
         radarData={radarData}
         radarLoading={radarLoading}
+        radarSeason={radarSeason}
+        onRadarSeasonChange={setRadarSeason}
       />
 
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-10">
-        {/* ── 기존 스탯캐스트 / 존 섹션 ────────────────────────────────── */}
         {pitcher ? (
           <>
             <section>
@@ -361,7 +375,6 @@ export default function PlayerProfilePage() {
                   pitchZone={pitchZone}
                   strikeoutZone={ksZone}
                   baZone={baZone ?? undefined}
-                  dataSource="db"
                 />
               ) : (
                 <div className="text-center py-16 text-gray-300 text-sm">
@@ -398,7 +411,6 @@ export default function PlayerProfilePage() {
               ) : hotColdTabData ? (
                 <HotColdTab
                   data={hotColdTabData}
-                  dataSource="db"
                   battingSide={playerBasic.battingSide}
                 />
               ) : (
