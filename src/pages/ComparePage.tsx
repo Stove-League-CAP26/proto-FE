@@ -1,11 +1,11 @@
 // src/pages/ComparePage.tsx — HvH / PvP / HvP 3모드 + 시즌 선택 (HvH/PvP)
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import ComparePlayerSlot from "@/components/compare/ComparePlayerSlot";
 import CompareStatPanel from "@/components/compare/CompareStatPanel";
 import CompareZonePanel from "@/components/compare/CompareZonePanel";
 import HvPZoneSection from "@/components/compare/HvPZoneSection";
 import VsHitterTable from "@/components/compare/VsHitterTable";
-import RadarChart from "@/components/common/RadarChart";
+import CompareRadarChart from "@/components/compare/CompareRadarChart";
 import {
   fetchHitterStats,
   fetchPitcherStats,
@@ -33,9 +33,9 @@ const SEASONS = [2024, 2025, 2026] as const;
 
 interface PlayerSlot {
   basic: any | null;
-  stats: any[]; // 전 시즌 데이터
-  latestStat: any | null; // 선택된 시즌 스탯
-  season: number; // 선택 시즌
+  stats: any[];
+  latestStat: any | null;
+  season: number;
   radar: HitterRadar | PitcherRadar | null;
   zone: ZoneGrid | null;
   strikeoutZone: ZoneGrid | null;
@@ -61,7 +61,6 @@ const MODES = [
   { id: "HvP" as Mode, label: "타자 vs 투수" },
 ];
 
-// ── 시즌 탭 컴포넌트 ─────────────────────────────────────────
 function SeasonTabs({
   stats,
   selectedSeason,
@@ -112,7 +111,6 @@ function SeasonTabs({
   );
 }
 
-// ── 슬롯 래퍼 (선수 카드 + 시즌 탭 + 기록 없음 안내) ─────────
 function SlotWithSeason({
   slot,
   side,
@@ -159,7 +157,6 @@ function SlotWithSeason({
         }
       />
 
-      {/* 시즌 탭 — HvH / PvP 에서만 */}
       {slot.basic && mode !== "HvP" && (
         <SeasonTabs
           stats={slot.stats}
@@ -169,14 +166,12 @@ function SlotWithSeason({
         />
       )}
 
-      {/* 해당 시즌 기록 없음 안내 */}
       {noSeasonStat && (
         <p className="text-[10px] text-center text-amber-500 font-medium mt-0.5">
           {slot.season}시즌 기록이 없습니다
         </p>
       )}
 
-      {/* 레이더 로딩 */}
       {slot.basic && slot.radarLoading && (
         <p className="text-[10px] text-center text-gray-400 mt-0.5">
           레이더 불러오는 중...
@@ -186,13 +181,11 @@ function SlotWithSeason({
   );
 }
 
-// ── 메인 컴포넌트 ─────────────────────────────────────────────
 export default function ComparePage() {
   const [mode, setMode] = useState<Mode>("HvH");
   const [slotA, setSlotA] = useState<PlayerSlot>(empty());
   const [slotB, setSlotB] = useState<PlayerSlot>(empty());
 
-  // 선수 로드
   const loadPlayer = useCallback(
     async (playerBasic: any, side: "A" | "B") => {
       const pid: number = playerBasic.pid;
@@ -239,7 +232,6 @@ export default function ComparePage() {
           : fetchStrikeoutZone(pid).catch(() => null),
       ]);
 
-      // 최신 시즌 기본 선택
       const allStats = stats as any[];
       const latestSeason =
         allStats.length > 0
@@ -260,7 +252,6 @@ export default function ComparePage() {
         radarLoading: true,
       }));
 
-      // 레이더 요청
       const radarFetch = pitcher ? fetchPitcherRadar : fetchHitterRadar;
       const radar = await radarFetch(pid, latestSeason).catch(() => null);
       set((prev) => ({ ...prev, radar: radar as any, radarLoading: false }));
@@ -268,7 +259,6 @@ export default function ComparePage() {
     [mode],
   );
 
-  // 시즌 변경 시 latestStat + 레이더 업데이트
   const changeSeason = useCallback(
     async (side: "A" | "B", season: number) => {
       const slot = side === "A" ? slotA : slotB;
@@ -298,7 +288,6 @@ export default function ComparePage() {
     setSlotB(empty());
   };
 
-  // 레이더 값 매핑
   const radarA = slotA.radar
     ? mode === "PvP"
       ? mapPitcherRadar(slotA.radar as any)
@@ -363,7 +352,6 @@ export default function ComparePage() {
       {/* 선수 선택 카드 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <div className="grid grid-cols-3 items-start gap-4">
-          {/* 슬롯 A */}
           <SlotWithSeason
             slot={slotA}
             side="A"
@@ -384,7 +372,6 @@ export default function ComparePage() {
               {mode === "HvP" ? "vs" : "VS"}
             </div>
 
-            {/* 시즌 비교 뱃지 — HvH/PvP 양쪽 선택 시 */}
             {hasBoth && mode !== "HvP" && (
               <div className="text-center">
                 <p className="text-[10px] text-gray-400 font-medium">
@@ -400,7 +387,6 @@ export default function ComparePage() {
               </div>
             )}
 
-            {/* 간략 비교 바 */}
             {hasBoth &&
               slotA.latestStat &&
               slotB.latestStat &&
@@ -486,7 +472,6 @@ export default function ComparePage() {
             )}
           </div>
 
-          {/* 슬롯 B */}
           <SlotWithSeason
             slot={slotB}
             side="B"
@@ -522,56 +507,42 @@ export default function ComparePage() {
                     playerNameB={`${slotB.basic?.playerName ?? "선수 B"} (${slotB.season})`}
                   />
                 </div>
-                <div className="space-y-4">
-                  {[
-                    {
-                      r: radarA,
-                      t: "light",
-                      n: `${slotA.basic?.playerName} (${slotA.season})`,
-                      c: "blue",
-                      loading: slotA.radarLoading,
-                    },
-                    {
-                      r: radarB,
-                      t: "dark",
-                      n: `${slotB.basic?.playerName} (${slotB.season})`,
-                      c: "red",
-                      loading: slotB.radarLoading,
-                    },
-                  ].map((x, i) => (
-                    <div
-                      key={i}
-                      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <div
-                          className="w-3 h-3 rounded-full"
-                          style={{
-                            background: x.c === "blue" ? "#3B82F6" : "#EF4444",
-                          }}
-                        />
-                        <p className="text-xs font-black text-gray-700">
-                          {x.n}
-                        </p>
-                      </div>
-                      {x.loading ? (
-                        <div className="flex items-center justify-center h-20">
-                          <div className="w-5 h-5 border-2 border-gray-200 border-t-gray-400 rounded-full animate-spin" />
-                        </div>
-                      ) : x.r ? (
-                        <div className="w-full aspect-square max-w-[200px] mx-auto">
-                          <RadarChart
-                            data={x.r!}
-                            theme={x.t as "light" | "dark"}
-                          />
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-400 text-center py-6">
-                          해당 시즌 레이더 데이터가 없습니다
-                        </p>
-                      )}
+
+                {/* 레이더 차트 — 하나로 합침 */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                  <div className="flex items-center gap-3 mb-3 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-blue-400" />
+                      <p className="text-xs font-black text-gray-700">
+                        {slotA.basic?.playerName} ({slotA.season})
+                      </p>
                     </div>
-                  ))}
+                    <span className="text-gray-300 text-xs">vs</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-400" />
+                      <p className="text-xs font-black text-gray-700">
+                        {slotB.basic?.playerName} ({slotB.season})
+                      </p>
+                    </div>
+                  </div>
+                  {slotA.radarLoading || slotB.radarLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="w-6 h-6 border-2 border-gray-200 border-t-gray-400 rounded-full animate-spin" />
+                    </div>
+                  ) : radarA && radarB ? (
+                    <div className="w-full aspect-square max-w-[280px] mx-auto">
+                      <CompareRadarChart
+                        dataA={radarA}
+                        dataB={radarB}
+                        nameA={`${slotA.basic?.playerName} (${slotA.season})`}
+                        nameB={`${slotB.basic?.playerName} (${slotB.season})`}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 text-center py-6">
+                      레이더 데이터가 없습니다
+                    </p>
+                  )}
                 </div>
               </div>
             </>
@@ -599,7 +570,6 @@ export default function ComparePage() {
         </>
       )}
 
-      {/* 한 명만 선택 */}
       {eitherSelected && !hasBoth && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
           <p className="text-sm text-gray-400">
@@ -608,7 +578,6 @@ export default function ComparePage() {
         </div>
       )}
 
-      {/* 아무도 선택 안 됨 */}
       {!eitherSelected && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 flex flex-col items-center gap-4">
           <div className="text-center">

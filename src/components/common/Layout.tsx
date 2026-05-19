@@ -59,7 +59,7 @@ export default function Layout() {
             <p className="text-xs text-gray-400">
               ⚾ 스토브리그 · KBO 야구 팬 플랫폼 프로토타입
             </p>
-            <p className="text-xs text-gray-300">© 2025 Stoveleague</p>
+            <p className="text-xs text-gray-300">© 2026 Stoveleague</p>
           </div>
         </footer>
       )}
