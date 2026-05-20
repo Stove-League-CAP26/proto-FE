@@ -263,7 +263,7 @@ export default function PlayerSearchBar({
       <div className="flex flex-col items-center gap-6">
         <h2 className="text-2xl font-black text-gray-800">선수 검색</h2>
         <p className="text-sm text-gray-400">
-          이름을 입력하면 Statcast 스타일 프로필을 확인할 수 있어요
+          이름을 입력하면 선수의 프로필과 분석을 확인할 수 있어요
         </p>
         <div className="relative w-full max-w-sm">
           <div className="flex gap-2">

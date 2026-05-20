@@ -11,7 +11,7 @@ interface StatRow {
 
 interface CompareStatPanelProps {
   mode: "HvH" | "PvP";
-  statsA: any | null; // 최신 시즌 단일 스탯 객체
+  statsA: any | null;
   statsB: any | null;
   playerNameA: string;
   playerNameB: string;
@@ -90,15 +90,12 @@ function getVal(
 ): any {
   if (!stat) return null;
   const key = side === "A" ? row.keyA : row.keyB;
-
-  // 타자의 경우 파생 스탯 계산
   if (mode === "HvH" && (key === "obp" || key === "slg" || key === "ops")) {
     const d = calcHitterDerived(stat);
     if (key === "obp") return d.obp;
     if (key === "slg") return d.slg;
     if (key === "ops") return d.ops;
   }
-
   return stat[key] ?? null;
 }
 
@@ -137,7 +134,6 @@ export default function CompareStatPanel({
     );
   }
 
-  // 전체 승리 카운트
   let aWins = 0,
     bWins = 0;
   rows.forEach((row) => {
@@ -150,31 +146,54 @@ export default function CompareStatPanel({
   const total = aWins + bWins;
   const aPct = total > 0 ? Math.round((aWins / total) * 100) : 50;
   const bPct = 100 - aPct;
+  const isDraw = aPct === bPct;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       {/* 헤더 — 종합 벤치마크 바 */}
       <div className="px-5 py-4 border-b border-gray-50">
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-xs font-black text-blue-600 w-10 text-right">
+          <span
+            className={`text-xs font-black w-10 text-right ${isDraw ? "text-gray-300" : "text-blue-600"}`}
+          >
             {aPct}%
           </span>
           <div className="flex-1 h-2.5 rounded-full bg-gray-100 overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${aPct}%`,
-                background: "linear-gradient(to right, #3B82F6, #60A5FA)",
-              }}
-            />
+            {isDraw ? null : aPct > bPct ? (
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${aPct}%`,
+                  background: "linear-gradient(to right, #3B82F6, #60A5FA)",
+                }}
+              />
+            ) : (
+              <div className="h-full flex justify-end">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${bPct}%`,
+                    background: "linear-gradient(to left, #EF4444, #F87171)",
+                  }}
+                />
+              </div>
+            )}
           </div>
-          <span className="text-xs font-black text-red-500 w-10">{bPct}%</span>
+          <span
+            className={`text-xs font-black w-10 ${isDraw ? "text-gray-300" : "text-red-500"}`}
+          >
+            {bPct}%
+          </span>
         </div>
         <div className="flex items-center justify-between px-10">
           <span className="text-[11px] font-bold text-blue-500">
             {playerNameA} ({aWins}개)
           </span>
-          <span className="text-[11px] text-gray-400">종합 우위</span>
+          <span
+            className={`text-[11px] ${isDraw ? "text-gray-400 font-bold" : "text-gray-400"}`}
+          >
+            {isDraw ? " 동률" : "종합 우위"}
+          </span>
           <span className="text-[11px] font-bold text-red-500">
             ({bWins}개) {playerNameB}
           </span>
