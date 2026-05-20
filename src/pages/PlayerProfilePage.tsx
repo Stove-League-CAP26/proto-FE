@@ -393,6 +393,7 @@ export default function PlayerProfilePage() {
                 </h2>
               </div>
               <HitterStatcastTab
+                pid={playerBasic.pid}
                 stats={hitterStats}
                 hitDistrib={resolvedHitDistrib}
               />
