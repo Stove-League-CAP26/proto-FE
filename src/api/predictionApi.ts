@@ -43,6 +43,8 @@ export interface TodayPrediction {
     homeWinProb: number;
     awayWinProb: number;
     reason: string;
+    keyFactors: string | null; // 핵심 변수
+    riskFactors: string | null; // 리스크 요인
     isCorrect: boolean | null;
   }[];
 }
@@ -64,6 +66,8 @@ export interface PredictionItem {
   homeWinProb: number;
   awayWinProb: number;
   reason: string;
+  keyFactors: string | null; // 핵심 변수
+  riskFactors: string | null; // 리스크 요인
   isCorrect: boolean | null;
   actualWinner: string | null;
   homeScore: number | null;
@@ -98,7 +102,6 @@ export async function fetchTodayPredictions(): Promise<TodayPrediction[]> {
   }
 }
 
-// [추가] 날짜별 예측 조회 — GET /api/predictions?date=YYYY-MM-DD
 export async function fetchPredictionsByDate(
   date: string,
 ): Promise<TodayPrediction[]> {
