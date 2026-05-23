@@ -96,7 +96,7 @@ function PredictionRow({
           </span>
         </div>
 
-        {/* 예측 스코어 — 팀명 포함 */}
+        {/* 예측 스코어 */}
         <span className="text-[12px] text-gray-400 font-medium">예측 점수</span>
         <div
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl flex-shrink-0"
@@ -149,9 +149,8 @@ function PredictionRow({
           )}
         </div>
 
-        {/* 승패 확률 바 — 헤더 우측 인라인 */}
+        {/* 승패 확률 바 */}
         <div className="flex flex-col gap-1 flex-shrink-0 w-44">
-          {/* 팀명 + 숫자 */}
           <div className="flex justify-between items-center">
             <span
               className="text-xs font-black"
@@ -169,7 +168,6 @@ function PredictionRow({
               {homeWinProb}%
             </span>
           </div>
-          {/* 바 */}
           <div className="w-full h-5 rounded-full overflow-hidden flex">
             <div
               className="h-full flex items-center justify-start pl-2 transition-all duration-500"
@@ -207,8 +205,32 @@ function PredictionRow({
         </div>
       </div>
 
-      {/* ── 예측 근거 ── */}
-      <div className="px-4 py-2.5">
+      {/* ── 핵심 변수 ── */}
+      {pred.keyFactors && (
+        <div className="px-4 pt-2.5 pb-1">
+          <span className="text-[11px] font-bold mr-2" style={{ color }}>
+            핵심 변수
+          </span>
+          <span className="text-xs text-gray-600 leading-relaxed">
+            {pred.keyFactors}
+          </span>
+        </div>
+      )}
+
+      {/* ── 리스크 요인 ── */}
+      {pred.riskFactors && (
+        <div className="px-4 pt-1 pb-1">
+          <span className="text-[11px] font-bold mr-2" style={{ color }}>
+            리스크 요인
+          </span>
+          <span className="text-xs text-gray-600 leading-relaxed">
+            {pred.riskFactors}
+          </span>
+        </div>
+      )}
+
+      {/* ── 예측 근거 요약 ── */}
+      <div className="px-4 pt-1 pb-2.5">
         <span className="text-[11px] font-bold mr-2" style={{ color }}>
           예측 근거
         </span>
@@ -260,7 +282,6 @@ export default function GamePredictionPanel({
       {/* ── 헤더 ── */}
       <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-white border-b border-purple-100">
         <div className="flex items-start justify-between gap-3">
-          {/* 좌: 타이틀 / 날짜 / 팀 정보 */}
           <div className="flex flex-col gap-0.5 min-w-0">
             <span className="text-sm font-black text-purple-700">
               AI 승부예측
@@ -299,14 +320,13 @@ export default function GamePredictionPanel({
             </div>
           </div>
 
-          {/* 우: compact 적중률 카드 3개 */}
           <div className="flex-shrink-0">
             <AiRankingCompact />
           </div>
         </div>
       </div>
 
-      {/* AI별 예측 + 근거 */}
+      {/* AI별 예측 */}
       <div className="p-3 space-y-2">
         {prediction.predictions.map((pred) => (
           <PredictionRow
