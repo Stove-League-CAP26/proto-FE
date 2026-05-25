@@ -1,6 +1,5 @@
 // src/components/common/PlayerSearchBar.tsx
-// 이모티콘 제거 + 검색창 아래 추천 선수 4명(투수 2, 타자 2) 표시
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import PlayerAvatar from "@/components/common/PlayerAvatar";
 import { TEAM_COLORS } from "@/constants/teamColors";
 import { isPitcher } from "@/utils/playerUtils";
@@ -9,7 +8,7 @@ import { searchPlayersByName } from "@/api/playerApi";
 interface SearchResult {
   pid: number;
   playerName: string;
-  playerEnter: string;
+  playerEnter: string; // 현 소속팀
   playerMPosition: string;
   playerNumber: number;
 }
@@ -30,22 +29,52 @@ interface PlayerSearchBarProps {
   onBack?: () => void;
 }
 
-// ── 추천 선수 풀 (랜덤 선택용) ──────────────────────────────────────────────
+// ── 투수 20명 풀 ──────────────────────────────────────────────────────────────
 const PITCHER_POOL = [
   "양현종",
   "고영표",
   "원태인",
   "안우진",
   "김광현",
-  "류현진",
+  "이의리",
+  "하재훈",
+  "문동주",
+  "소형준",
+  "박세웅",
+  "김윤수",
+  "최원태",
+  "임기영",
+  "장현식",
+  "한현희",
+  "레예스",
+  "노경은",
+  "김서현",
+  "박민호",
+  "최지강",
 ];
+
+// ── 타자 20명 풀 ──────────────────────────────────────────────────────────────
 const HITTER_POOL = [
   "양의지",
-  "이정후",
   "김도영",
   "박동원",
-  "오스틴",
   "노시환",
+  "최정",
+  "나성범",
+  "김혜성",
+  "강백호",
+  "이재원",
+  "박성한",
+  "이호준",
+  "손아섭",
+  "박찬호",
+  "홍창기",
+  "오스틴",
+  "로하스",
+  "에레디아",
+  "전의산",
+  "구자욱",
+  "한유섬",
 ];
 
 function shuffle<T>(arr: T[]): T[] {
@@ -67,10 +96,7 @@ function Dropdown({
       </p>
       <div className="max-h-60 overflow-y-auto">
         {results.map((p) => {
-          const tc = TEAM_COLORS[p.playerEnter] ?? {
-            bg: "#64748b",
-            accent: "#94a3b8",
-          };
+          const tc = TEAM_COLORS[p.playerEnter] ?? { bg: "#64748b" };
           const pitcher = isPitcher(p.playerMPosition);
           return (
             <button
@@ -114,10 +140,7 @@ function RecommendCard({
   player: SearchResult;
   onSelect: (p: SearchResult) => void;
 }) {
-  const tc = TEAM_COLORS[player.playerEnter] ?? {
-    bg: "#64748b",
-    accent: "#94a3b8",
-  };
+  const tc = TEAM_COLORS[player.playerEnter] ?? { bg: "#64748b" };
   const pitcher = isPitcher(player.playerMPosition);
   return (
     <button
@@ -132,8 +155,16 @@ function RecommendCard({
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-bold text-gray-800">{player.playerName}</p>
-        <p className="text-xs text-gray-400">
-          {player.playerEnter} · #{player.playerNumber}
+        {/* 현 소속팀 + 등번호 */}
+        <p className="text-xs text-gray-400 mt-0.5">
+          <span
+            className="font-bold"
+            style={{ color: tc.bg !== "#64748b" ? tc.bg : "#6b7280" }}
+          >
+            {player.playerEnter}
+          </span>
+          <span className="mx-1">·</span>
+          <span>#{player.playerNumber}</span>
         </p>
       </div>
       <span
@@ -144,6 +175,39 @@ function RecommendCard({
       </span>
     </button>
   );
+}
+
+// ── 추천 선수 로드 — 투수 2명 + 타자 2명 반드시 확보 ─────────────────────────
+async function loadRecommendedPlayers(): Promise<SearchResult[]> {
+  const pitcherCandidates = shuffle(PITCHER_POOL);
+  const hitterCandidates = shuffle(HITTER_POOL);
+  const pitchers: SearchResult[] = [];
+  const hitters: SearchResult[] = [];
+
+  // 투수 2명 확보 — 실패 시 다음 후보
+  for (const name of pitcherCandidates) {
+    if (pitchers.length >= 2) break;
+    try {
+      const results = (await searchPlayersByName(name)) as SearchResult[];
+      // 검색 결과 중 투수 포지션인 첫 번째 선수 선택
+      const match = results.find((r) => isPitcher(r.playerMPosition));
+      if (match) pitchers.push(match);
+    } catch {}
+  }
+
+  // 타자 2명 확보 — 실패 시 다음 후보
+  for (const name of hitterCandidates) {
+    if (hitters.length >= 2) break;
+    try {
+      const results = (await searchPlayersByName(name)) as SearchResult[];
+      // 검색 결과 중 타자 포지션인 첫 번째 선수 선택
+      const match = results.find((r) => !isPitcher(r.playerMPosition));
+      if (match) hitters.push(match);
+    } catch {}
+  }
+
+  // 투수 2명 위 / 타자 2명 아래 순서 고정
+  return [...pitchers, ...hitters];
 }
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
@@ -163,22 +227,16 @@ export default function PlayerSearchBar({
   onBack,
 }: PlayerSearchBarProps) {
   const [recommended, setRecommended] = useState<SearchResult[]>([]);
+  const [recLoading, setRecLoading] = useState(false);
+  const loadedRef = useRef(false); // 중복 로드 방지
 
-  // 초기 화면에서만 추천 선수 로드
   useEffect(() => {
-    if (compact) return;
-    const pitcherNames = shuffle(PITCHER_POOL).slice(0, 2);
-    const hitterNames = shuffle(HITTER_POOL).slice(0, 2);
-    const names = [...pitcherNames, ...hitterNames];
-
-    Promise.all(names.map((n) => searchPlayersByName(n).catch(() => [])))
-      .then((results) => {
-        const flat = results
-          .map((r) => (Array.isArray(r) ? r[0] : null))
-          .filter(Boolean) as SearchResult[];
-        setRecommended(flat);
-      })
-      .catch(() => {});
+    if (compact || loadedRef.current) return;
+    loadedRef.current = true;
+    setRecLoading(true);
+    loadRecommendedPlayers()
+      .then(setRecommended)
+      .finally(() => setRecLoading(false));
   }, [compact]);
 
   const inputEl = (width: string) => (
@@ -217,12 +275,10 @@ export default function PlayerSearchBar({
             {showResults && (
               <Dropdown results={searchResults} onSelect={onSelect} />
             )}
-            {/* 검색 결과 없을 때 에러 메시지 */}
             {error && (
               <p
                 className="absolute top-full left-0 mt-1 text-red-500 text-xs
-                 bg-white px-3 py-1.5 rounded-lg border border-red-100 shadow-sm
-                 whitespace-nowrap z-50"
+                 bg-white px-3 py-1.5 rounded-lg border border-red-100 shadow-sm whitespace-nowrap z-50"
               >
                 {error}
               </p>
@@ -280,19 +336,37 @@ export default function PlayerSearchBar({
           )}
         </div>
 
-        {/* 추천 선수 4명 (투수 2 + 타자 2) */}
-        {recommended.length > 0 && (
-          <div className="w-full max-w-lg mt-2">
-            <p className="text-xs text-gray-400 mb-3 text-center font-medium">
-              추천 선수
-            </p>
+        {/* 추천 선수 — 투수 2명(위) + 타자 2명(아래) */}
+        <div className="w-full max-w-lg mt-2">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs text-gray-400 font-medium">추천 선수</span>
+            <div className="flex gap-2 ml-auto"></div>
+          </div>
+
+          {recLoading ? (
+            // 로딩 중 스켈레톤 4개
+            <div className="grid grid-cols-2 gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 bg-white border border-gray-100 rounded-xl px-4 py-3 animate-pulse"
+                >
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-gray-100 rounded w-16" />
+                    <div className="h-2 bg-gray-100 rounded w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : recommended.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
               {recommended.map((p) => (
                 <RecommendCard key={p.pid} player={p} onSelect={onSelect} />
               ))}
             </div>
-          </div>
-        )}
+          ) : null}
+        </div>
       </div>
     </div>
   );

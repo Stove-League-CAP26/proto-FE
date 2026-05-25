@@ -46,7 +46,7 @@ export default function PlayerProfilePage() {
   const [statsLoading, setStatsLoading] = useState(false);
 
   // 레이더 — 시즌별 상태
-  const [radarSeason, setRadarSeason] = useState<number>(2025);
+  const [radarSeason, setRadarSeason] = useState<number>(2026);
   const [radarData, setRadarData] = useState<HitterRadar | PitcherRadar | null>(
     null,
   );
@@ -165,7 +165,7 @@ export default function PlayerProfilePage() {
     setSearchResults([]);
     setSearchInput(p.playerName);
     setError(null);
-    setRadarSeason(2025); // 선수 바꾸면 탭 초기화
+    setRadarSeason(2026); // 선수 바꾸면 탭 초기화
   };
 
   const handleBack = () => {
