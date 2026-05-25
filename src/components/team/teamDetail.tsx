@@ -199,6 +199,7 @@ export default function TeamDetail({
 }: TeamDetailProps) {
   const [activeTab, setActiveTab] = useState<TabType>("홈");
   const [stadiumImgError, setStadiumImgError] = useState(false);
+  const [stadiumModalOpen, setStadiumModalOpen] = useState(false);
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null);
   const [teamRadar, setTeamRadar] = useState<TeamRadarData | null>(null);
   const [leagueAvgRadar, setLeagueAvgRadar] = useState<TeamRadarData | null>(
@@ -239,6 +240,52 @@ export default function TeamDetail({
 
   return (
     <div className="min-h-screen" style={{ background: "#f8fafc" }}>
+      {/* ── 구장 사진 확대 모달 ── */}
+      {stadiumModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setStadiumModalOpen(false)}
+        >
+          <div
+            className="relative max-w-3xl w-full mx-4 rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setStadiumModalOpen(false)}
+              className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-white text-sm font-bold hover:bg-black/70 transition-colors"
+            >
+              ✕
+            </button>
+            {!stadiumImgError ? (
+              <img
+                src={stadiumSrc}
+                alt={team.stadium.name}
+                className="w-full max-h-[70vh] object-cover"
+                onError={() => setStadiumImgError(true)}
+              />
+            ) : (
+              <div
+                className="w-full h-64 flex flex-col items-center justify-center gap-2"
+                style={{
+                  background: `linear-gradient(135deg, ${primary}15, ${primary}05)`,
+                }}
+              >
+                <span className="text-6xl">🏟️</span>
+                <p className="text-gray-400 text-sm">이미지 준비중</p>
+              </div>
+            )}
+            <div className="px-4 py-3 bg-white">
+              <p className="text-gray-800 text-sm font-bold">
+                {team.stadium.name}
+              </p>
+              <p className="text-gray-400 text-xs mt-0.5">
+                {team.city} · {team.stadium.openYear}년 개장
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 히어로 헤더 */}
       <div
         className="relative overflow-hidden"
@@ -331,30 +378,12 @@ export default function TeamDetail({
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-4">
         {activeTab === "홈" && (
           <>
-            {/* 구장 카드 */}
+            {/* 구장 카드 — 상단 이미지 제거, 구장정보 카드 내 썸네일로 통합 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              {!stadiumImgError ? (
-                <img
-                  src={stadiumSrc}
-                  alt={team.stadium.name}
-                  className="w-full h-44 object-cover"
-                  onError={() => setStadiumImgError(true)}
-                />
-              ) : (
-                <div
-                  className="w-full h-44 flex flex-col items-center justify-center gap-2"
-                  style={{
-                    background: `linear-gradient(135deg, ${primary}15, ${primary}05)`,
-                  }}
-                >
-                  <span className="text-5xl">🏟️</span>
-                  <p className="text-gray-400 text-xs">이미지 준비중</p>
-                </div>
-              )}
               <div className="p-5 gap-4">
                 {/* 구장 정보, 팀 역사 */}
                 <div className="p-5 grid grid-cols-2 gap-4">
-                  <div className="bg-withe rounded-2xl shadow-sm border border-gray-100 p-5">
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                     <div className="flex items-center gap-2 mb-5">
                       <div
                         className="w-1 h-5 rounded-full"
@@ -385,9 +414,50 @@ export default function TeamDetail({
                           </p>
                         </div>
                       ))}
+
+                      {/* 4행: 구장 사진 (col-span-2) */}
+                      <div className="col-span-2 mt-1">
+                        <p className="text-gray-400 text-[10px] font-semibold mb-1.5">
+                          구장 사진
+                        </p>
+                        <div
+                          className="relative rounded-xl overflow-hidden border border-gray-100 group cursor-pointer"
+                          onClick={() => setStadiumModalOpen(true)}
+                        >
+                          {!stadiumImgError ? (
+                            <img
+                              src={stadiumSrc}
+                              alt={team.stadium.name}
+                              className="w-full h-24 object-cover"
+                              onError={() => setStadiumImgError(true)}
+                            />
+                          ) : (
+                            <div
+                              className="w-full h-24 flex flex-col items-center justify-center gap-1"
+                              style={{
+                                background: `linear-gradient(135deg, ${primary}15, ${primary}05)`,
+                              }}
+                            >
+                              <span className="text-3xl">🏟️</span>
+                              <p className="text-gray-400 text-[10px]">
+                                이미지 준비중
+                              </p>
+                            </div>
+                          )}
+                          {/* hover 오버레이 */}
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                            <span
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
+                              style={{ background: `${primary}cc` }}
+                            >
+                              🔍 확대해서 보기
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-withe rounded-2xl shadow-sm border border-gray-100 p-5">
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                     <div className="flex items-center gap-2 mb-5">
                       <div
                         className="w-1 h-5 rounded-full"
