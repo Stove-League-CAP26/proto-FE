@@ -15,9 +15,18 @@ interface CategoryCardProps {
   icon: string;
   players: RankPlayer[];
   accentColor: string;
+  onMoreClick?: () => void;
+  onPlayerClick?: (pid: number) => void;
 }
 
-export default function CategoryCard({ label, icon, players, accentColor }: CategoryCardProps) {
+export default function CategoryCard({
+  label,
+  icon,
+  players,
+  accentColor,
+  onMoreClick,
+  onPlayerClick,
+}: CategoryCardProps) {
   const medals: Record<number, string> = { 2: "🥈", 3: "🥉" };
 
   return (
@@ -29,9 +38,12 @@ export default function CategoryCard({ label, icon, players, accentColor }: Cate
         <span className="text-lg">{icon}</span>
         <span className="text-sm font-black text-gray-800">{label}</span>
       </div>
+
+      {/* 1위 */}
       <div
-        className="px-4 py-4 flex items-center gap-3 border-b border-gray-100"
+        className="px-4 py-4 flex items-center gap-3 border-b border-gray-100 cursor-pointer hover:brightness-95 transition-all"
         style={{ background: `${accentColor}10` }}
+        onClick={() => onPlayerClick?.(players[0].id)}
       >
         <span className="text-2xl flex-shrink-0">🥇</span>
         <div
@@ -41,36 +53,51 @@ export default function CategoryCard({ label, icon, players, accentColor }: Cate
           <PlayerAvatar id={players[0].id} name={players[0].name} size={56} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-black text-gray-900 truncate text-base">{players[0].name}</p>
+          <p className="font-black text-gray-900 truncate text-base">
+            {players[0].name}
+          </p>
           <p className="text-xs text-gray-400 mt-0.5">{players[0].team}</p>
           <p className="text-sm font-black mt-1" style={{ color: accentColor }}>
             {players[0].val}
           </p>
         </div>
       </div>
+
+      {/* 2~4위 */}
       <div className="flex-1">
         {players.slice(1).map((p) => (
           <div
             key={p.rank}
             className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50/70 transition-colors cursor-pointer"
+            onClick={() => onPlayerClick?.(p.id)}
           >
             <span className="text-sm w-5 text-center flex-shrink-0">
               {medals[p.rank] || (
-                <span className="text-xs font-bold text-gray-400">{p.rank}</span>
+                <span className="text-xs font-bold text-gray-400">
+                  {p.rank}
+                </span>
               )}
             </span>
             <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 border border-gray-200">
               <PlayerAvatar id={p.id} name={p.name} size={36} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-700 truncate">{p.name}</p>
+              <p className="text-sm font-semibold text-gray-700 truncate">
+                {p.name}
+              </p>
               <p className="text-xs text-gray-400">{p.team}</p>
             </div>
-            <span className="text-xs font-bold text-gray-500 flex-shrink-0">{p.val}</span>
+            <span className="text-xs font-bold text-gray-500 flex-shrink-0">
+              {p.val}
+            </span>
           </div>
         ))}
       </div>
-      <button className="w-full py-2.5 text-xs font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100">
+
+      <button
+        onClick={onMoreClick}
+        className="w-full py-2.5 text-xs font-semibold text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100"
+      >
         더보기 →
       </button>
     </div>
