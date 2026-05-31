@@ -67,7 +67,11 @@ function PredictionPreviewRow({
   // 상태 아이콘: 경기 전 → "예측 중", 경기 후 → ✅/❌
   const statusEl = isResult ? (
     <span className="text-xs flex-shrink-0">
-      {pred.isCorrect === true ? "✅" : pred.isCorrect === false ? "❌" : "⏳"}
+      {pred.isCorrect === true
+        ? "✅적중"
+        : pred.isCorrect === false
+          ? "❌실패"
+          : "예측 완료"}
     </span>
   ) : (
     <span className="text-[10px] text-gray-400 flex-shrink-0">예측 완료</span>
