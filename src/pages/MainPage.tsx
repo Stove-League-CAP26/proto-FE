@@ -1159,47 +1159,6 @@ export default function MainPage({ onSelectPlayer }: MainPageProps) {
           })()
         )}
       </section>
-
-      {/* ══ 섹션 4: 중계 사이트 */}
-      <section>
-        <SectionHeader
-          title="중계 사이트"
-          subtitle="KBO 시청 방법"
-          color="#10B981"
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {BROADCAST_SITES.map((site) => (
-            <a
-              key={site.name}
-              href={site.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 hover:shadow-md hover:-translate-y-0.5 transition-all group"
-            >
-              <span className="text-3xl group-hover:scale-110 transition-transform flex-shrink-0">
-                {site.emoji}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-gray-800">{site.name}</p>
-                  <span
-                    className="text-[10px] font-black px-1.5 py-0.5 rounded-full text-white flex-shrink-0"
-                    style={{ backgroundColor: site.badgeColor }}
-                  >
-                    {site.badge}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-400 mt-0.5 truncate">
-                  {site.desc}
-                </p>
-              </div>
-              <span className="text-gray-300 group-hover:text-gray-500 transition-colors flex-shrink-0">
-                →
-              </span>
-            </a>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
